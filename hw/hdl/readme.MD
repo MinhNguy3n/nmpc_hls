@@ -25,7 +25,7 @@ source <path-to-xilinx>/Vivado/<version>/settings64.sh
 2. Run the following command to create a Vivado project:
 
     ```bash
-    vivado -mode batch -notrace -source create_project.tcl -tclargs -n orb_extract \
+    vivado -mode batch -notrace -source scripts/create_project.tcl -tclargs -n orb_extract \
     -d scripts/designs/design_1.tcl -ip ../hls/vitis_ip_repo -pt xczu3eg-sbva484-1-i \
     -bd avnet-tria:ultra96v2:part0:1.3 -force -synth
     ```

@@ -145,9 +145,9 @@ return -code error {Oops, something is not correct, remember that the parameter 
 
 # fake vivado version to make it backwards compatible
 set scripts_vivado_version [version -short]
-if {![regexp {^2019\.1$|^2019\.2$|^2020\.1$} $scripts_vivado_version]} {
-    return -code error "ERROR: Unsupported Vivado version ${scripts_vivado_version}. Supported versions are 2019.1, 2019.2, and 2020.1."
-}
+# if {![regexp {^2019\.1$|^2019\.2$|^2020\.1$} $scripts_vivado_version]} {
+#     return -code error "ERROR: Unsupported Vivado version ${scripts_vivado_version}. Supported versions are 2019.1, 2019.2, and 2020.1."
+# }
 puts "INFO: Vivado version is ${scripts_vivado_version}"
 
 # Do something
@@ -177,7 +177,8 @@ if {[string length $board_name] > 0} {
 
 # Add repo (if included)
 if {[string length $ip_repo_dir] > 0} {
-    set_property ip_repo_paths $ip_repo_dir $obj
+    set_property ip_repo_paths ${ip_repo_dir} $obj
+    puts "INFO: Added IP repository path: ${ip_repo_dir}"
 }
 
 # Create and construct system

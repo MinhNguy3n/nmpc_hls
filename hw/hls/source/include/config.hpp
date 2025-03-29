@@ -30,6 +30,8 @@ typedef float _hw_top_real;
 typedef float _hw_model_real;
 #endif
 
+// #define SNIFFBOT_CONFIG
+
 // #ifdef PSO_CONFIG
 #define _KPSO 1
 #define _stable_zero 1

@@ -20,11 +20,15 @@
  * The following constants ...
  * 
  */
-//#define SNIFFBOT_CONFIG
-//#define PSO_CONFIG
-const char config_file_std[] = "./config/sniffbot/project_config.txt";
-const char sim_config_file_std[] = "./config/sniffbot/simulation_config_ring.txt";
+// #define SNIFFBOT_CONFIG
+// #define PSO_CONFIG
+const char config_file_std[] = "/home/minh/Documents/UTU-Doctorate/control_theory/nmpc_hls-migrated/source/config/sniffbot/project_config.txt";
+const char sim_config_file_std[] = "/home/minh/Documents/UTU-Doctorate/control_theory/nmpc_hls-migrated/source/config/sniffbot/simulation_config_ring.txt";
 const char matlab_name_std[] = "sniffbot";
+
+// const char config_file_std[] = "./config/inverted_pendulum/project_config.txt";
+// const char sim_config_file_std[] = "./config/inverted_pendulum/simulation_config.txt";
+// const char matlab_name_std[] = "inverted_pendulum_pso";
 
 /************************** Class Definitions ****************************/
 
@@ -120,8 +124,10 @@ int main(int argc, char ** argv){
     twist_ref = 0;
     char *config_file;
     char *sim_config_file;   
-    char *matlab_name; 
-//    try {
+    char *matlab_name;
+    float * u_ref_input;
+    float * initial_state; 
+   try {
         if (argc == 4){
             config_file = argv[1];
             sim_config_file = argv[2];
@@ -161,8 +167,8 @@ int main(int argc, char ** argv){
         }
         std::string temp_str;
 
-        float * u_ref_input;
-        float * initial_state;
+        // float * u_ref_input;
+        // float * initial_state;
 
         // Read Configuration File
         SimulationTime = read_real(&sim_config, (std::string)"SimulationTime");
@@ -226,10 +232,10 @@ int main(int argc, char ** argv){
         }
       
 
-//	}
-//    catch(std::runtime_error &e) {
-//		std::cout << "Exception: " << e.what() << std::endl;
-//	}
+	}
+   catch(std::runtime_error &e) {
+		std::cout << "Exception: " << e.what() << std::endl;
+	}
     std::cout << "- Loaded all." << std::endl;
 
     // top_model_t my_sim_model;

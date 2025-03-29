@@ -150,9 +150,9 @@ int execute(
 #endif
 	#ifdef __SYNTHESIS__
 		_rand_real_stream __rand_port;
-		// _pso_hw_real rand_value;
-		// rand_real(rand_value);
-		// __rand_port.write(rand_value)
+		_pso_hw_real rand_value;
+		rand_real(rand_value);
+		__rand_port.write(rand_value);
 		memcpy_loop_rolled<_pso_hw_real, volatile _pso_hw_real, _pso_n_U>(u_curr_local, 	u_curr);
 		memcpy_loop_rolled<_pso_hw_real, volatile _pso_hw_real, _pso_Nx>(x_curr_local, 	x_curr);
 		memcpy_loop_rolled<_pso_hw_real, volatile _pso_hw_real, _pso_Nx*_pso_Nh>(xref_local, xref);

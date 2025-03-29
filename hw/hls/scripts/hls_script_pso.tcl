@@ -5,11 +5,11 @@
 ############################################################
 proc createVitisPrj {prj_name prj_top model_flag} {
     set workspace [pwd]
+    #set workspace [file dirname $workspace]
+    
     set ip_path "${workspace}/vitis_ip_repo"
-    set workspace [file dirname $workspace]
-
-    set src_path ${workspace}/src
-    set incl_path ${workspace}/include
+    set src_path ${workspace}/source/src
+    set incl_path ${workspace}/source/include
     # set module_file "hls_nonlinear_solver"
     set main_name "main_hls_pso"
 
@@ -42,8 +42,8 @@ proc createVitisPrj {prj_name prj_top model_flag} {
 
     # config_core DSP48 -latency 4
 
-    # set arg_str "${workspace}/config/sniffbot/project_config.txt ${workspace}/config/sniffbot/simulation_config_ring.txt"
-    # csim_design -argv $arg_str -clean -O -profile
+    #set arg_str "${workspace}/source/config/sniffbot/project_config.txt ${workspace}/source/config/sniffbot/simulation_config_ring.txt"
+    #csim_design -argv $arg_str -clean -O -profile
     csynth_design
     # cosim_design -O -rtl vhdl
     export_design -format ip_catalog
@@ -56,6 +56,7 @@ set prj_name_list {
     "nmpc_solver_init_s"
     "nmpc_solver_update_s"
     "nmpc_solver_costF"
+    "nmpc_solver_global_minimum"
 }
 
 set prj_top_list {
@@ -63,10 +64,11 @@ set prj_top_list {
     "initializeParticles_set"
     "updateParticlesWithDuConstrains"
     "evaluateFitnessAndDetectLocalBest"
+    "detectGlobalMinimum"
 }
 
-set flag "-DINVERTED_PENDULUM_CONFIG"
-# set flag "-DSNIFFBOT_CONFIG"
+#set flag "-DINVERTED_PENDULUM_CONFIG"
+set flag "-DSNIFFBOT_CONFIG"
 
 # foreach prj_name $prj_name_list prj_top $prj_top_list{
 #     createVitisPrj {prj_name prj_top extra flag}

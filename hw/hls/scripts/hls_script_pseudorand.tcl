@@ -3,16 +3,17 @@
 ## Please DO NOT edit it.
 ## Copyright (C) 1986-2019 Xilinx, Inc. All Rights Reserved.
 ############################################################
+set workspace [pwd]
 set ip_path "${workspace}/vitis_ip_repo"
 
 set prj_name pseudorand_stream
 set prj_top rand_wrapper
 
-set workspace [pwd]
-set workspace [file dirname $workspace]
 
-set src_path ${workspace}/src
-set incl_path ${workspace}/include
+#set workspace [file dirname $workspace]
+
+set src_path ${workspace}/source/src
+set incl_path ${workspace}/source/include
 set main_name "main_hls_pseudorand" 
 
 set c_flags "-I${incl_path} -D__VITIS__ -std=c++11 -Wno-unknown-pragmas"

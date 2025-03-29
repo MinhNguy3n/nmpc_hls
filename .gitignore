@@ -8,3 +8,13 @@ test.dSYM
 
 *.DS_Store
 .DS_Store
+_ide
+*.log
+chat.rapidgpt
+
+nmpc_*/
+pseudorand_stream/
+test_costF/
+vitis_ip_repo/
+orb_extract/
+build/

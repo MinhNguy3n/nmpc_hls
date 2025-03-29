@@ -2,21 +2,21 @@
 #define SYSTEM_HPP
 
 #ifdef __SYNTHESIS__
-#include "ap_int.h"
+#include <ap_int.h>
 #include "hls_stream.h"
 #endif
 
 // #include "config.hpp"
 #include "aux_functions.hpp"
 #include "hls_model.hpp"
-//#include "hls_inverted_pendulum.hpp"
+// #include "hls_inverted_pendulum.hpp"
 
 // #define DEBUG_SYSTEM
 #define def_N 3
 
-// #ifndef __VITIS_HLS__
-// #define __VITIS_HLS__
-// #endif
+#ifndef __VITIS_HLS__
+#define __VITIS_HLS__
+#endif
 
 template <
     class _system_hw_real,
@@ -397,6 +397,8 @@ protected:
 
         memcpy_loop_rolled<_system_hw_real,_system_hw_model_real,_system_Nx>
             ((_system_hw_real *)state_dot, (_system_hw_model_real *)state_dot_model);
+        // memcpy_loop_rolled<_system_hw_model_real,_system_hw_real,_system_Nx>
+        //     ((_system_hw_model_real *)state_dot_model, (_system_hw_real *)state_dot);
     }
 
     void one_step_error(
@@ -415,15 +417,15 @@ protected:
             current_x_hat = x_hat[j];
             current_x_ref = xref[j];
             _system_hw_real tmp_err;
-            _system_hw_real tmp_err_ang =  (system_pi*2 - current_x_hat);
+            _system_hw_real tmp_err_ang =  ((_system_hw_real)system_pi*2 - current_x_hat); // operator ambiguous
             
             if (controlled_state[j] == 1) 
                 tmp_err = (current_x_hat - current_x_ref);
             else if (controlled_state[j] == 2) 
-                if ((current_x_hat > system_pi) && (current_x_ref < system_pi))
+                if ((current_x_hat > (_system_hw_real)system_pi) && (current_x_ref < (_system_hw_real)system_pi))
                     tmp_err = (tmp_err_ang - current_x_ref);
                 else
-                    tmp_err = (current_x_hat - current_x_ref);
+                    tmp_err = ((_system_hw_real)current_x_hat - current_x_ref); // same here
             else
                 tmp_err = (_system_hw_real)0.0;;
 

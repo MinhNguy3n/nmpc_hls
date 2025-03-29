@@ -29,9 +29,11 @@ This instruction file explains how to build and extend the Vivado HLS implementa
 ## How to Build the HLS IP Core
 
 ```bash
-source /opt/Xilinx/Vivado/2020.1/settings64.sh
+# source /opt/Xilinx/Vivado/2020.1/settings64.sh
+source /opt/Xilinx/Vivado/2024.2/settings64.sh # version 2024.2 
 cd <path-to-repo>/hw/hls
-vivado_hls -f scripts/hls_script_pso.tcl
+# vivado_hls -f scripts/hls_script_pso.tcl
+vitis_hls -run tcl scripts/hls_script_pso.tcl
 ```
 
 ### Selecting a Model to Build

@@ -8,14 +8,14 @@
 #include "config.hpp"
 #include "hls_model.hpp"
 
-// #ifdef __SYNTHESIS__
-// #include "hls_math.h"
-// #include "ap_fixed.h"
-// typedef half _model_real;
-// //typedef ap_ufixed<16,5, AP_RND_ZERO, AP_WRAP_SM> _real;
-// #else
-// typedef float _model_real;
-// #endif
+#ifdef __SYNTHESIS__
+#include "hls_math.h"
+#include "ap_fixed.h"
+typedef half _model_real;
+//typedef ap_ufixed<16,5, AP_RND_ZERO, AP_WRAP_SM> _real;
+#else
+typedef float _model_real;
+#endif
 
 typedef _hw_top_real _model_real;
 

@@ -3,16 +3,17 @@
 ## Please DO NOT edit it.
 ## Copyright 1986-2021 Xilinx, Inc. All Rights Reserved.
 ############################################################
+set workspace [pwd]
 set ip_path "${workspace}/vitis_ip_repo"
 
 set prj_name test_costF
 set prj_top cost_function_wrapper
 
-set workspace [pwd]
-set workspace [file dirname $workspace]
 
-set src_path ${workspace}/src
-set incl_path ${workspace}/include
+#set workspace [file dirname $workspace]
+
+set src_path ${workspace}/source/src
+set incl_path ${workspace}/source/include
 set main_name "main_hls_system"
 
 set c_flags "-DSNIFFBOT_CONFIG -DUSE_FAST_SIN_COS -I${incl_path} -I${incl_path}/models -std=c++11 -Wno-unknown-pragmas"
@@ -42,4 +43,4 @@ config_export -display_name sniffbot_costF -format ip_catalog -output $ip_path/s
 csim_design -clean -O -profile
 csynth_design
 # cosim_design -O -rtl vhdl
-# export_design -format ip_catalog
+export_design -format ip_catalog
