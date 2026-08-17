@@ -1,0 +1,111 @@
+# ==============================================================
+# Makefile for XPso_fsm Driver Test Suite
+# ==============================================================
+#
+# This Makefile builds and runs the test_xpso_fsm program
+# which validates the PSO FSM driver functions.
+#
+# Usage:
+#   make build          - Build the test executable
+#   make run            - Run the test (requires hardware)
+#   make clean          - Clean build artifacts
+#   make help           - Show this help message
+#
+# ==============================================================
+
+# Compiler configuration
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -g -fPIC
+LDFLAGS = -lm
+
+# Directories
+SRC_DIR = .
+DRIVER_DIR = ../sniff_drone
+BUILD_DIR = ./build
+BIN_DIR = ./build/bin
+LIB_DIR = ./build/lib
+
+# Output files
+TEST_EXECUTABLE = $(BIN_DIR)/test_xpso_fsm
+TEST_LIB = $(LIB_DIR)/libpso_fsm.a
+
+# Source files
+TEST_SRC = $(SRC_DIR)/test_xpso_fsm.c
+DRIVER_SRCS = $(DRIVER_DIR)/xpso_fsm.c \
+			  $(DRIVER_DIR)/xpso_fsm_linux.c \
+			  $(DRIVER_DIR)/xpso_fsm_sinit.c
+
+DRIVER_OBJS = $(addprefix $(BUILD_DIR)/,$(notdir $(DRIVER_SRCS:.c=.o)))
+TEST_OBJ = $(BUILD_DIR)/test_xpso_fsm.o
+
+# Include paths
+INCLUDES = -I$(SRC_DIR) -I$(DRIVER_DIR)
+
+# Default target
+all: help
+
+.PHONY: help build run clean
+
+help:
+	@echo ""
+	@echo "╔═══════════════════════════════════════════════════════════╗"
+	@echo "║  XPso_fsm Driver Test Suite - Build System                ║"
+	@echo "╚═══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "Available targets:"
+	@echo ""
+	@echo "  make build          Build test executable"
+	@echo "  make run            Run the test (requires hardware)"
+	@echo "  make clean          Remove build artifacts"
+	@echo "  make help           Display this help message"
+	@echo ""
+	@echo "Build output:"
+	@echo "  Executable: $(TEST_EXECUTABLE)"
+	@echo ""
+
+build: directories $(TEST_EXECUTABLE)
+	@echo ""
+	@echo "╔═══════════════════════════════════════════════════════════╗"
+	@echo "║  Build Complete!                                          ║"
+	@echo "╚═══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "To run tests, use: make run"
+	@echo "Or execute directly: $(TEST_EXECUTABLE)"
+	@echo ""
+
+directories:
+	@mkdir -p $(BUILD_DIR)
+	@mkdir -p $(BIN_DIR)
+	@mkdir -p $(LIB_DIR)
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@echo "Compiling: $<"
+	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+$(BUILD_DIR)/%.o: $(DRIVER_DIR)/%.c
+	@echo "Compiling: $<"
+	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+$(TEST_LIB): $(DRIVER_OBJS)
+	@echo "Creating library: $@"
+	@ar rcs $@ $^
+
+$(TEST_EXECUTABLE): $(TEST_OBJ) $(TEST_LIB)
+	@echo "Linking: $@"
+	@$(CC) $(CFLAGS) -o $@ $(TEST_OBJ) $(TEST_LIB) $(LDFLAGS)
+	@echo "✓ Test executable created: $@"
+
+run: build
+	@echo ""
+	@echo "╔═══════════════════════════════════════════════════════════╗"
+	@echo "║  Running XPso_fsm Test Suite                              ║"
+	@echo "╚═══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@$(TEST_EXECUTABLE)
+
+clean:
+	@echo "Cleaning build artifacts..."
+	@rm -rf $(BUILD_DIR)
+	@echo "✓ Clean complete"
+
+.PHONY: all help build run clean directories

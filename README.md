@@ -19,6 +19,23 @@ This repository implements a hardware-accelerated Nonlinear Model Predictive Con
 
 ---
 
+## KV260 Deployment
+
+The KV260 workflow builds the HLS IP, creates the Vivado overlay, and packages
+the PYNQ artifacts with:
+
+```bash
+./hw/build_kv260_overlay.sh
+```
+
+The board-side PYNQ driver, notebook, and packaging details are in
+[`app/kria-pynq`](app/kria-pynq/README.md). Host-side PSO FSM driver validation
+is available in [`app/test_simulation`](app/test_simulation/TEST_README.md).
+Generated build outputs, exported XSAs, and packaged overlays are intentionally
+excluded from version control.
+
+---
+
 ## Documentation
 
 - Vivado HLS instructions: [HLS README](hw/hls/readme.MD)

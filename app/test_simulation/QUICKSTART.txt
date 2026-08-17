@@ -1,0 +1,259 @@
+#!/bin/bash
+# Quick Start Guide for XPso_fsm Test Suite
+# Generated: April 29, 2026
+
+cat << 'EOF'
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║              XPso_fsm Driver Test Suite - Quick Start Guide                ║
+║                                                                            ║
+║           Test PSO FSM Driver for Sniff Drone Control Optimization        ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+📋 OVERVIEW
+═══════════════════════════════════════════════════════════════════════════
+
+This test suite validates the FPGA-based PSO (Particle Swarm Optimization)
+Finite State Machine that computes optimal drone control inputs.
+
+✓ 7 comprehensive test cases
+✓ Modeled after MATLAB test_model_cpp.m
+✓ Hardware-aware with graceful software fallback
+✓ Production-ready and embeddable
+
+
+🚀 5-MINUTE QUICKSTART
+═══════════════════════════════════════════════════════════════════════════
+
+1. Navigate to the test directory:
+
+   cd /home/minh/nmpc_hls/app/orb_extract_platform/hw/sdt/drivers/pso_fsm_v1_0/src
+
+
+2. Make the build script executable (first time only):
+
+   chmod +x build_and_test.sh
+
+
+3. Build the test:
+
+   ./build_and_test.sh build
+
+   ✓ Creates: ./build/bin/test_xpso_fsm
+
+
+4. Run the test:
+
+   ./build_and_test.sh run
+
+   ✓ Executes all available tests
+   ✓ Shows simulation results
+   ✓ Prints test summary
+
+
+5. (Optional) Clean build artifacts:
+
+   ./build_and_test.sh clean
+
+
+📊 WHAT GETS TESTED
+═══════════════════════════════════════════════════════════════════════════
+
+Without FPGA Hardware (Software-Only Mode):
+  ✓ Device initialization attempts
+  ✓ Multi-step simulation loop
+  ✓ Drone state tracking
+  ✓ Proportional feedback control
+
+With FPGA Hardware (Full Hardware Tests):
+  ✓ Register read/write operations
+  ✓ PSO fitness value tracking
+  ✓ FSM control flow synchronization
+  ✓ Interrupt handling
+  ✓ Continuous operation mode
+  + All software tests above
+
+
+🎯 TYPICAL OUTPUT (Without Hardware)
+═══════════════════════════════════════════════════════════════════════════
+
+╔═══════════════════════════════════════════════════════════════════════╗
+║        XPSO_FSM Driver Test Suite                                     ║
+║        PSO-Based Control Optimization for Sniff Drone                 ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+TEST 1: Device Initialization and Status Checks
+[WARN] Device initialization failed
+       (Expected - FPGA hardware not available)
+
+[INFO] Proceeding with software-only tests
+
+TEST 5: Multi-Step Simulation Loop
+Initial State: [7.0000, 10.0000, 1.0000]
+Reference:    [10.0000, 12.0000, 2.0000]
+Simulation Parameters:
+  Sampling time:  0.1 s
+  Number of steps: 10
+  Drone mass:     2.0 kg
+
+[... simulation results showing drone trajectory ...]
+
+TEST SUMMARY
+✓ TEST 1: Device Initialization and Status Checks
+✓ TEST 5: Multi-Step Simulation Loop
+FPGA PSO FSM Core: NOT DETECTED
+
+All available tests completed successfully!
+
+
+📚 DOCUMENTATION
+═══════════════════════════════════════════════════════════════════════════
+
+For detailed information, see:
+
+  TEST_README.md
+    → Complete guide to all 7 test cases
+    → Building and running instructions
+    → Drone model parameters
+    → Hardware requirements
+    → Troubleshooting section
+
+  MATLAB_vs_C_COMPARISON.md
+    → Side-by-side comparison with test_model_cpp.m
+    → Design rationale
+    → Architecture diagrams
+    → Extension points
+
+  IMPLEMENTATION_SUMMARY.md
+    → This implementation overview
+    → Build statistics
+    → Next steps for integration
+
+
+🔧 COMMON COMMANDS
+═══════════════════════════════════════════════════════════════════════════
+
+Build and run tests:
+  $ ./build_and_test.sh all
+
+Just build:
+  $ ./build_and_test.sh build
+
+Just run (if already built):
+  $ ./build_and_test.sh run
+
+Direct execution:
+  $ ./build/bin/test_xpso_fsm
+
+Using make directly:
+  $ make -f Makefile.test build
+  $ make -f Makefile.test run
+  $ make -f Makefile.test clean
+
+
+💡 WHAT TO LOOK FOR IN OUTPUT
+═══════════════════════════════════════════════════════════════════════════
+
+✓ PASS indicators show successful operations
+✓ WARN indicates non-critical issues (like missing hardware)
+✓ INFO provides status updates
+✗ Any errors will clearly indicate failures
+
+Example successful output section:
+  ✓ TEST 5: Multi-Step Simulation Loop
+  ✓ All available tests completed successfully!
+
+
+⚙️ FOR DEVELOPERS
+═══════════════════════════════════════════════════════════════════════════
+
+To add new tests:
+
+1. Create new test function in test_xpso_fsm.c:
+   int test_my_feature(XPso_fsm* device) {
+       // Your test code here
+       return 0;
+   }
+
+2. Call it from main()
+
+3. Rebuild: ./build_and_test.sh build
+
+4. Run: ./build_and_test.sh run
+
+
+🛠️ WHEN FPGA HARDWARE IS AVAILABLE
+═══════════════════════════════════════════════════════════════════════════
+
+1. Program FPGA bitstream with PSO FSM IP core
+
+2. Load UIO driver:
+   $ sudo modprobe uio_pdrv_genirq
+
+3. Verify UIO device:
+   $ ls /sys/class/uio/
+   $ cat /sys/class/uio/uio0/name  # Should contain "pso_fsm"
+
+4. Run full test suite:
+   $ ./build/bin/test_xpso_fsm
+
+   This will now execute ALL 7 tests with full hardware validation!
+
+
+❓ TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════
+
+Q: Build fails - "xpso_fsm.h not found"
+A: Ensure you're in the correct directory:
+   cd .../pso_fsm_v1_0/src
+
+Q: Test says device initialization failed
+A: Normal! This means FPGA hardware isn't available. The test will proceed
+   with software-only validation. Use this to validate code locally.
+
+Q: How do I know if test succeeded?
+A: Look for the line at the end:
+   "All available tests completed successfully!"
+
+Q: Can I use this on embedded Linux?
+A: Yes! The test is designed for embedded systems. Just compile with gcc
+   and run. No external dependencies required.
+
+
+🌟 NEXT STEPS
+═══════════════════════════════════════════════════════════════════════════
+
+1. Run the test to verify your build environment
+2. Review TEST_README.md for detailed test descriptions
+3. Study MATLAB_vs_C_COMPARISON.md to understand the design
+4. Integrate with your drone control application
+5. Deploy to Sniff platform once FPGA is available
+
+
+📞 REFERENCE
+═══════════════════════════════════════════════════════════════════════════
+
+Test Suite Location:
+  /home/minh/nmpc_hls/app/orb_extract_platform/hw/sdt/drivers/pso_fsm_v1_0/src
+
+Related MATLAB Test:
+  /home/minh/nmpc_hls/app/matlab_ws/model_cpp/test_model_cpp.m
+
+Drone Model C Implementation:
+  /home/minh/nmpc_hls/app/drone_simulation/src/drone_model.c
+
+
+════════════════════════════════════════════════════════════════════════════
+
+Ready to test? Start here:
+
+  cd /home/minh/nmpc_hls/app/orb_extract_platform/hw/sdt/drivers/pso_fsm_v1_0/src
+  chmod +x build_and_test.sh
+  ./build_and_test.sh run
+
+════════════════════════════════════════════════════════════════════════════
+
+EOF

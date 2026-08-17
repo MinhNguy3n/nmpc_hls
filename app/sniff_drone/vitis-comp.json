@@ -1,0 +1,15 @@
+{
+  "name": "sniff_drone",
+  "type": "HOST",
+  "platform": "orb_extract_platform",
+  "domain": "standalone_psu_cortexa53_0",
+  "cpuInstance": "psu_cortexa53_0",
+  "cpuType": "cortex-a53",
+  "os": "standalone",
+  "configuration": {
+    "componentType": "HOST",
+    "hostToolchainConfigurations": []
+  },
+  "domainRealName": "standalone_psu_cortexa53_0",
+  "applicationFlow": "EMBEDDED"
+}
