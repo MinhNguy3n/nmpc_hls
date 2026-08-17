@@ -13,7 +13,7 @@ proc createVitisPrj {prj_name prj_top model_flag} {
     # set module_file "hls_nonlinear_solver"
     set main_name "main_hls_pso"
 
-    open_project $prj_name
+    open_project -reset -upgrade $prj_name
 
     set c_flags "-D__VITIS__ -DPSO_CONFIG -DUSE_FAST_SIN_COS -I${incl_path} -I${incl_path}/models -std=c++11 -Wno-unknown-pragmas ${model_flag}"
     set csim_tb_flags "-D__VITIS__ -DPSO_CONFIG -I${incl_path} -I${incl_path}/models -std=c++11 -DDEBUG_FILE -DPRINT_TO_TERMINAL -Wno-unknown-pragmas ${model_flag}"
@@ -31,7 +31,7 @@ proc createVitisPrj {prj_name prj_top model_flag} {
 
     open_solution "solution_system" -flow_target vivado
 
-    set_part {xczu3eg-sbva484-1-i}
+    set_part {xck26-sfvc784-2LV-c}
     create_clock -period 10 -name default
 
     # config_compile -pipeline_loops 6

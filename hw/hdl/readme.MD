@@ -23,12 +23,16 @@ source <path-to-xilinx>/Vivado/<version>/settings64.sh
     ```
 
 2. Run the following command to create a Vivado project:
-
+    - target ultra96 board
     ```bash
     vivado -mode batch -notrace -source scripts/create_project.tcl -tclargs -n orb_extract \
     -d scripts/designs/design_1.tcl -ip ../hls/vitis_ip_repo -pt xczu3eg-sbva484-1-i \
     -bd avnet-tria:ultra96v2:part0:1.3 -force -synth
     ```
+    - target kria KV260
+	```bash
+    vivado -mode batch -notrace -source scripts/create_project.tcl -tclargs -n nmpc_solver -d scripts/designs/nmpc_solver.tcl -ip ../hls/vitis_ip_repo -pt xck26-sfvc784-2LV-c -bd xilinx.com:kv260_som:part0:1.4 -force -synth
+	```
 ## Some Device Names
 
 | Name          | Part Number              | Board Name                                  |

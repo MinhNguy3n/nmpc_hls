@@ -726,9 +726,19 @@ void J_error(
         _system_hw_real *k4
         ){        
 #pragma HLS inline
+        _system_hw_real rk4_middle_sum;
+        _system_hw_real rk4_weighted_sum;
+        _system_hw_real rk4_delta;
+    #pragma HLS bind_op variable=rk4_middle_sum impl=fulldsp op=hadd latency=2
+    #pragma HLS bind_op variable=rk4_weighted_sum impl=fulldsp op=hadd latency=2
+    #pragma HLS bind_op variable=rk4_delta impl=fulldsp op=hmul latency=4
         for (unsigned i = 0; i < _system_Nx; ++i) {
-#pragma HLS pipeline
-            state_plus[i] = state[i] + Ts_6*(k1[i] + (_system_hw_real)2.0*k2[i] + (_system_hw_real)2.0*k3[i] + k4[i]);
+    #pragma HLS unroll off
+    #pragma HLS pipeline II=4
+            rk4_middle_sum = k2[i] + k3[i];
+            rk4_weighted_sum = (k1[i] + k4[i]) + (_system_hw_real)2.0*rk4_middle_sum;
+            rk4_delta = Ts_6*rk4_weighted_sum;
+            state_plus[i] = state[i] + rk4_delta;
         }
     }
 

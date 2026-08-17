@@ -34,7 +34,7 @@ add_files -tb ${src_path}/aux_functions.cpp -cflags $csim_tb_flags -csimflags $c
 
 open_solution "solution_system" -flow_target vivado
 
-set_part {xczu3eg-sbva484-1-i}
+set_part {xck26-sfvc784-2LV-c}
 create_clock -period 10 -name default
 # config_compile -pipeline_loops 6
 config_interface -m_axi_addr64=0

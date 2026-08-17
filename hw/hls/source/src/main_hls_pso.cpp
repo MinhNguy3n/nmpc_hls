@@ -20,15 +20,15 @@
  * The following constants ...
  * 
  */
-// #define SNIFFBOT_CONFIG
+//#define SNIFFBOT_CONFIG
 // #define PSO_CONFIG
-const char config_file_std[] = "/home/minh/Documents/UTU-Doctorate/control_theory/nmpc_hls-migrated/source/config/sniffbot/project_config.txt";
-const char sim_config_file_std[] = "/home/minh/Documents/UTU-Doctorate/control_theory/nmpc_hls-migrated/source/config/sniffbot/simulation_config_ring.txt";
+const char config_file_std[] = "../source/config/sniffbot/project_config.txt";
+const char sim_config_file_std[] = "../source/config/sniffbot/simulation_config_ring.txt";
 const char matlab_name_std[] = "sniffbot";
 
-// const char config_file_std[] = "./config/inverted_pendulum/project_config.txt";
-// const char sim_config_file_std[] = "./config/inverted_pendulum/simulation_config.txt";
-// const char matlab_name_std[] = "inverted_pendulum_pso";
+//const char config_file_std[] = "../source/config/inverted_pendulum/project_config.txt";
+//const char sim_config_file_std[] = "../source/config/inverted_pendulum/simulation_config.txt";
+//const char matlab_name_std[] = "inverted_pendulum_pso";
 
 /************************** Class Definitions ****************************/
 

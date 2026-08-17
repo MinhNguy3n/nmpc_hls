@@ -27,7 +27,7 @@ add_files -tb $src_path/$main_name.cpp -cflags $c_flags -csimflags $csim_tb_flag
 
 open_solution "solution_pseudorand" -flow_target vivado
 
-set_part {xczu3eg-sbva484-1-i}
+set_part {xck26-sfvc784-2LV-c}
 create_clock -period 10 -name default
 config_export -display_name $prj_name -format ip_catalog -output $ip_path/$prj_name.zip -rtl verilog -vendor tu-dresden -version 1.0
 config_interface -m_axi_addr64=0 -s_axilite_auto_restart_counter 1
