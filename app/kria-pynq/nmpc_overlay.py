@@ -10,7 +10,7 @@ from pynq import Overlay
 import numpy as np
 
 
-DESIGN_REVISION = 3
+DESIGN_REVISION = 4
 NX = 12
 NU = 4
 HORIZON = 25
@@ -22,6 +22,21 @@ DDR_LOW_LIMIT = 0x80000000
 
 AP_CTRL = 0x00
 AP_RETURN = 0x10
+AP_DEBUG_STATE = 0x18
+FSM_INSTANCE = "pso_fsm_1"
+FSM_PHASES = {
+    0: "copy_inputs",
+    1: "start_initialize",
+    2: "wait_initialize",
+    3: "start_evaluate",
+    4: "wait_evaluate",
+    5: "start_detect_minimum",
+    6: "wait_detect_minimum",
+    7: "start_update",
+    8: "wait_update",
+    9: "write_outputs",
+    10: "complete",
+}
 ARGUMENT_REGISTERS = {
     "u_curr": 0x10,
     "x_curr": 0x18,
@@ -74,7 +89,7 @@ class NmpcOverlay:
             )
 
         self.overlay = Overlay(str(bitstream), download=download)
-        self.register_map = manifest["platform"]["pso_fsm_0"]
+        self.register_map = manifest["platform"][FSM_INSTANCE]
         control_map = self.register_map["s_axi_control"]
         argument_map = self.register_map["s_axi_control_r"]
         self.control = MMIO(control_map["base"], control_map["range"])
@@ -106,14 +121,14 @@ class NmpcOverlay:
                 f"revision {DESIGN_REVISION}"
             )
         try:
-            register_map = manifest["platform"]["pso_fsm_0"]
+            register_map = manifest["platform"][FSM_INSTANCE]
             for interface in ("s_axi_control", "s_axi_control_r"):
                 aperture = register_map[interface]
                 if int(aperture["base"]) < 0 or int(aperture["range"]) <= 0:
                     raise ValueError(interface)
         except (KeyError, TypeError, ValueError) as error:
             raise RuntimeError(
-                "Overlay manifest does not contain a valid pso_fsm_0 register map. "
+                "Overlay manifest does not contain a valid pso_fsm_1 register map. "
                 "Repackage the XSA with package_overlay.py."
             ) from error
         return manifest
@@ -195,6 +210,22 @@ class NmpcOverlay:
             iterations=int(self.control.read(AP_RETURN)),
             elapsed_seconds=elapsed,
         )
+
+    def runtime_status(self) -> dict[str, Any]:
+        if self._closed:
+            raise RuntimeError("Overlay driver is closed")
+        fsm_state = self.control.read(AP_DEBUG_STATE)
+        status = {
+            "ap_ctrl": self.control.read(AP_CTRL),
+            "ap_return": self.control.read(AP_RETURN),
+            "fsm_state": fsm_state,
+            "fsm_phase": FSM_PHASES.get(fsm_state, "unknown"),
+            "argument_addresses": {
+                name: self.arguments.read(offset)
+                for name, offset in ARGUMENT_REGISTERS.items()
+            },
+        }
+        return status
 
     def close(self) -> None:
         if self._closed:

@@ -54,6 +54,16 @@ if {[llength $bd_files] > 0} {
 
 update_compile_order -fileset sources_1
 
+# Refresh the custom HLS IP archive before compiling the project so the XSA
+# always contains the implementation produced by the current Vitis HLS run.
+update_ip_catalog -rebuild
+set hls_ips [get_ips -quiet -filter {VLNV =~ "*:hls:*"}]
+if {[llength $hls_ips] > 0} {
+  upgrade_ip -quiet $hls_ips
+  generate_target all $hls_ips
+  update_compile_order -fileset sources_1
+}
+
 # ----------------------------------------------------------------------
 # Helper: run a given run and fail on errors
 # ----------------------------------------------------------------------
@@ -63,6 +73,7 @@ proc run_and_check {run_name jobs} {
     exit 4
   }
 
+  reset_run $run_name
   puts "==> Launching: $run_name (jobs=$jobs)"
   launch_runs $run_name -jobs $jobs
   wait_on_run $run_name
@@ -90,6 +101,7 @@ if {[llength [get_runs -quiet impl_1]] == 0} {
   exit 4
 }
 
+reset_run impl_1
 launch_runs impl_1 -to_step write_bitstream -jobs $jobs
 wait_on_run impl_1
 

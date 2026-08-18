@@ -32,13 +32,22 @@ proc createVitisPrj {prj_name prj_top model_flag} {
     open_solution "solution_system" -flow_target vivado
 
     set_part {xck26-sfvc784-2LV-c}
-    create_clock -period 10 -name default
+    set clock_period 10.0
+    set ip_vendor "tu-dresden_turun-yliopisto"
+    if {$prj_name eq "nmpc_solver_fsm" || $prj_name eq "nmpc_solver_costF"} {
+        set clock_period 8.0
+        if {$prj_name eq "nmpc_solver_fsm"} {
+            set clock_period 10.0
+        }
+        set ip_vendor "tu-dresden"
+    }
+    create_clock -period $clock_period -name default
 
     # config_compile -pipeline_loops 6
     config_interface -m_axi_addr64=0
     config_rtl -reset state
 
-    config_export -display_name $prj_name -format ip_catalog -output $ip_path/$prj_name.zip -rtl verilog -vendor tu-dresden -version 1.0
+    config_export -display_name $prj_name -format ip_catalog -output $ip_path/$prj_name.zip -rtl verilog -vendor $ip_vendor -version 1.0
 
     # config_core DSP48 -latency 4
 

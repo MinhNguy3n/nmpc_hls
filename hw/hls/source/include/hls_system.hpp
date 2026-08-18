@@ -184,7 +184,7 @@ public:
 #ifdef DEBUG_SYSTEM
         std::cout << "Horizon[" << i << "]"<< std::endl;
 #endif
-#pragma HLS PIPELINE
+    #pragma HLS PIPELINE off
         // unsigned k_u_aux = i*_system_n_U;
         // k_u = (k_u == k_cg_last)? k_cg_last : k_u_aux;
         

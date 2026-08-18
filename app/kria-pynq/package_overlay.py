@@ -8,18 +8,26 @@ from pathlib import Path
 import zipfile
 
 
-DESIGN_REVISION = 3
+DESIGN_REVISION = 4
 BITSTREAM_MEMBERS = (
     "design_nmpc_solver.bit"
 )
 HWH_MEMBERS = (
-    "design_nmpc_solver.hwh"
+    "design_nmpc_solver.hwh",
+    "design_nmpc_solver_axi_smc_0_0.hwh",
+    "design_nmpc_solver_axi_smc_1_0.hwh",
+    "design_nmpc_solver_smartconnect_0_0.hwh",
+    "design_nmpc_solver_smartconnect_1_0.hwh",
+    "design_nmpc_solver_smartconnect_2_0.hwh",
+    "design_nmpc_solver_smartconnect_3_0.hwh",
+    "design_nmpc_solver_smartconnect_4_0.hwh",
+    "design_nmpc_solver_smartconnect_5_0.hwh",
 )
 BDA_MEMBERS = (
     "design_nmpc_solver.bda"
 )
 REQUIRED_HWH_TOKENS = (
-    'FULLNAME="/nmpc_solver/pso_fsm_0"',
+    'FULLNAME="/nmpc_solver/pso_fsm_1"',
     "s_axi_control",
     "s_axi_control_r",
     "init_s_ap_done",
@@ -78,7 +86,7 @@ def pso_fsm_register_map(bda_data: bytes) -> dict[str, dict[str, int]]:
     for vertex in bda["graphjs"]["vertices"].values():
         if (
             vertex.get("TU") == "register"
-            and vertex.get("SX") == "/nmpc_solver/pso_fsm_0"
+            and vertex.get("SX") == "/nmpc_solver/pso_fsm_1"
             and vertex.get("SI") in {"s_axi_control", "s_axi_control_r"}
         ):
             interfaces[vertex["SI"]] = {
@@ -89,7 +97,7 @@ def pso_fsm_register_map(bda_data: bytes) -> dict[str, dict[str, int]]:
     required_interfaces = {"s_axi_control", "s_axi_control_r"}
     if interfaces.keys() != required_interfaces:
         raise RuntimeError(
-            "XSA BDA does not expose the required pso_fsm_0 control interfaces; "
+            "XSA BDA does not expose the required pso_fsm_1 control interfaces; "
             f"found={sorted(interfaces)}"
         )
     return interfaces
@@ -107,7 +115,7 @@ def package_overlay(xsa_path: Path, output_dir: Path) -> None:
             names,
             ".hwh",
             HWH_MEMBERS,
-            avoid_tokens=("smartconnect", "axi_smc"),
+#             avoid_tokens=("smartconnect", "axi_smc"),
         )
         bda_member = choose_member(names, ".bda", BDA_MEMBERS)
         hwh_data = archive.read(hwh_member)
@@ -119,13 +127,16 @@ def package_overlay(xsa_path: Path, output_dir: Path) -> None:
                 f"missing={missing}. Rebuild with "
                 "hw/build_kv260_overlay.sh."
             )
-        register_map = pso_fsm_register_map(archive.read(bda_member))
+        bda_data = archive.read(bda_member)
+        bit_data = archive.read(bit_member)
+        register_map = pso_fsm_register_map(bda_data)
 
-        bit_path = output_dir / "nmpc_solver.bit"
-        hwh_path = output_dir / "nmpc_solver.hwh"
-        bit_path.write_bytes(archive.read(bit_member))
+        bit_path = output_dir / "design_nmpc_solver.bit"
+        hwh_path = output_dir / "design_nmpc_solver.hwh"
+        bda_path = output_dir / "design_nmpc_solver.bda"
+        bit_path.write_bytes(bit_data)
         hwh_path.write_bytes(hwh_data)
-
+        bda_path.write_bytes(bda_data)
     manifest = {
         "design_revision": DESIGN_REVISION,
         "created_utc": datetime.now(timezone.utc).isoformat(),
@@ -133,11 +144,12 @@ def package_overlay(xsa_path: Path, output_dir: Path) -> None:
         "platform": {
             "hwh_member": hwh_member,
             "bda_member": bda_member,
-            "pso_fsm_0": register_map,
+            "pso_fsm_1": register_map,
         },
         "files": {
             bit_path.name: {"sha256": sha256(bit_path)},
             hwh_path.name: {"sha256": sha256(hwh_path)},
+            bda_path.name: {"sha256": sha256(bda_path)}
         },
     }
     (output_dir / "manifest.json").write_text(

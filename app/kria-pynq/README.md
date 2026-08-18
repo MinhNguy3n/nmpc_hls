@@ -18,7 +18,9 @@ PS-visible register segments:
 The packager reads the two PSO FSM aperture bases and ranges from the XSA's BDA
 and stores them in `manifest.json`; the driver uses those values instead of
 hard-coded MMIO bases. CMA buffers must be below `0x80000000`, which is the
-mapped HP0 DDR-low window used by the solver.
+mapped HP0 DDR-low window used by the solver. The top-level HWH is sufficient
+for PYNQ; scoped SmartConnect HWH files from the XSA are implementation
+metadata and are not required on the board.
 
 Top-level arrays use `ap_fixed<32,17>`, so the host exchanges signed Q17.15
 words, not IEEE `float32` values. Buffer shapes are:
@@ -57,6 +59,25 @@ python app/kria-pynq/package_overlay.py \
 The output contains a matching `nmpc_solver.bit`, `nmpc_solver.hwh`, and
 `manifest.json`. The packager validates the exported `pso_fsm_0` interfaces and
 worker completion ports, then records the BDA-derived control apertures.
+
+The current platform revision wires the PSO FSM stage-start signals directly
+to the four worker cores. Rebuild and repackage the overlay after updating this
+repository; an older bitstream leaves those start pins under software GPIO
+control and will stall while the FSM waits for a worker completion.
+
+## Hardware Debug Status
+
+The revision-4 HIL build accepts `ap_start`, but currently remains in FSM state
+`0` (`copy_inputs`) before any worker begins. The two PSO FSM AXI-Lite
+apertures are readable, which isolates the remaining fault to the
+`pso_fsm_1/m_axi_nmpc_io` read path through SmartConnect to HP0 DDR.
+
+[`hw/hdl/nmpc_solver_v2_debug.tcl`](../../hw/hdl/nmpc_solver_v2_debug.tcl)
+captures the ILA-enabled debug design. Inspect `ARVALID`, `ARREADY`, `ARADDR`,
+`RVALID`, `RREADY`, and `RRESP` on the `pso_fsm_1/m_axi_nmpc_io` and
+`axi_smc_1/M00_AXI` probes to determine whether the read stalls at the FSM,
+interconnect, or DDR boundary. The controller has not completed a successful
+hardware solve yet.
 
 ## Run on Kria PYNQ
 

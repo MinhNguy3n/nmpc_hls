@@ -332,6 +332,7 @@ int pso_fsm(
 
 	// Particle Variables
 	uint32_t &k,
+	uint32_t &debug_state,
 	_pso_hw_real local_bestfitness[_pso_maxiter],
 	_pso_hw_real global_min[_pso_Nu*_pso_n_U]
 	
@@ -350,6 +351,7 @@ int pso_fsm(
 #pragma HLS INTERFACE mode=ap_none port=rst_cores
 
 #pragma HLS interface mode=ap_vld register port=k
+#pragma HLS INTERFACE mode=s_axilite port=debug_state bundle=control
 
 #pragma HLS INTERFACE mode=m_axi port=u_curr			offset=slave 	depth=n_U			bundle=nmpc_io
 #pragma HLS INTERFACE mode=m_axi port=x_curr			offset=slave 	depth=Nx			bundle=nmpc_io 
@@ -375,6 +377,7 @@ int pso_fsm(
 
 	uint32_t k_local = 0;
 	k = 0;
+	debug_state = 0;
 	uint16_t state = 0;
 	
 	rst_cores			= false;
@@ -386,6 +389,7 @@ int pso_fsm(
 
 	bool flag=true;
 	do{
+		debug_state = state;
 		switch (state)
 		{
 		case 0: // Save Input data in memory banks
