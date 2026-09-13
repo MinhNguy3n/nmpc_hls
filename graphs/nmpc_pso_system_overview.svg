@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hardware-accelerated NMPC with PSO: system overview
+  Editable SVG for ACM/IEEE proceedings. Drawn from the implementation in
+  hw/hls/source and the KV260 PYNQ integration in app/kria-pynq.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Hardware-accelerated nonlinear model predictive controller using particle swarm optimization</title>
+  <desc id="desc">A two-panel architecture diagram. The left panel depicts the closed NMPC control loop between a processor and a controlled plant. The right panel details the FPGA PSO state machine and workers, showing initialization, cost evaluation, reduction, and constrained swarm update.</desc>
+  <defs>
+    <style>
+      .ink{fill:#111;stroke:#111}.line{fill:none;stroke:#111;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}.thin{fill:none;stroke:#111;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.dash{fill:none;stroke:#111;stroke-width:1.8;stroke-dasharray:6 5}.title{font-family:Arial,Helvetica,sans-serif;font-size:29px;font-weight:700;fill:#111}.panel{font-family:Arial,Helvetica,sans-serif;font-size:25px;font-weight:700;fill:#111}.head{font-family:Arial,Helvetica,sans-serif;font-size:19px;font-weight:700;fill:#111}.label{font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;fill:#111}.small{font-family:Arial,Helvetica,sans-serif;font-size:14px;fill:#111}.tiny{font-family:Arial,Helvetica,sans-serif;font-size:12px;fill:#111}.math{font-family:Georgia,serif;font-size:17px;font-style:italic;fill:#111}.white{font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:700;fill:white}.badge{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;fill:white;letter-spacing:.2px}.note{font-family:Arial,Helvetica,sans-serif;font-size:13px;fill:#333}.muted{fill:#f4f4f4;stroke:#111;stroke-width:2}.blue{fill:#c9ddec;stroke:#111;stroke-width:2}.green{fill:#d9e8d1;stroke:#111;stroke-width:2}.rose{fill:#efc6c6;stroke:#111;stroke-width:2}.yellow{fill:#fff0c7;stroke:#111;stroke-width:2}.purple{fill:#a94779;stroke:#111;stroke-width:2}.lavender{fill:#ddd4ec;stroke:#111;stroke-width:2}
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#111"/></marker>
+    <marker id="arrowThin" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#111"/></marker>
+  </defs>
+
+  <rect width="1600" height="1000" fill="#fff"/>
+  <text x="56" y="52" class="title">Hardware-Accelerated NMPC with Particle Swarm Optimization</text>
+  <text x="56" y="78" class="note">Receding-horizon control loop and HLS-friendly PSO organization for FPGA deployment</text>
+  <line x1="56" y1="96" x2="1544" y2="96" class="line"/>
+
+  <!-- Panel (a): system-level closed loop -->
+  <text x="56" y="134" class="panel">(a) Closed-loop deployment</text>
+  <rect x="56" y="154" width="1488" height="352" rx="4" class="muted"/>
+
+  <!-- Host / processor -->
+  <rect x="86" y="193" width="254" height="248" rx="4" class="blue"/>
+  <rect x="86" y="193" width="254" height="35" fill="#111"/>
+  <text x="213" y="217" class="white" text-anchor="middle">Processing system / host</text>
+  <!-- processor glyph -->
+  <rect x="112" y="256" width="70" height="70" rx="3" fill="#fff" stroke="#111" stroke-width="2"/>
+  <rect x="126" y="270" width="42" height="42" fill="#c9ddec" stroke="#111" stroke-width="1.6"/>
+  <g class="thin"><path d="M103 272h9M103 291h9M103 310h9M192 272h9M182 291h9M182 310h9 M182"/><path d="M128 246v10M144 246v10M160 246v10M128 326v10M144 326v10M160 326v10"/></g>
+  <text x="207" y="268" class="label">PYNQ control app</text>
+  <text x="207" y="291" class="tiny">sample state; build reference</text>
+  <text x="207" y="309" class="tiny">launch solver; apply first input</text>
+  <rect x="112" y="360" width="196" height="47" rx="3" class="yellow"/>
+  <text x="210" y="381" class="label" text-anchor="middle">receding horizon</text>
+  <text x="210" y="399" class="small" text-anchor="middle">retain and shift u*</text>
+
+  <!-- DDR -->
+  <path d="M407 237c0-12 34-18 68-18s68 6 68 18v77c0 12-34 18-68 18s-68-6-68-18z" class="yellow"/>
+  <ellipse cx="475" cy="237" rx="68" ry="18" class="yellow"/>
+  <path d="M407 237v78c0 10 30 17 68 17s68-7 68-17v-78" class="thin"/>
+  <text x="475" y="270" class="head" text-anchor="middle">Shared DDR</text>
+  <text x="475" y="292" class="small" text-anchor="middle">CMA buffers</text>
+  <text x="475" y="310" class="tiny" text-anchor="middle">state · reference · warm start</text>
+  <path d="M340 281H405" class="line" marker-end="url(#arrow)"/>
+  <path d="M405 318H340" class="line" marker-end="url(#arrow)"/>
+
+  <!-- KV260 / FPGA fabric -->
+  <rect x="579" y="176" width="562" height="283" rx="4" fill="#fafafa" stroke="#111" stroke-width="2.4"/>
+  <rect x="579" y="176" width="562" height="34" fill="#111"/>
+  <text x="600" y="199" class="white">Programmable logic — HLS NMPC/PSO accelerator</text>
+  <rect x="602" y="232" width="108" height="180" rx="3" class="lavender"/>
+  <text x="656" y="265" class="head" text-anchor="middle">AXI</text>
+  <text x="656" y="287" class="label" text-anchor="middle">control</text>
+  <text x="656" y="309" class="label" text-anchor="middle">+ m_axi</text>
+  <text x="656" y="345" class="small" text-anchor="middle">fixed-point</text>
+  <text x="656" y="364" class="small" text-anchor="middle">Q17.15 words</text>
+  <rect x="741" y="232" width="366" height="180" rx="3" class="rose"/>
+  <text x="924" y="262" class="head" text-anchor="middle">PSO FSM and worker cores</text>
+  <g transform="translate(773 281)">
+    <rect x="0" y="0" width="66" height="61" class="yellow"/><rect x="82" y="0" width="66" height="61" class="blue"/><rect x="164" y="0" width="66" height="61" class="green"/><rect x="246" y="0" width="66" height="61" class="purple"/>
+    <text x="33" y="25" class="label" text-anchor="middle">init</text><text x="33" y="44" class="tiny" text-anchor="middle">swarm</text>
+    <text x="115" y="25" class="label" text-anchor="middle">cost</text><text x="115" y="44" class="tiny" text-anchor="middle">rollout</text>
+    <text x="197" y="24" class="tiny" text-anchor="middle">global</text><text x="197" y="43" class="label" text-anchor="middle">min</text>
+    <text x="279" y="25" class="label" fill="white" text-anchor="middle">update</text><text x="279" y="44" class="tiny" fill="white" text-anchor="middle">x,y,v</text>
+    <path d="M66 30h15M148 30h15M230 30h15" class="line" marker-end="url(#arrowThin)"/>
+  </g>
+  <path d="M543 276h57" class="line" marker-end="url(#arrow)"/>
+  <path d="M600 365h-57" class="line" marker-end="url(#arrow)"/>
+  <text x="568" y="257" class="tiny" text-anchor="middle">read</text><text x="568" y="383" class="tiny" text-anchor="middle">write</text>
+
+  <!-- Plant -->
+  <rect x="1226" y="206" width="267" height="214" rx="4" class="green"/>
+  <rect x="1226" y="206" width="267" height="33" fill="#111"/>
+  <text x="1359" y="229" class="white" text-anchor="middle">Controlled nonlinear plant</text>
+  <!-- quadrotor icon -->
+  <g transform="translate(1273 274)" class="line">
+    <path d="M86 35L33 7M86 35L139 7M86 35L33 63M86 35l53 28"/>
+    <circle cx="33" cy="7" r="16" fill="#fff0c7"/><circle cx="139" cy="7" r="16" fill="#fff0c7"/><circle cx="33" cy="63" r="16" fill="#fff0c7"/><circle cx="139" cy="63" r="16" fill="#fff0c7"/>
+    <rect x="67" y="23" width="38" height="24" rx="4" fill="#efc6c6"/><path d="M80 47l-9 21h30l-9-21" fill="#c9ddec"/>
+  </g>
+  <text x="1359" y="374" class="small" text-anchor="middle">Sniffbot quadrotor or</text>
+  <text x="1359" y="393" class="small" text-anchor="middle">inverted pendulum model</text>
+  <!-- loop data paths -->
+  <path d="M1142 321h80" class="line" marker-end="url(#arrow)"/>
+  <text x="1182" y="304" class="small" text-anchor="middle">apply u₀*</text>
+  <path d="M1359 421v48H213v-26" class="line" marker-end="url(#arrow)"/>
+  <text x="1041" y="486" class="math">measured state x(t)</text>
+  <text x="1091" y="439" class="tiny">sample → solve → apply first action → repeat</text>
+
+  <!-- Panel (b): solver architecture -->
+  <text x="56" y="558" class="panel">(b) HLS PSO solver: memory, computation, and optimization loop</text>
+  <rect x="56" y="578" width="1488" height="355" rx="4" class="muted"/>
+
+  <!-- inputs -->
+  <rect x="85" y="619" width="246" height="243" rx="3" class="blue"/>
+  <text x="208" y="650" class="head" text-anchor="middle">NMPC input bundle</text>
+  <line x1="106" y1="664" x2="310" y2="664" class="thin"/>
+  <g class="small"><text x="110" y="694">current state</text><text x="110" y="730">current control</text><text x="110" y="766">reference trajectory</text><text x="110" y="802">previous best trajectory</text></g>
+  <g><rect x="264" y="677" width="38" height="23" class="yellow"/><rect x="264" y="713" width="38" height="23" class="yellow"/><rect x="244" y="749" width="58" height="23" class="yellow"/><rect x="227" y="785" width="75" height="23" class="yellow"/></g>
+  <text x="208" y="840" class="tiny" text-anchor="middle">x, u, xref, warm start</text>
+  <path d="M332 743h54" class="line" marker-end="url(#arrow)"/>
+
+  <!-- orchestration box -->
+  <rect x="388" y="604" width="287" height="274" rx="3" fill="#fff" stroke="#111" stroke-width="2"/>
+  <rect x="388" y="604" width="287" height="35" fill="#111"/>
+  <text x="531" y="628" class="white" text-anchor="middle">PSO finite-state controller</text>
+  <g>
+    <rect x="416" y="663" width="204" height="34" rx="3" class="yellow"/><text x="518" y="685" class="label" text-anchor="middle">copy / constrain inputs</text>
+    <rect x="416" y="717" width="204" height="34" rx="3" class="rose"/><text x="518" y="739" class="label" text-anchor="middle">initialize particles</text>
+    <rect x="416" y="771" width="204" height="34" rx="3" class="green"/><text x="518" y="793" class="label" text-anchor="middle">iterate k = 1 ... kmax</text>
+    <rect x="416" y="825" width="204" height="30" rx="3" class="blue"/><text x="518" y="846" class="label" text-anchor="middle">store u* and J history</text>
+    <path d="M518 697v18M518 751v18M518 805v18" class="line" marker-end="url(#arrowThin)"/>
+  </g>
+  <text x="641" y="741" class="tiny" transform="rotate(-90 641 741)">ap_start / ap_done handshakes</text>
+  <path d="M676 743h38" class="line" marker-end="url(#arrow)"/>
+
+  <!-- right compute region -->
+  <rect x="716" y="604" width="799" height="274" rx="3" fill="#fff" stroke="#111" stroke-width="2"/>
+  <text x="736" y="628" class="head">PSO iteration datapath</text>
+
+  <!-- random -->
+  <rect x="742" y="651" width="129" height="65" rx="3" class="lavender"/>
+  <text x="807" y="678" class="label" text-anchor="middle">pseudo-random</text><text x="807" y="698" class="small" text-anchor="middle">r₁, r₂ ∈ [0, 1]</text>
+  <path d="M871 683h29" class="line" marker-end="url(#arrowThin)"/>
+
+  <!-- particle swarm memory -->
+  <rect x="901" y="646" width="182" height="81" rx="3" class="rose"/>
+  <text x="992" y="670" class="label" text-anchor="middle">particle memories</text>
+  <text x="992" y="691" class="small" text-anchor="middle">position x · best y · velocity v</text>
+  <g transform="translate(923 703)"><circle cx="0" cy="0" r="5" fill="#a94779" stroke="#111"/><circle cx="18" cy="0" r="5" fill="#a94779" stroke="#111"/><circle cx="36" cy="0" r="5" fill="#a94779" stroke="#111"/><circle cx="54" cy="0" r="5" fill="#a94779" stroke="#111"/><circle cx="72" cy="0" r="5" fill="#a94779" stroke="#111"/><circle cx="90" cy="0" r="5" fill="#a94779" stroke="#111"/><text x="110" y="4" class="tiny">S particles</text></g>
+  <path d="M1083 686h32" class="line" marker-end="url(#arrowThin)"/>
+
+  <!-- cost evaluator -->
+  <rect x="1116" y="646" width="185" height="81" rx="3" class="yellow"/>
+  <text x="1208" y="672" class="label" text-anchor="middle">fitness evaluator</text>
+  <text x="1208" y="692" class="small" text-anchor="middle">nonlinear model rollout</text>
+  <text x="1208" y="710" class="tiny" text-anchor="middle">horizon cost: state + input terms</text>
+  <path d="M1301 686h31" class="line" marker-end="url(#arrowThin)"/>
+
+  <!-- min reducer -->
+  <rect x="1333" y="646" width="151" height="81" rx="3" class="green"/>
+  <text x="1408" y="672" class="label" text-anchor="middle">minimum</text>
+  <text x="1408" y="692" class="small" text-anchor="middle">reduction</text>
+  <text x="1408" y="710" class="tiny" text-anchor="middle">global best g</text>
+
+  <!-- lower iteration blocks -->
+  <rect x="742" y="764" width="222" height="83" rx="3" class="blue"/>
+  <text x="853" y="790" class="label" text-anchor="middle">constrained update</text>
+  <text x="853" y="811" class="small" text-anchor="middle">v ← wv + c₁r₁(y−x) + c₂r₂(g−x)</text>
+  <text x="853" y="830" class="tiny" text-anchor="middle">clamp u and Δu; update x ← x + v</text>
+  <path d="M1408 727v72H967" class="line" marker-end="url(#arrow)"/>
+  <path d="M853 764v-36h48" class="line" marker-end="url(#arrowThin)"/>
+  <path d="M964 805h151" class="dash" marker-end="url(#arrowThin)"/>
+  <text x="1038" y="795" class="tiny" text-anchor="middle">next iteration</text>
+  <rect x="1116" y="764" width="368" height="83" rx="3" class="lavender"/>
+  <text x="1300" y="790" class="label" text-anchor="middle">compile-time model configuration</text>
+  <text x="1300" y="812" class="small" text-anchor="middle">inverted pendulum: Nₓ=4, nᵤ=1, Tₛ=0.1 s</text>
+  <text x="1300" y="831" class="small" text-anchor="middle">Sniffbot quadrotor: Nₓ=12, nᵤ=4, Tₛ=0.05 s</text>
+  <path d="M1300 764v-35" class="dash" marker-end="url(#arrowThin)"/>
+
+  <!-- Footer legend / factual parameters -->
+  <rect x="56" y="955" width="1488" height="25" fill="#111"/>
+  <text x="72" y="973" class="badge">IMPLEMENTATION FACTS</text>
+  <text x="268" y="973" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="white">PSO configuration: S = 10 particles · kmax = 100 · w: 0.9 → 0.1 · c₁ = 2.1 · c₂ = 1.0</text>
+  <text x="1225" y="973" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="white">Trajectory output: Nu × nu</text>
+</svg>

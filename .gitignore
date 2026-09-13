@@ -40,3 +40,4 @@ app/kria-pynq/validation_logs/
 hw/exported_platform/
 hw/hdl/*_def_val.txt
 hw/hdl/*_dump.txt
+*.pdf

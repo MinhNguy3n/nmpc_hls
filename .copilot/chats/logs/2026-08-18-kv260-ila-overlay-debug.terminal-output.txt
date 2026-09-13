@@ -1,0 +1,371 @@
+[Output too large (54KB). Full output saved to: c:\Users\Minh_Nguyen\AppData\Roaming\Code\copilot-terminal-output\copilot-terminal-output-5cfcc7c4-f2d4-4ef6-a53b-cc7ae8b457ad.txt]
+[Use readFile or grep to examine the full output.]
+
+hw/hls/source/src/main_hls_model.cpp:31: trailing whitespace.
++};
+hw/hls/source/src/main_hls_model.cpp:32: trailing whitespace.
++
+hw/hls/source/src/main_hls_model.cpp:33: trailing whitespace.
++#elif defined(SNIFFBOT_CONFIG)
+hw/hls/source/src/main_hls_model.cpp:34: trailing whitespace.
++const float  initial_state[] =  {7.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+0.0, 0.0, 0.0};
+hw/hls/source/src/main_hls_model.cpp:35: trailing whitespace.
++
+hw/hls/source/src/main_hls_model.cpp:36: trailing whit
+
+[... middle of output truncated ...]
+
+256600e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:100: trailing whitespace.
++       7.391100e+00, 1.003100e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 1.
+570800e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:101: trailing whitespace.
++       7.391100e+00, 1.003100e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 1.
+570800e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:102: trailing whitespace.
++       7.468500e+00, 1.004400e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 1.
+885000e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:103: trailing whitespace.
++       7.468500e+00, 1.004400e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 1.
+885000e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:104: trailing whitespace.
++       7.545400e+00, 1.006000e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 2.
+199100e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:105: trailing whitespace.
++       7.545400e+00, 1.006000e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 2.
+199100e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:106: trailing whitespace.
++       7.621700e+00, 1.007900e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 2.
+513300e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:107: trailing whitespace.
++       7.621700e+00, 1.007900e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 2.
+513300e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:108: trailing whitespace.
++       7.697500e+00, 1.009900e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 2.
+827400e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:109: trailing whitespace.
++       7.697500e+00, 1.009900e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 2.
+827400e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:110: trailing whitespace.
++       7.772500e+00, 1.012200e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 3.
+141600e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:111: trailing whitespace.
++       7.772500e+00, 1.012200e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 3.
+141600e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:112: trailing whitespace.
++       7.846800e+00, 1.014800e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 3.
+455800e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:113: trailing whitespace.
++       7.846800e+00, 1.014800e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 3.
+455800e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:114: trailing whitespace.
++       7.920300e+00, 1.017600e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 3.
+769900e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:115: trailing whitespace.
++       7.920300e+00, 1.017600e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 3.
+769900e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:116: trailing whitespace.
++       7.920300e+00, 1.017600e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 3.
+769900e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:117: trailing whitespace.
++       7.992900e+00, 1.020600e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 4.
+084100e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:118: trailing whitespace.
++       7.992900e+00, 1.020600e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 4.
+084100e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:119: trailing whitespace.
++       8.064400e+00, 1.023800e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 4.
+398200e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:120: trailing whitespace.
++       8.064400e+00, 1.023800e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 4.
+398200e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:121: trailing whitespace.
++       8.135000e+00, 1.027200e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 4.
+712400e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:122: trailing whitespace.
++       8.135000e+00, 1.027200e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 4.
+712400e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:123: trailing whitespace.
++       8.204400e+00, 1.030900e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 5.
+026500e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:124: trailing whitespace.
++       8.204400e+00, 1.030900e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 5.
+026500e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:125: trailing whitespace.
++       8.272600e+00, 1.034800e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 5.
+340700e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:126: trailing whitespace.
++       8.272600e+00, 1.034800e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 5.
+340700e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:127: trailing whitespace.
++       8.339600e+00, 1.038900e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 5.
+654900e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:128: trailing whitespace.
++       8.339600e+00, 1.038900e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 5.
+654900e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:129: trailing whitespace.
++       8.405200e+00, 1.043200e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 5.
+969000e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:130: trailing whitespace.
++       8.405200e+00, 1.043200e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 5.
+969000e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:131: trailing whitespace.
++       8.469500e+00, 1.047700e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 6.
+283200e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:132: trailing whitespace.
++       8.469500e+00, 1.047700e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 6.
+283200e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:133: trailing whitespace.
++       8.532300e+00, 1.052500e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 6.
+597300e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:134: trailing whitespace.
++       8.532300e+00, 1.052500e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 6.
+597300e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:135: trailing whitespace.
++       8.593600e+00, 1.057400e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 6.
+911500e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:136: trailing whitespace.
++       8.593600e+00, 1.057400e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 6.
+911500e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:137: trailing whitespace.
++       8.653300e+00, 1.062500e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 7.
+225700e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:138: trailing whitespace.
++       8.653300e+00, 1.062500e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 7.
+225700e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:139: trailing whitespace.
++       8.711400e+00, 1.067800e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 7.
+539800e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:140: trailing whitespace.
++       8.711400e+00, 1.067800e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 7.
+539800e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:141: trailing whitespace.
++       8.767800e+00, 1.073200e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 7.
+854000e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:142: trailing whitespace.
++       8.767800e+00, 1.073200e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 7.
+854000e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:143: trailing whitespace.
++       8.822400e+00, 1.078900e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 8.
+168100e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:144: trailing whitespace.
++       8.822400e+00, 1.078900e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 8.
+168100e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:145: trailing whitespace.
++       8.875300e+00, 1.084700e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 8.
+482300e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:146: trailing whitespace.
++       8.875300e+00, 1.084700e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 8.
+482300e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:147: trailing whitespace.
++       8.926300e+00, 1.090600e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 8.
+796500e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:148: trailing whitespace.
++       8.926300e+00, 1.090600e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 8.
+796500e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:149: trailing whitespace.
++       8.975400e+00, 1.096800e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 9.
+110600e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:150: trailing whitespace.
++       8.975400e+00, 1.096800e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 9.
+110600e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00,
+hw/hls/source/src/main_hls_system.cpp:151: trailing whitespace.
++       9.022500e+00, 1.103100e+01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 9.
+424800e-01, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00
+, 0.000000e+00
+hw/hls/source/src/main_hls_system.cpp:152: trailing whitespace.
++};
+hw/hls/source/src/main_hls_system.cpp:153: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:154: trailing whitespace.
++#endif
+hw/hls/source/src/main_hls_system.cpp:155: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:156: trailing whitespace.
++// top_model_t my_model;
+hw/hls/source/src/main_hls_system.cpp:157: trailing whitespace.
++// top_model_t *my_model_ptr = &my_model;
+hw/hls/source/src/main_hls_system.cpp:158: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:159: trailing whitespace.
++float cost_function_wrapper(
+hw/hls/source/src/main_hls_system.cpp:160: trailing whitespace.
++    volatile float *control_guess,
+hw/hls/source/src/main_hls_system.cpp:161: trailing whitespace.
++       volatile float *xref,
+hw/hls/source/src/main_hls_system.cpp:162: trailing whitespace.
++       volatile float *current_state
+hw/hls/source/src/main_hls_system.cpp:163: trailing whitespace.
++)
+hw/hls/source/src/main_hls_system.cpp:164: trailing whitespace.
++{
+hw/hls/source/src/main_hls_system.cpp:165: trailing whitespace.
++#pragma HLS INTERFACE s_axilite port=return         bundle=control
+hw/hls/source/src/main_hls_system.cpp:166: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:167: trailing whitespace.
++#pragma HLS INTERFACE s_axilite port=control_guess  bundle=control
+hw/hls/source/src/main_hls_system.cpp:168: trailing whitespace.
++#pragma HLS INTERFACE s_axilite port=xref           bundle=control
+hw/hls/source/src/main_hls_system.cpp:169: trailing whitespace.
++#pragma HLS INTERFACE s_axilite port=current_state  bundle=control
+hw/hls/source/src/main_hls_system.cpp:170: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:171: trailing whitespace.
++#pragma HLS INTERFACE m_axi depth=40  port=control_guess offset=slave bundle=in
+put
+hw/hls/source/src/main_hls_system.cpp:172: trailing whitespace.
++#pragma HLS INTERFACE m_axi depth=120 port=xref          offset=slave bundle=in
+put
+hw/hls/source/src/main_hls_system.cpp:173: trailing whitespace.
++#pragma HLS INTERFACE m_axi depth=12  port=current_state offset=slave bundle=in
+put
+hw/hls/source/src/main_hls_system.cpp:174: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:175: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:176: trailing whitespace.
++    typedef System<_system_real, _system_model_real, _Nh, _Nx, _n_U, _Nu> T_sys
+tem;
+hw/hls/source/src/main_hls_system.cpp:177: trailing whitespace.
++    T_system current_system(
+hw/hls/source/src/main_hls_system.cpp:178: trailing whitespace.
++        _u_max, 
+hw/hls/source/src/main_hls_system.cpp:179: trailing whitespace.
++        _u_min, 
+hw/hls/source/src/main_hls_system.cpp:180: trailing whitespace.
++        _du_max,
+hw/hls/source/src/main_hls_system.cpp:181: trailing whitespace.
++        _controlled_state,
+hw/hls/source/src/main_hls_system.cpp:182: trailing whitespace.
++        _state_upper_limits, 
+hw/hls/source/src/main_hls_system.cpp:183: trailing whitespace.
++        _state_lower_limits, 
+hw/hls/source/src/main_hls_system.cpp:184: trailing whitespace.
++        _Q, 
+hw/hls/source/src/main_hls_system.cpp:185: trailing whitespace.
++        _Qf, 
+hw/hls/source/src/main_hls_system.cpp:186: trailing whitespace.
++        _R, 
+hw/hls/source/src/main_hls_system.cpp:187: trailing whitespace.
++        _uss,
+hw/hls/source/src/main_hls_system.cpp:188: trailing whitespace.
++        _Ts
+hw/hls/source/src/main_hls_system.cpp:189: trailing whitespace.
++        // ,
+hw/hls/source/src/main_hls_system.cpp:190: trailing whitespace.
++        // my_model
+hw/hls/source/src/main_hls_system.cpp:191: trailing whitespace.
++        );
+hw/hls/source/src/main_hls_system.cpp:192: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:193: trailing whitespace.
++    _system_real local_control_guess[_n_U*_Nu];
+hw/hls/source/src/main_hls_system.cpp:194: trailing whitespace.
++    _system_real local_xref[_Nx*_Nh];
+hw/hls/source/src/main_hls_system.cpp:195: trailing whitespace.
++    _system_real local_current_state[_Nx];
+hw/hls/source/src/main_hls_system.cpp:196: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:197: trailing whitespace.
++#pragma HLS bind_storage variable=local_control_guess type=FIFO impl=LUTRAM
+hw/hls/source/src/main_hls_system.cpp:198: trailing whitespace.
++#pragma HLS bind_storage variable=local_xref type=FIFO impl=LUTRAM
+hw/hls/source/src/main_hls_system.cpp:199: trailing whitespace.
++#pragma HLS bind_storage variable=local_current_state type=FIFO impl=LUTRAM
+hw/hls/source/src/main_hls_system.cpp:200: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:201: trailing whitespace.
++    reg_curr_st: memcpy_loop_rolled<_system_real, float, _Nx>(local_current_sta
+te, (float *)current_state);
+hw/hls/source/src/main_hls_system.cpp:202: trailing whitespace.
++    reg_cont_gss: memcpy_loop_rolled<_system_real, float, _n_U*_Nu>(local_contr
+ol_guess, (float *)control_guess);
+hw/hls/source/src/main_hls_system.cpp:203: trailing whitespace.
++    reg_xref: memcpy_loop_rolled<_system_real, float, _Nx*_Nh>(local_xref, (flo
+at *) xref);
+hw/hls/source/src/main_hls_system.cpp:204: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:205: trailing whitespace.
++    _system_real cf;
+hw/hls/source/src/main_hls_system.cpp:206: trailing whitespace.
++    current_system.nmpc_cost_function(local_current_state, local_control_guess,
+ local_xref, &cf);
+hw/hls/source/src/main_hls_system.cpp:207: trailing whitespace.
++    // current_system.nmpc_cost_function_topflow(local_current_state, local_con
+trol_guess, local_xref, &cf);
+hw/hls/source/src/main_hls_system.cpp:208: trailing whitespace.
++    return (float) cf;
+hw/hls/source/src/main_hls_system.cpp:209: trailing whitespace.
++}
+hw/hls/source/src/main_hls_system.cpp:210: trailing whitespace.
++
+hw/hls/source/src/main_hls_system.cpp:211: trailing whitespace.
++int main(){
+hw/hls/source/src/main_hls_system.cpp:212: trailing whitespace.
++    
+hw/hls/source/src/main_hls_system.cpp:213: trailing whitespace.
++    float j = cost_function_wrapper((volatile float *)u_guess, (volatile float
+*)x_ref, (volatile float *)initial_state);
+hw/hls/source/src/main_hls_system.cpp:214: trailing whitespace.
++    std::cout << "J = " << j << std::endl;
+hw/hls/source/src/main_hls_system.cpp:215: trailing whitespace.
++    return 0;
+hw/hls/source/src/main_hls_system.cpp:216: trailing whitespace.
++}
+(base) minh@minhLenovo:nmpc_hls$ 
+
+Output exceeded terminal scrollback; beginning of output was lost

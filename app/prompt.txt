@@ -1,0 +1,35 @@
+The execution of the jupyter notebook cell that starts with `pynq_available = __import__("importlib").util.find_spec("pynq")`, i.e., below section 12 in the notebook, the outputs right below it shows:
+```
+Overlay path: /root/jupyter_notebooks/nmpc_hls/app/kria-pynq/overlay
+Bitstream: /root/jupyter_notebooks/nmpc_hls/app/kria-pynq/overlay/design_nmpc_solver.bit
+HWH: /root/jupyter_notebooks/nmpc_hls/app/kria-pynq/overlay/design_nmpc_solver.hwh
+IP dictionary
+```
+
+type	mem_id	memtype	gpio	interrupts	parameters	registers	driver	device	state	bdtype	phys_addr	addr_range	fullpath
+nmpc_solver/control_gpio/axi_gpio_0	xilinx.com:ip:axi_gpio:2.0	S_AXI	REGISTER	{}	{}	{'C_ALL_INPUTS': '0', 'C_ALL_INPUTS_2': '1', '...	{'GPIO_DATA': {'address_offset': 0, 'size': 4,...	<class 'pynq.lib.axigpio.AxiGPIO'>	<pynq.pl_server.embedded_device.EmbeddedDevice...	NaN	NaN	2.684355e+09	65536.0	nmpc_solver/control_gpio/axi_gpio_0
+nmpc_solver/pso_fsm_0	tu-dresden_turun-yliopisto:hls:pso_fsm:1.0	s_axi_control_r	REGISTER	{}	{}	{'C_M_AXI_CONSTRAINTS_MEM_ADDR_WIDTH': '32', '...	{'u_curr': {'address_offset': 16, 'size': 32, ...	<class 'pynq.overlay.DefaultIP'>	<pynq.pl_server.embedded_device.EmbeddedDevice...	NaN	NaN	2.684617e+09	65536.0	nmpc_solver/pso_fsm_0
+zynq_ultra_ps_e_0	xilinx.com:ip:zynq_ultra_ps_e:3.5	NaN	NaN	{}	{}	{'C_DP_USE_AUDIO': '0', 'C_DP_USE_VIDEO': '0',...	NaN	<class 'pynq.overlay.DefaultIP'>	<pynq.pl_server.embedded_device.EmbeddedDevice...	NaN	NaN	NaN	NaN	NaN
+
+```
+Clock dictionary {0: {'enable': 1, 'divisor0': 15, 'divisor1': 1}, 1: {'enable': 0, 'divisor0': 4, 'divisor1': 1}, 2: {'enable': 0, 'divisor0': 4, 'divisor1': 1}, 3: {'enable': 0, 'divisor0': 4, 'divisor1': 1}}
+Hierarchy dictionary {'nmpc_solver': {'ip': {'pso_fsm_0': {'type': 'tu-dresden_turun-yliopisto:hls:pso_fsm:1.0', 'mem_id': 's_axi_control_r', 'memtype': 'REGISTER', 'gpio': {}, 'interrupts': {}, 'parameters': {'C_M_AXI_CONSTRAINTS_MEM_ADDR_WIDTH': '32', 'C_M_AXI_CONSTRAINTS_MEM_ARUSER_WIDTH': '1', 'C_M_AXI_CONSTRAINTS_MEM_AWUSER_WIDTH': '1', 'C_M_AXI_CONSTRAINTS_MEM_BUSER_WIDTH': '1', 'C_M_AXI_CONSTRAINTS_MEM_CACHE_VALUE': '"0011"', 'C_M_AXI_CONSTRAINTS_MEM_DATA_WIDTH': '32', 'C_M_AXI_CONSTRAINTS_MEM_ID_WIDTH': '1', 'C_M_AXI_CONSTRAINTS_MEM_PROT_VALUE': '"000"', 'C_M_AXI_CONSTRAINTS_MEM_RUSER_WIDTH': '1', 'C_M_AXI_CONSTRAINTS_MEM_USER_VALUE': '0x00000000', 'C_M_AXI_CONSTRAINTS_MEM_WUSER_WIDTH': '1', 'C_M_AXI_CURRENT_MEM_ADDR_WIDTH': '32', 'C_M_AXI_CURRENT_MEM_ARUSER_WIDTH': '1', 'C_M_AXI_CURRENT_MEM_AWUSER_WIDTH': '1', 'C_M_AXI_CURRENT_MEM_BUSER_WIDTH': '1', 'C_M_AXI_CURRENT_MEM_CACHE_VALUE': '"0011"', 'C_M_AXI_CURRENT_MEM_DATA_WIDTH': '32', 'C_M_AXI_CURRENT_MEM_ID_WIDTH': '1', 'C_M_AXI_CURRENT_MEM_PROT_VALUE': '"000"', 'C_M_AXI_CURRENT_MEM_RUSER_WIDTH': '1', 'C_M_AXI_CURRENT_MEM_USER_VALUE': '0x00000000', 'C_M_AXI_CURRENT_MEM_WUSER_WIDTH': '1', 'C_M_AXI_NMPC_IO_ADDR_WIDTH': '32', 'C_M_AXI_NMPC_IO_ARUSER_WIDTH': '1', 'C_M_AXI_NMPC_IO_AWUSER_WIDTH': '1', 'C_M_AXI_NMPC_IO_BUSER_WIDTH': '1', 'C_M_AXI_NMPC_IO_CACHE_VALUE': '"0011"', 'C_M_AXI_NMPC_IO_DATA_WIDTH': '32', 'C_M_AXI_NMPC_IO_ID_WIDTH': '1', 'C_M_AXI_NMPC_IO_PROT_VALUE': '"000"', 'C_M_AXI_NMPC_IO_RUSER_WIDTH': '1', 'C_M_AXI_NMPC_IO_USER_VALUE': '0x00000000', 'C_M_AXI_NMPC_IO_WUSER_WIDTH': '1', 'C_M_AXI_PSO_MEM_ADDR_WIDTH': '32', 'C_M_AXI_PSO_MEM_ARUSER_WIDTH': '1', 'C_M_AXI_PSO_MEM_AWUSER_WIDTH': '1', 'C_M_AXI_PSO_MEM_BUSER_WIDTH': '1', 'C_M_AXI_PSO_MEM_CACHE_VALUE': '"0011"', 'C_M_AXI_PSO_MEM_DATA_WIDTH': '32', 'C_M_AXI_PSO_MEM_ID_WIDTH': '1', 'C_M_AXI_PSO_MEM_PROT_VALUE': '"000"', 'C_M_AXI_PSO_MEM_RUSER_WIDTH': '1', 'C_M_AXI_PSO_MEM_USER_VALUE': '0x00000000', 'C_M_AXI_PSO_MEM_WUSER_WIDTH': '1', 'C_S_AXI_CONTROL_ADDR_WIDTH': '5', 'C_S_AXI_CONTROL_DATA_WIDTH': '32', 'C_S_AXI_CONTROL_R_ADDR_WIDTH': '6', 'C_S_AXI_CONTROL_R_DATA_WIDTH': '32', 'C_M_AXI_CONSTRAINTS_MEM_ENABLE_ID_PORTS': 'true', 'C_M_AXI_CONSTRAINTS_MEM_ENABLE_USER_PORTS': 'false', 'C_M_AXI_CURRENT_MEM_ENABLE_ID_PORTS': 'true', 'C_M_AXI_CURRENT_MEM_ENABLE_USER_PORTS': 'false', 'C_M_AXI_NMPC_IO_ENABLE_ID_PORTS': 'true', 'C_M_AXI_NMPC_IO_ENABLE_USER_PORTS': 'false', 'C_M_AXI_PSO_MEM_ENABLE_ID_PORTS': 'true', 'C_M_AXI_PSO_MEM_ENABLE_USER_PORTS': 'false', 'Component_Name': '
+...<truncated>
+```
+
+	buffer	shape	dtype	physical_address	aligned_64B	below_2GiB
+0	u_curr	(4,)	int32	0x051e2000	True	True
+1	x_curr	(12,)	int32	0x02b96000	True	True
+2	xref	(25, 12)	int32	0x02b94000	True	True
+3	last_best	(25, 4)	int32	0x05187000	True	True
+4	new_best	(25, 4)	int32	0x7622b000	True	True
+5	bestfitness	(100,)	int32	0x02a96000	True	True
+
+
+instance	interface	base	range
+0	/nmpc_solver/pso_fsm_0	s_axi_control	0xA0030000	65536
+1	/nmpc_solver/pso_fsm_0	s_axi_control_r	0xA0040000	65536
+
+After running the cell starting with `closed_loop_rows = []` in the aforementioned notebook, i.e., below section 17, the generated graph that shows there were no trajectory and reference outputs from nmpc_solver block.
+
+FYI, the overlay files that was imported to the Jupyter environment did not include the HWH files related to the AXI smartconnect blocks (e.g., design_nmpc_solver_smartconnect_0_0.hwh). Perhaps we should modify the nmpc_overlay.py (overlay wrapper) and package_overlay.py (packaing overlay files) such that those HWH with smartconnect is included. For reference, my new VIvado platform is generated with the TCL file hw/hdl/design_nmpc_solver.tcl
