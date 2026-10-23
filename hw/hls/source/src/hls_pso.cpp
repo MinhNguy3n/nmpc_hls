@@ -318,20 +318,23 @@ int pso_fsm(
 	_pso_hw_real local_uss[_pso_n_U],
 
 	// State Machine signals
+	// ap_done inputs must be volatile references: ap_none scalars passed by
+	// value are sampled once at ap_start, so the wait states never observe done.
 	bool &rand_core_ap_start,
 	bool &init_s_ap_start,
-	bool init_s_ap_done,
+	volatile bool &init_s_ap_done,
 	bool &eval_s_ap_start,
-	bool eval_s_ap_done,
+	volatile bool &eval_s_ap_done,
 	bool &detect_min_ap_start,
-	bool detect_min_ap_done,
+	volatile bool &detect_min_ap_done,
 	bool &update_s_ap_start,
-	bool update_s_ap_done,
+	volatile bool &update_s_ap_done,
 
 	bool &rst_cores,
 
 	// Particle Variables
 	uint32_t &k,
+	volatile uint32_t &debug_state,
 	_pso_hw_real local_bestfitness[_pso_maxiter],
 	_pso_hw_real global_min[_pso_Nu*_pso_n_U]
 	
@@ -350,6 +353,7 @@ int pso_fsm(
 #pragma HLS INTERFACE mode=ap_none port=rst_cores
 
 #pragma HLS interface mode=ap_vld register port=k
+#pragma HLS INTERFACE mode=s_axilite port=debug_state bundle=control
 
 #pragma HLS INTERFACE mode=m_axi port=u_curr			offset=slave 	depth=n_U			bundle=nmpc_io
 #pragma HLS INTERFACE mode=m_axi port=x_curr			offset=slave 	depth=Nx			bundle=nmpc_io 
@@ -375,6 +379,7 @@ int pso_fsm(
 
 	uint32_t k_local = 0;
 	k = 0;
+	debug_state = 0;
 	uint16_t state = 0;
 	
 	rst_cores			= false;
@@ -386,6 +391,7 @@ int pso_fsm(
 
 	bool flag=true;
 	do{
+		debug_state = state;
 		switch (state)
 		{
 		case 0: // Save Input data in memory banks
@@ -430,11 +436,12 @@ int pso_fsm(
 			eval_s_ap_start 	= false;
 			detect_min_ap_start = false;
 			update_s_ap_start 	= false;
-			
-			if (init_s_ap_done)
-				state = 3;
-			else
-				state = 2;
+
+			// ap_ctrl_hs ap_done is a single-cycle pulse: poll every clock.
+			while (!init_s_ap_done) {
+#pragma HLS PIPELINE II=1
+			}
+			state = 3;
 
 			break;
 
@@ -457,10 +464,10 @@ int pso_fsm(
 			detect_min_ap_start = false;
 			update_s_ap_start 	= false;
 			
-			if (eval_s_ap_done)
-				state = 5;
-			else
-				state = 4;
+			while (!eval_s_ap_done) {
+#pragma HLS PIPELINE II=1
+			}
+			state = 5;
 			break;
 
 		case 5:// Detect Min
@@ -482,10 +489,10 @@ int pso_fsm(
 			detect_min_ap_start = false;
 			update_s_ap_start 	= false;
 			
-			if (detect_min_ap_done)
-				state = 7;
-			else
-				state = 6;
+			while (!detect_min_ap_done) {
+#pragma HLS PIPELINE II=1
+			}
+			state = 7;
 			break;
 
 		case 7://  Update S
@@ -507,16 +514,15 @@ int pso_fsm(
 			detect_min_ap_start = false;
 			update_s_ap_start 	= false;
 			
-			if (update_s_ap_done) {
-				k_local++;
-				k = k_local;
-				if (k_local == _pso_maxiter)
-					state = 9;
-				else
-					state = 3;
-			} else {
-				state = 8;
+			while (!update_s_ap_done) {
+#pragma HLS PIPELINE II=1
 			}
+			k_local++;
+			k = k_local;
+			if (k_local == _pso_maxiter)
+				state = 9;
+			else
+				state = 3;
 			break;
 
 		case 9:// Finish and save data
