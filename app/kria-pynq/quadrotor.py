@@ -235,11 +235,27 @@ def quadrotor_derivative(state: Any, normalized_control: Any) -> np.ndarray:
 
 
 def quadrotor_step(
-    state: Any, normalized_control: Any, sample_time: float = DEFAULT_TS
+    state: Any,
+    normalized_control: Any,
+    sample_time: float = DEFAULT_TS,
+    method: str = "euler",
 ) -> np.ndarray:
+    """Advance the plant by one sample with the control held constant.
+
+    method="rk4" matches the classical RK4 prediction in the hardware cost model
+    (System::one_step_prediction in hls_system.hpp); "euler" is the original forward step.
+    """
     if sample_time <= 0:
         raise ValueError("sample_time must be positive")
     state_array = np.asarray(state, dtype=np.float64)
-    return state_array + sample_time * quadrotor_derivative(
-        state_array, normalized_control
-    )
+    if method == "euler":
+        return state_array + sample_time * quadrotor_derivative(
+            state_array, normalized_control
+        )
+    if method == "rk4":
+        k1 = quadrotor_derivative(state_array, normalized_control)
+        k2 = quadrotor_derivative(state_array + 0.5 * sample_time * k1, normalized_control)
+        k3 = quadrotor_derivative(state_array + 0.5 * sample_time * k2, normalized_control)
+        k4 = quadrotor_derivative(state_array + sample_time * k3, normalized_control)
+        return state_array + sample_time / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
+    raise ValueError(f"unknown integration method {method!r}")
