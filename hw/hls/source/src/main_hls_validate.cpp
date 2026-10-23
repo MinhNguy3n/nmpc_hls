@@ -7,6 +7,11 @@
 //   main_hls_validate trajectory < x_curr[Nx] xref[Nx*Nh] u[Nu*n_U]
 //       Runs the cost function one horizon step at a time and prints, per step, the predicted
 //       state and the accumulated state and control objective terms ("S i x[0..Nx-1] Ji Jui").
+//   main_hls_validate serve < { seed x_curr[Nx] xref[Nx*Nh] u_curr[n_U] last_best[Nu*n_U] }...
+//       Closed-loop helper: prints "config n_S maxiter Nh Nu", then solves one problem per record
+//       until end of input, printing "u ...", "Jrecomputed J" and "end" for each. A seed > 0 calls
+//       srand(seed) before that solve; 0 continues the current random stream, as the hardware's
+//       free-running generator does between solves.
 //
 // Builds (see app/kria-pynq/validate_hw_run.py):
 //   float:  no HW_ARITH_CSIM. "trajectory" uses double arithmetic with std::sin: the reference
@@ -116,6 +121,27 @@ int main(int argc, char **argv) {
         printf("\n");
         return 0;
     }
+    if (argc >= 2 && strcmp(argv[1], "serve") == 0) {
+        printf("config %d %d %d %d\n", _pso_n_S, _pso_maxiter, _pso_Nh, _pso_Nu);
+        fflush(stdout);
+        double seed;
+        while (scanf("%lf", &seed) == 1) {
+            if (seed > 0)
+                srand((unsigned)seed);
+            read_values(x_curr, _pso_Nx);
+            read_values(xref, _pso_Nx * _pso_Nh);
+            read_values(u_curr, _pso_n_U);
+            read_values(last_best, part);
+            _pso_hw_real J[1];
+            execute(x_curr, u_curr, 0, last_best, xref, u, J);
+            printf("u");
+            for (int i = 0; i < part; i++)
+                printf(" %.9g", (double)u[i]);
+            printf("\nJrecomputed %.6f\nend\n", cost(x_curr, xref, u));
+            fflush(stdout);
+        }
+        return 0;
+    }
     if (argc >= 2 && strcmp(argv[1], "trajectory") == 0) {
         static double x0[_Nx], ref[_Nx * _Nh], uu[part];
         read_doubles(x0, _Nx);
@@ -128,6 +154,6 @@ int main(int argc, char **argv) {
 #endif
         return 0;
     }
-    fprintf(stderr, "usage: %s cost | solve <seed> | trajectory  (values on stdin)\n", argv[0]);
+    fprintf(stderr, "usage: %s cost | solve <seed> | trajectory | serve  (values on stdin)\n", argv[0]);
     return 1;
 }
