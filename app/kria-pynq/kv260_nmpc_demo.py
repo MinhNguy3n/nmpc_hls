@@ -216,7 +216,9 @@ clock_checks = {
 
 }
 
-display(pd.Series(clock_checks, name="pass"))
+if not tcl_text:
+    clock_checks = dict.fromkeys(clock_checks)  # None = skipped: nothing to audit without the Tcl
+display(pd.Series(clock_checks, name="pass", dtype=object))
 
 
 # ## 5. Parse the Exported HWH and BDA Address Map
@@ -639,19 +641,46 @@ else:
 
 # ## 17. Run a Closed-Loop Quadrotor Hardware Test
 #
-#
-#
 # The bounded loop sends state to PL, waits for the optimized trajectory, applies its first control to the software plant, shifts the trajectory for warm start, and advances the spiral reference. It records state, control, fitness, latency, timeout, and constraint status.
+#
+# `closed_loop_steps` sets the run length (10 is the smoke test; 100 steps take about 52 s of board time) and `closed_loop_trials` repeats the run from the same initial state and zero warm start (5 x 100 steps take about 4.4 min). The free-running hardware RNG is not reset, so the trials share one continuing random stream and sample the PSO's run-to-run spread. The software plant uses the same equations as the hardware prediction model: this is a perfect-model, offline HIL test, not real-time control (one solve takes about 0.52 s against Ts = 0.05 s).
+#
 
 # In[9]:
 
 
-closed_loop_steps = 10  # about 0.52 s of board time per step: 100 steps take about 52 s
-closed_loop_rows = []
-closed_loop_states = []
-closed_loop_controls = []
-closed_loop_metrics = {}
-if solver is not None:
+closed_loop_steps = 10  # 10 = smoke test; about 0.52 s of board time per step (100 steps take about 52 s)
+closed_loop_trials = 1  # repeats from the same initial state and zero warm start (5 x 100 steps take about 4.4 min)
+
+
+def tracking_metrics(states, controls):
+    """Tracking and constraint metrics, shared by the HIL trials and the MATLAB comparison.
+
+    states[k] is the plant state at t = k * sample_time: row 0 is the initial state and the last row
+    is the state after the last applied control. controls[k] is applied from t_k to t_k+1."""
+    times = np.arange(len(states)) * sample_time
+    position_error = states[:, 0:3] - spiral_reference(times)[:, 0:3]
+    distance = np.linalg.norm(position_error, axis=1)
+    tilt = np.abs(states[:, 3:5])
+    applied = controls[np.all(np.isfinite(controls), axis=1)]
+    control_steps = np.abs(np.diff(applied, axis=0))
+    return {
+        "samples": len(states),
+        "position_rmse_m": float(np.sqrt(np.mean(distance ** 2))),
+        "position_max_error_m": float(distance.max()),
+        "position_max_error_time_s": float(times[distance.argmax()]),
+        "final_time_s": float(times[-1]),
+        "final_position_error_m": position_error[-1].tolist(),
+        "final_state": states[-1].tolist(),
+        "peak_roll_pitch_rad": float(tilt.max()),
+        "plant_limit_ok": bool(tilt.max() <= np.pi / 4),
+        "max_abs_control": float(np.abs(applied).max()) if len(applied) else float("nan"),
+        "max_control_step": float(control_steps.max()) if len(control_steps) else float("nan"),
+    }
+
+
+def run_closed_loop(trial):
+    rows, states, controls = [], [], []
     state = curr_state.copy()
     control = curr_control.copy()
     warm_start = last_best.copy()
@@ -675,67 +704,92 @@ if solver is not None:
             next_state = state.copy()
             delta_violation = absolute_violation = False
             fitness = latency = np.nan
-        closed_loop_rows.append({
-            "step": step, "time": current_time, "fitness": fitness,
+        rows.append({
+            "trial": trial, "step": step, "time": current_time, "fitness": fitness,
             "latency_seconds": latency, "timeout": timed_out,
             "delta_violation": delta_violation,
             "absolute_violation": absolute_violation,
         })
-        closed_loop_states.append(state.copy())
-        closed_loop_controls.append(applied_control.copy())
+        states.append(state.copy())
+        controls.append(applied_control.copy())
         if timed_out:
             break
         state, control = next_state, applied_control
     if not timed_out:
-        closed_loop_states.append(state.copy())  # plant state after the last applied control
+        states.append(state.copy())  # plant state after the last applied control
+    table = pd.DataFrame(rows)
+    states = np.asarray(states)
+    controls = np.asarray(controls)
+    metrics = {
+        "trial": trial,
+        "steps_completed": int((~table["timeout"]).sum()),
+        "timeouts": int(table["timeout"].sum()),
+        "delta_violations": int(table["delta_violation"].sum()),
+        "absolute_violations": int(table["absolute_violation"].sum()),
+        "latency_mean_s": float(table["latency_seconds"].mean()),
+        "latency_min_s": float(table["latency_seconds"].min()),
+        "latency_max_s": float(table["latency_seconds"].max()),
+        **tracking_metrics(states, controls),
+    }
+    return {"table": table, "states": states, "controls": controls, "metrics": metrics}
 
-closed_loop_table = pd.DataFrame(closed_loop_rows)
-display(closed_loop_table)
-if closed_loop_states:
-    state_history = np.asarray(closed_loop_states)
-    control_history = np.asarray(closed_loop_controls)
-    times = np.arange(len(state_history)) * sample_time
-    references = spiral_reference(times)
-    position_error = state_history[:, 0:3] - references[:, 0:3]
-    tilt = np.abs(state_history[:, 3:5])
-    finite_controls = control_history[np.all(np.isfinite(control_history), axis=1)]
+
+closed_loop_runs = []
+if solver is not None:
+    for trial in range(closed_loop_trials):
+        closed_loop_runs.append(run_closed_loop(trial))
+        trial_result = closed_loop_runs[-1]["metrics"]
+        print(f"trial {trial}: {trial_result['steps_completed']} steps, "
+              f"RMSE {trial_result['position_rmse_m']:.3f} m, peak tilt {trial_result['peak_roll_pitch_rad']:.3f} rad")
+
+closed_loop_metrics = {}
+if closed_loop_runs:
+    closed_loop_table = pd.concat([run["table"] for run in closed_loop_runs], ignore_index=True)
+    trial_metrics = pd.DataFrame([run["metrics"] for run in closed_loop_runs]).set_index("trial")
+    key_metrics = ["position_rmse_m", "position_max_error_m", "peak_roll_pitch_rad", "max_control_step",
+                   "latency_mean_s", "latency_max_s"]
+    display(trial_metrics[["steps_completed", "timeouts", "delta_violations", "absolute_violations",
+                           "plant_limit_ok", *key_metrics]])
+    across_trials = trial_metrics[key_metrics].agg(["mean", "std", "min", "max"])
+    display(across_trials)
+    latencies = closed_loop_table["latency_seconds"].dropna()
     closed_loop_metrics = {
         "plant_integrator": plant_integrator,
         "steps_requested": closed_loop_steps,
-        "steps_completed": int((~closed_loop_table["timeout"]).sum()),
-        "timeouts": int(closed_loop_table["timeout"].sum()),
-        "position_rmse_m": float(np.sqrt(np.mean(np.sum(position_error ** 2, axis=1)))),
-        "position_max_error_m": float(np.max(np.linalg.norm(position_error, axis=1))),
-        "final_position_error_m": position_error[-1].tolist(),
-        "peak_roll_pitch_rad": float(tilt.max()),
-        "plant_limit_rad": float(np.pi / 4),
-        "plant_limit_ok": bool(tilt.max() <= np.pi / 4),
-        "control_bounds_ok": bool(np.all(np.abs(finite_controls) <= 100.0 + 1e-3)),
-        "delta_violations": int(closed_loop_table["delta_violation"].sum()),
-        "latency_mean_s": float(closed_loop_table["latency_seconds"].mean()),
-        "latency_max_s": float(closed_loop_table["latency_seconds"].max()),
+        "trials": closed_loop_trials,
+        "timeouts": int(trial_metrics["timeouts"].sum()),
+        "plant_limit_ok": bool(trial_metrics["plant_limit_ok"].all()),
+        "control_bounds_ok": bool((trial_metrics["absolute_violations"] == 0).all()),
+        "delta_violations": int(trial_metrics["delta_violations"].sum()),
+        "latency_s": {
+            "solves": int(latencies.size), "min": float(latencies.min()), "median": float(latencies.median()),
+            "p95": float(latencies.quantile(0.95)), "max": float(latencies.max()),
+        },
+        "across_trials": across_trials.to_dict(),
+        "per_trial": [run["metrics"] for run in closed_loop_runs],
     }
-    display(pd.Series(closed_loop_metrics, name="closed loop", dtype=object))
+    reference_history = spiral_reference(np.arange(max(len(run["states"]) for run in closed_loop_runs)) * sample_time)
+    times = np.arange(len(reference_history)) * sample_time
     fig, axes = plt.subplots(3, 1, figsize=(8, 7), sharex=True)
     for axis, index, label in zip(axes, range(3), ("x", "y", "z")):
-        axis.plot(times, state_history[:, index], label=f"KV260 HIL ({plant_integrator} plant)")
-        axis.plot(times, references[:, index], "--", label="reference")
+        for run in closed_loop_runs:
+            axis.plot(times[:len(run["states"])], run["states"][:, index],
+                      label=f"KV260 HIL trial {run['metrics']['trial']} ({plant_integrator} plant)")
+        axis.plot(times, reference_history[:, index], "k--", label="reference")
         axis.set_ylabel(label)
         axis.grid(True, alpha=0.3)
-    axes[0].legend()
+    axes[0].legend(fontsize="small")
     axes[-1].set_xlabel("time [s]")
     plt.show()
 else:
-    state_history = np.empty((0, 12))
-    control_history = np.empty((0, 4))
+    closed_loop_table = pd.DataFrame()
+    reference_history = np.empty((0, 12))
     print("Closed-loop hardware test skipped.")
 
 
 # ## 18. Compare Hardware Results with the MATLAB NMPC Model
 #
-#
-#
-# Load available MATLAB histories and compare trajectories where compatible. MATLAB uses `fmincon` and a nominal 60-step horizon in `QuadrotorNMPC.m`, while this HLS PSO configuration uses 25 steps, different weights, Q17.15 top arithmetic, and half-precision model arithmetic.
+# A descriptive comparison, not an apples-to-apples benchmark. `drone_spiral_dir.mat` holds the MATLAB `QuadrotorNMPC.m` run on the same spiral reference and initial state; both are scored with `tracking_metrics` over the same samples. The setups differ: MATLAB uses `fmincon`, a 60-step horizon, weight 1 on position and attitude errors, `0.02 u^2`, no terminal cost, no `du` bound, and a forward-Euler plant. The HLS PSO uses 25 steps, `Q`/`Qf`/`R` from `config.hpp`, `du_max = 20`, Q17.15 top arithmetic, and a half-precision model. Both use normalized controls in [-100, 100].
 #
 #
 #
@@ -748,30 +802,64 @@ else:
 # In[ ]:
 
 
-matlab_comparison = {"available": False, "notes": [
-    "MATLAB fmincon and HLS PSO are different optimizers.",
-    "MATLAB QuadrotorNMPC uses round(3/0.05)=60 steps; SNIFFBOT_CONFIG uses 25.",
-    "HLS top values are Q17.15 and the model type is half precision.",
-]}
-mat_files = sorted((repo_root / "app/matlab_ws").glob("*.mat")) if (repo_root / "app/matlab_ws").is_dir() else []
-if mat_files and len(state_history):
+matlab_file = repo_root / "app/matlab_ws/drone_spiral_dir.mat"
+matlab_comparison = {
+    "available": False,
+    "file": str(matlab_file),
+    "notes": [
+        "Descriptive comparison, not an apples-to-apples benchmark.",
+        "Optimizer: MATLAB fmincon (QuadrotorNMPC.m) vs HLS PSO, 10 particles x 100 iterations.",
+        "Horizon: MATLAB round(3/0.05) = 60 steps vs 25 steps (SNIFFBOT_CONFIG).",
+        "Weights: MATLAB weight 1 on x,y,z,phi,theta,psi errors, 0.02 u^2, no terminal cost, no du bound; "
+        "HLS Q=[1,1,1,3,3,3], Qf=[10,10,10,30,30,30], R=0.0005, du_max=20.",
+        f"Plant: MATLAB QuadrotorSystem.m uses forward Euler; this run uses the {plant_integrator} plant.",
+        "Arithmetic: HLS top values are Q17.15 and the model type is half precision.",
+        "Alignment: row k is the state at t = k*Ts (Ts = 0.05 s); row 0 is the shared initial state, the last "
+        "row the state after the last applied control. Both use normalized controls in [-100, 100].",
+    ],
+}
+if closed_loop_runs and matlab_file.is_file():
     try:
         from scipy.io import loadmat
-        for mat_path in mat_files:
-            data = loadmat(mat_path)
-            if "xHistory" in data and "uHistory" in data:
-                count = min(len(state_history), len(data["xHistory"]))
-                state_rmse = float(np.sqrt(np.mean((state_history[:count] - data["xHistory"][:count, :12]) ** 2)))
-                control_count = min(len(control_history), len(data["uHistory"]))
-                control_rmse = float(np.sqrt(np.mean((control_history[:control_count] - data["uHistory"][:control_count, :4]) ** 2)))
-                matlab_comparison.update({
-                    "available": True, "file": str(mat_path),
-                    "state_rmse": state_rmse, "control_rmse": control_rmse,
-                })
-                break
     except ImportError:
         matlab_comparison["notes"].append("SciPy is unavailable; MAT comparison skipped.")
-print(matlab_comparison)
+    else:
+        data = loadmat(matlab_file)
+        samples = min(max(len(run["states"]) for run in closed_loop_runs), len(data["xHistory"]))
+        matlab_states = np.asarray(data["xHistory"][:samples, :12], dtype=float)
+        matlab_controls = np.asarray(data["uHistory"][:samples - 1, :4], dtype=float)
+        matlab_reference = np.asarray(data["xRef_out"][:samples, 0:3], dtype=float)
+        per_trial = []
+        for run in closed_loop_runs:
+            count = min(samples, len(run["states"]))
+            controls = run["controls"][:count - 1]
+            valid = np.all(np.isfinite(controls), axis=1)
+            per_trial.append({
+                "trial": run["metrics"]["trial"],
+                "samples": count,
+                "state_rmse_vs_matlab": float(np.sqrt(np.mean((run["states"][:count] - matlab_states[:count]) ** 2))),
+                "control_rmse_vs_matlab": float(np.sqrt(np.mean((controls[valid] - matlab_controls[:count - 1][valid]) ** 2))),
+            })
+        matlab_comparison.update({
+            "available": True,
+            "samples": samples,
+            "reference_max_deviation_m": float(np.abs(
+                matlab_reference - spiral_reference(np.arange(samples) * sample_time)[:, 0:3]
+            ).max()),
+            "matlab_metrics": tracking_metrics(matlab_states, matlab_controls),
+            "per_trial": per_trial,
+        })
+        shown = ["samples", "position_rmse_m", "position_max_error_m", "position_max_error_time_s",
+                 "final_position_error_m", "peak_roll_pitch_rad", "max_abs_control", "max_control_step"]
+        side_by_side = pd.DataFrame({
+            "MATLAB fmincon": {key: matlab_comparison["matlab_metrics"][key] for key in shown},
+            **{f"KV260 trial {run['metrics']['trial']}": {key: run["metrics"][key] for key in shown}
+               for run in closed_loop_runs},
+        })
+        display(side_by_side)
+        display(pd.DataFrame(per_trial).set_index("trial"))
+print("\n".join(matlab_comparison["notes"]))
+print({key: matlab_comparison.get(key) for key in ("available", "file", "samples", "reference_max_deviation_m")})
 
 
 def diagnose_platform():
@@ -803,47 +891,106 @@ print(json.dumps(diagnostics, indent=2))
 #
 #
 #
-# Save platform tables, address comparisons, runtime metadata, controls, predicted states, histories, timing, diagnostics, and a machine-readable pass/fail report under `validation_logs`.
+# Save platform tables, address comparisons, runtime metadata, controls, predicted states, histories, timing, diagnostics, and a machine-readable pass/fail report under `validation_logs/<run_id>/`, one directory per run (`<UTC time>_<plant>_<steps>x<trials>`), so earlier runs are never overwritten. Each check is reported as `pass`, `fail`, or `skipped` with a reason; a skipped check could not run (for example, the repository Tcl is not on the board) and is not a failure.
 
 # In[ ]:
 
 
-paths["logs"].mkdir(parents=True, exist_ok=True)
-path_status.to_csv(paths["logs"] / "path_status.csv", index=False)
-component_table.to_csv(paths["logs"] / "hls_components.csv", index=False)
-csv_addresses.to_csv(paths["logs"] / "address_segments_checked_in.csv", index=False)
-exported_ps_map.to_csv(paths["logs"] / "exported_ps_register_map.csv", index=False)
-layout_table.to_csv(paths["logs"] / "bram_layout.csv", index=False)
-closed_loop_table.to_csv(paths["logs"] / "solver_timing.csv", index=False)
-np.save(paths["logs"] / "state_history.npy", state_history)
-np.save(paths["logs"] / "control_history.npy", control_history)
+run_id = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()) + f"_{plant_integrator}_{closed_loop_steps}x{closed_loop_trials}"
+run_dir = paths["logs"] / run_id
+run_dir.mkdir(parents=True, exist_ok=True)
+path_status.to_csv(run_dir / "path_status.csv", index=False)
+component_table.to_csv(run_dir / "hls_components.csv", index=False)
+csv_addresses.to_csv(run_dir / "address_segments_checked_in.csv", index=False)
+exported_ps_map.to_csv(run_dir / "exported_ps_register_map.csv", index=False)
+layout_table.to_csv(run_dir / "bram_layout.csv", index=False)
+closed_loop_table.to_csv(run_dir / "solver_timing.csv", index=False)
+if closed_loop_runs:
+    pd.DataFrame(closed_loop_metrics["per_trial"]).to_csv(run_dir / "closed_loop_trials.csv", index=False)
+    histories = {"reference": reference_history}
+    for run in closed_loop_runs:
+        histories[f"states_trial{run['metrics']['trial']}"] = run["states"]
+        histories[f"controls_trial{run['metrics']['trial']}"] = run["controls"]
+    np.savez(run_dir / "closed_loop_histories.npz", **histories)
 if one_step_result is not None:
-    np.save(paths["logs"] / "best_control_sequence.npy", one_step_result.control_sequence)
-    np.save(paths["logs"] / "best_fitness.npy", one_step_result.best_fitness)
+    np.save(run_dir / "best_control_sequence.npy", one_step_result.control_sequence)
+    np.save(run_dir / "best_fitness.npy", one_step_result.best_fitness)
 if predicted_next_state is not None:
-    np.save(paths["logs"] / "predicted_next_state.npy", predicted_next_state)
+    np.save(run_dir / "predicted_next_state.npy", predicted_next_state)
 
+run_config = {
+    "run_id": run_id,
+    "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    "overlay": {
+        "path": str(paths["overlay"]),
+        "source_xsa": manifest.get("source_xsa") if manifest else None,
+        "files": manifest.get("files") if manifest else None,
+    },
+    "solver_config": config_contract.to_dict(),
+    "plant_integrator": plant_integrator,
+    "closed_loop_steps": closed_loop_steps,
+    "closed_loop_trials": closed_loop_trials,
+    "initial_state": curr_state.tolist(),
+    "initial_control": curr_control.tolist(),
+    "warm_start": "zeros (25 x 4) at the start of each trial, then the shifted previous solution",
+    "reference": "quadrotor.spiral_reference (the Quadrotor_xref.m spiral), sampled at t = k * Ts",
+    "rng": "free-running hardware stream, not reset between solves or trials",
+}
+
+
+def tri_state(*checks):
+    """True/False, or None (skipped) when an input check could not run."""
+    if any(check is None for check in checks):
+        return None
+    return bool(all(checks))
+
+
+tcl_skip_reason = "repository Vivado Tcl not present on this copy; static Tcl audit not run"
+overlay_skip_reason = "overlay not loaded (PYNQ or matching artifacts unavailable)"
+skip_reasons = {
+    "solver_completion": overlay_skip_reason,
+    "numerical_validity": overlay_skip_reason,
+    "control_constraints": overlay_skip_reason,
+    "kv260_compatibility": tcl_skip_reason,
+    "clock_reset": tcl_skip_reason,
+    "closed_loop_no_timeouts": "closed loop not run",
+    "closed_loop_plant_limit": "closed loop not run",
+    "closed_loop_control_constraints": "closed loop not run",
+}
 validation_report = {
-    "kv260_compatibility": bool(clock_checks.get("part_ok") and clock_checks.get("board_ok")),
-    "clock_reset": bool(clock_checks.get("clock_matches_hls") and clock_checks.get("synchronized_reset")),
+    "kv260_compatibility": tri_state(clock_checks.get("part_ok"), clock_checks.get("board_ok")),
+    "clock_reset": tri_state(clock_checks.get("clock_matches_hls"), clock_checks.get("synchronized_reset")),
     "exported_pso_fsm_register_map": bool(hardware_map_checks.get("pso_fsm_control_interfaces")),
     "exported_control_base": bool(hardware_map_checks.get("control_base")),
     "exported_argument_base": bool(hardware_map_checks.get("argument_base")),
     "worker_done_wiring": bool(hardware_map_checks.get("worker_done_wiring")),
     "bram_layout": bool(all(layout_table["fits"]) and all(layout_table["overlaps"] == "")),
     "overlay_artifacts": bool(artifacts_ready),
-    "solver_completion": one_step_result is not None,
+    # The single solve is skipped without a loaded overlay; a solve that runs and fails is a failure.
+    "solver_completion": one_step_result is not None if solver is not None else None,
     "numerical_validity": bool(
         one_step_result is not None and np.all(np.isfinite(one_step_result.control_sequence))
-    ),
-    "closed_loop_plant_limit": bool(closed_loop_metrics.get("plant_limit_ok", False)),
+    ) if solver is not None else None,
     "control_constraints": bool(
         one_step_result is not None
         and np.all(np.abs(one_step_result.control_sequence) <= 100.0 + 1e-3)
+    ) if solver is not None else None,
+    "closed_loop_no_timeouts": closed_loop_metrics["timeouts"] == 0 if closed_loop_metrics else None,
+    "closed_loop_plant_limit": closed_loop_metrics.get("plant_limit_ok"),
+    "closed_loop_control_constraints": tri_state(
+        closed_loop_metrics.get("control_bounds_ok"),
+        closed_loop_metrics["delta_violations"] == 0 if closed_loop_metrics else None,
     ),
 }
+validation_status = {
+    name: "skipped" if value is None else "pass" if value else "fail" for name, value in validation_report.items()
+}
+skipped_checks = {name: skip_reasons.get(name, "input unavailable")
+                  for name, value in validation_report.items() if value is None}
 export_payload = {
-    "validation": validation_report,
+    "run_config": run_config,
+    "validation": validation_status,
+    "skipped_checks": skipped_checks,
     "project": project_config,
     "clock_checks": clock_checks,
     "hardware_map_checks": hardware_map_checks,
@@ -852,11 +999,13 @@ export_payload = {
     "matlab_comparison": matlab_comparison,
     "diagnostics": diagnostics,
 }
-(paths["logs"] / "validation_report.json").write_text(
+(run_dir / "validation_report.json").write_text(
     json.dumps(export_payload, indent=2, default=str) + "\n", encoding="utf-8"
 )
-display(pd.Series(validation_report, name="pass"))
-print("Validation logs written to", paths["logs"])
+display(pd.Series(validation_status, name="status"))
+if skipped_checks:
+    print("Skipped (not failed):", skipped_checks)
+print("Validation logs written to", run_dir)
 if solver is not None:
     solver.close()
 
