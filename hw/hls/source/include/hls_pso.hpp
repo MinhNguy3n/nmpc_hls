@@ -204,10 +204,18 @@ void updateParticlesWithDuConstrains(
 	_pso_hw_real *local_u_max,
 	_pso_hw_real *local_u_min
 
-#ifdef __SYNTHESIS__
+#if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 	,_rand_real_stream &__rand_port
 #endif
 );
+#if defined(HW_ARITH_CSIM) && !defined(__SYNTHESIS__)
+// C-simulation variant without the random port: feeds it from the software RNG (see hls_pso.cpp).
+// Not an overload, because cosim cannot wrap an overloaded top function.
+void updateParticlesWithDuConstrains_swrng(
+	_pso_hw_real *local_u_curr, _pso_hw_real *local_x, _pso_hw_real *local_y, _pso_hw_real *local_v,
+	_pso_hw_real *local_global_min, _pso_hw_real *local_du_max, _pso_hw_real *local_du_min,
+	_pso_hw_real *local_u_max, _pso_hw_real *local_u_min);
+#endif
 
 // ---------------------------------------------------
 void detectGlobalMinimum(

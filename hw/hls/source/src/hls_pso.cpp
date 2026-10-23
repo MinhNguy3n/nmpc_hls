@@ -224,7 +224,11 @@ int execute(
 		// memcpy_loop_rolled<_pso_hw_real, _pso_hw_real, _pso_Nu*_pso_n_U>(global_min, (_pso_hw_real *)&y[best_pos * part_S]);
 
 #ifndef PSO_CANON
+#if defined(HW_ARITH_CSIM) && !defined(__SYNTHESIS__)
+        updateParticlesWithDuConstrains_swrng(
+#else
         updateParticlesWithDuConstrains(
+#endif
 			u_curr_local,
 			// w,
 
@@ -1089,7 +1093,7 @@ void updateParticlesWithDuConstrains(
 	_pso_hw_real local_u_max[_pso_n_U],
 	_pso_hw_real local_u_min[_pso_n_U]
 
-#ifdef __SYNTHESIS__
+#if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 	,_rand_real_stream &__rand_port
 #endif
 ){
@@ -1105,7 +1109,7 @@ void updateParticlesWithDuConstrains(
 #pragma HLS INTERFACE mode=m_axi port=local_u_min 		offset=direct	depth=n_U bundle=constraints_mem
 #pragma HLS INTERFACE mode=m_axi port=local_u_max 		offset=direct	depth=n_U bundle=constraints_mem
 
-#ifdef __SYNTHESIS__
+#if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 #pragma HLS interface mode=axis port=__rand_port 
 #endif
 	static _pso_hw_real w = _pso_w0;
@@ -1134,7 +1138,7 @@ void updateParticlesWithDuConstrains(
     	 		// int idx = k*Nu+j;
 				int idx = j*n_U+k;
                 _pso_hw_real r1,r2;
-#ifdef __SYNTHESIS__
+#if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 				r1 = __rand_port.read();
 				r2 = __rand_port.read();
 #else
@@ -1191,3 +1195,22 @@ void updateParticlesWithDuConstrains(
 
 	return;
 }
+
+#if defined(HW_ARITH_CSIM) && !defined(__SYNTHESIS__)
+// C-simulation variant for callers without a random port (the software model): fills the
+// port from the software RNG so cosim can drive the port version with explicit values.
+void updateParticlesWithDuConstrains_swrng(
+	_pso_hw_real *local_u_curr, _pso_hw_real *local_x, _pso_hw_real *local_y, _pso_hw_real *local_v,
+	_pso_hw_real *local_global_min, _pso_hw_real *local_du_max, _pso_hw_real *local_du_min,
+	_pso_hw_real *local_u_max, _pso_hw_real *local_u_min
+){
+	_rand_real_stream rand_port;
+	for (unsigned int i = 0; i < 2 * n_S * Nu * n_U; i++) {
+		_pso_hw_real r;
+		rand_real(r);
+		rand_port.write(r);
+	}
+	updateParticlesWithDuConstrains(local_u_curr, local_x, local_y, local_v, local_global_min,
+		local_du_max, local_du_min, local_u_max, local_u_min, rand_port);
+}
+#endif

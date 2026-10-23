@@ -15,14 +15,23 @@
 #define N_DOFS 7
 #define BILLION 1E9
 
-#ifdef __SYNTHESIS__
+// Hardware types (ap_fixed top level, half model) are selected for synthesis. C simulation
+// built with -DHW_ARITH_CSIM uses the same ap_fixed top-level types, which C/RTL cosim
+// requires: with plain float the testbench and the RTL ports disagree on the data format.
+#if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 #include "hls_math.h"
 #include "hls_stream.h"
 #include "ap_fixed.h"
 
 // typedef half _hw_top_real;
 typedef ap_fixed<32,17,AP_RND_INF,AP_SAT_SYM> _hw_top_real; // round to +/-inf and simmetrical saturation
+#if defined(__SYNTHESIS__)
 typedef half _hw_model_real;
+#else
+// HW_ARITH_CSIM: top-level types match the RTL ports (needed for cosim); the model stays
+// float because the C++ half emulation cannot operate on the model's volatile ports.
+typedef float _hw_model_real;
+#endif
 // typedef ap_fixed<32,16,AP_RND_INF,AP_SAT_SYM> _hw_model_real;
 typedef hls::stream<_hw_top_real> _rand_real_stream;
 #else
@@ -170,7 +179,7 @@ const int _pragma_Nu = _Nu;
 const int _pragma_Nx = _Nx;
 const int _pragma_n_U = _n_U;
 
-#ifndef __SYNTHESIS__
+#if !(defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM))
 const _hw_top_real H_MAX = 3.4028234664e30;
 #else
 const _hw_top_real H_MAX = 60000.0;

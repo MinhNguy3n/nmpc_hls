@@ -6,7 +6,7 @@
 #include <math.h>
 #include <iostream>
 
-#ifdef __SYNTHESIS__
+#if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 #include "hls_math.h"
 #include "ap_fixed.h"
 #endif

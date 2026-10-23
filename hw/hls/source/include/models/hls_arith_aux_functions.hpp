@@ -1,7 +1,7 @@
 #ifndef __ARITH_AUX_HPP__
 #define __ARITH_AUX_HPP__
 
-#ifdef __SYNTHESIS__
+#if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 #include "fast_sin_cos.hpp"
 using namespace hls;
 //typedef ap_ufixed<32,8, AP_RND_ZERO, AP_WRAP_SM> _model_real;
@@ -26,7 +26,7 @@ template <
 template <
     typename _data_type
 >_data_type local_sin(_data_type angle){
-#if defined(__SYNTHESIS__)
+#if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 #ifdef USE_FAST_SIN_COS
 #pragma HLS inline
     _data_type new_angle = angle * (_data_type)HALF_MAX_CIRCLE_ANGLE_PI;
@@ -44,7 +44,7 @@ template <
     typename _data_type
 >_data_type local_cos(_data_type angle){
 #pragma HLS inline
-#if defined(__SYNTHESIS__)
+#if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 #ifdef USE_FAST_SIN_COS
 	_data_type new_angle = angle * (_data_type)HALF_MAX_CIRCLE_ANGLE_PI;
     return fastcos<_data_type>(new_angle);
