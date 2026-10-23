@@ -1297,8 +1297,6 @@ proc create_hier_cell_nmpc_solver { parentCell nameHier } {
   [get_bd_pins pso_fsm_interrupt]
   connect_bd_net -net pso_fsm_1_k  [get_bd_pins pso_fsm_1/k] \
   [get_bd_pins detectGlobalMinimum_0/interaction]
-  connect_bd_net -net pso_fsm_1_k_ap_vld  [get_bd_pins pso_fsm_1/k_ap_vld] \
-  [get_bd_pins detectGlobalMinimum_0/interaction_ap_vld]
   connect_bd_net -net pso_fsm_1_rand_core_ap_start  [get_bd_pins pso_fsm_1/rand_core_ap_start] \
   [get_bd_pins rand_wrapper_0/ap_start]
   connect_bd_net -net pso_fsm_1_update_s_ap_start  [get_bd_pins pso_fsm_1/update_s_ap_start] \

@@ -699,7 +699,9 @@ void  detectGlobalMinimum(
 #pragma HLS INTERFACE mode=m_axi port=local_find 	offset=direct	depth=n_S bundle=pso_mem
 #pragma HLS INTERFACE mode=m_axi port=local_bestfitness	offset=direct depth=pso_maxiter bundle=pso_mem
 #pragma HLS INTERFACE mode=m_axi port=local_global_min	offset=direct depth=part_S bundle=pso_mem
-#pragma HLS INTERFACE mode=ap_vld register port=interaction
+// ap_none: the FSM's k_ap_vld pulse fires before this block is started, so an ap_vld
+// input waits forever; k is a held register output, stable when this block starts.
+#pragma HLS INTERFACE mode=ap_none port=interaction
 #pragma HLS INTERFACE mode=m_axi port=local_y offset=off depth=part_S_mem bundle=y_mem
 
 	//[bestfitness(k), p] = min(f_ind);
