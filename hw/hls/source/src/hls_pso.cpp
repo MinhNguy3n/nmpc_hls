@@ -244,7 +244,8 @@ int execute(
 			_pso_du_max,
 			_pso_du_min,
 			(_pso_hw_real *)_pso_u_max,
-			(_pso_hw_real *)_pso_u_min
+			(_pso_hw_real *)_pso_u_min,
+			k
 #ifdef __SYNTHESIS__
 			, __rand_port
 #endif
@@ -1093,7 +1094,9 @@ void updateParticlesWithDuConstrains(
 	_pso_hw_real local_du_max[_pso_n_U],
 	_pso_hw_real local_du_min[_pso_n_U],
 	_pso_hw_real local_u_max[_pso_n_U],
-	_pso_hw_real local_u_min[_pso_n_U]
+	_pso_hw_real local_u_min[_pso_n_U],
+
+	int iteration
 
 #if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 	,_rand_real_stream &__rand_port
@@ -1114,7 +1117,10 @@ void updateParticlesWithDuConstrains(
 #if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 #pragma HLS interface mode=axis port=__rand_port 
 #endif
-	static _pso_hw_real w = _pso_w0;
+#pragma HLS INTERFACE mode=ap_none port=iteration
+	// Inertia weight from the iteration index: a static weight carried over between solves and,
+	// because ap_fixed rounding delayed its wrap to iteration 101, drifted on every later solve.
+	const _pso_hw_real w = _pso_w0 + _pso_slope * iteration;
 	
 	_pso_hw_real __local_global_min[_pso_Nu*_pso_n_U];
 	_pso_hw_real __local_du_max[_pso_n_U];
@@ -1189,12 +1195,6 @@ void updateParticlesWithDuConstrains(
        //} // END IF
     } // END FOR i
 
-	_pso_hw_real w_tmp = w + _pso_slope;
-	if (w_tmp <= _pso_wf)
-		w = _pso_w0;
-	else
-		w = w_tmp;
-
 	return;
 }
 
@@ -1204,7 +1204,7 @@ void updateParticlesWithDuConstrains(
 void updateParticlesWithDuConstrains_swrng(
 	_pso_hw_real *local_u_curr, _pso_hw_real *local_x, _pso_hw_real *local_y, _pso_hw_real *local_v,
 	_pso_hw_real *local_global_min, _pso_hw_real *local_du_max, _pso_hw_real *local_du_min,
-	_pso_hw_real *local_u_max, _pso_hw_real *local_u_min
+	_pso_hw_real *local_u_max, _pso_hw_real *local_u_min, int iteration
 ){
 	_rand_real_stream rand_port;
 	for (unsigned int i = 0; i < 2 * n_S * Nu * n_U; i++) {
@@ -1213,6 +1213,6 @@ void updateParticlesWithDuConstrains_swrng(
 		rand_port.write(r);
 	}
 	updateParticlesWithDuConstrains(local_u_curr, local_x, local_y, local_v, local_global_min,
-		local_du_max, local_du_min, local_u_max, local_u_min, rand_port);
+		local_du_max, local_du_min, local_u_max, local_u_min, iteration, rand_port);
 }
 #endif

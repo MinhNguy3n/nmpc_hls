@@ -202,7 +202,9 @@ void updateParticlesWithDuConstrains(
 	_pso_hw_real *local_du_max,
 	_pso_hw_real *local_du_min,
 	_pso_hw_real *local_u_max,
-	_pso_hw_real *local_u_min
+	_pso_hw_real *local_u_min,
+
+	int iteration
 
 #if defined(__SYNTHESIS__) || defined(HW_ARITH_CSIM)
 	,_rand_real_stream &__rand_port
@@ -214,7 +216,7 @@ void updateParticlesWithDuConstrains(
 void updateParticlesWithDuConstrains_swrng(
 	_pso_hw_real *local_u_curr, _pso_hw_real *local_x, _pso_hw_real *local_y, _pso_hw_real *local_v,
 	_pso_hw_real *local_global_min, _pso_hw_real *local_du_max, _pso_hw_real *local_du_min,
-	_pso_hw_real *local_u_max, _pso_hw_real *local_u_min);
+	_pso_hw_real *local_u_max, _pso_hw_real *local_u_min, int iteration);
 #endif
 
 // ---------------------------------------------------
