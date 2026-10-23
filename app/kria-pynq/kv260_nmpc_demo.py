@@ -49,7 +49,7 @@ if not (notebook_dir / "nmpc_overlay.py").is_file():
 sys.path.insert(0, str(notebook_dir))
 
 from nmpc_overlay import DESIGN_REVISION, NmpcOverlay
-from quadrotor import quadrotor_step, reference_horizon, spiral_reference
+from quadrotor import quadrotor_step, reference_horizon, spiral_reference, tracking_metrics
 from package_overlay import pso_fsm_register_map
 
 repo_root = notebook_dir.parents[1] if notebook_dir.name == "kria-pynq" else notebook_dir
@@ -653,32 +653,6 @@ closed_loop_steps = 10  # 10 = smoke test; about 0.52 s of board time per step (
 closed_loop_trials = 1  # repeats from the same initial state and zero warm start (5 x 100 steps take about 4.4 min)
 
 
-def tracking_metrics(states, controls):
-    """Tracking and constraint metrics, shared by the HIL trials and the MATLAB comparison.
-
-    states[k] is the plant state at t = k * sample_time: row 0 is the initial state and the last row
-    is the state after the last applied control. controls[k] is applied from t_k to t_k+1."""
-    times = np.arange(len(states)) * sample_time
-    position_error = states[:, 0:3] - spiral_reference(times)[:, 0:3]
-    distance = np.linalg.norm(position_error, axis=1)
-    tilt = np.abs(states[:, 3:5])
-    applied = controls[np.all(np.isfinite(controls), axis=1)]
-    control_steps = np.abs(np.diff(applied, axis=0))
-    return {
-        "samples": len(states),
-        "position_rmse_m": float(np.sqrt(np.mean(distance ** 2))),
-        "position_max_error_m": float(distance.max()),
-        "position_max_error_time_s": float(times[distance.argmax()]),
-        "final_time_s": float(times[-1]),
-        "final_position_error_m": position_error[-1].tolist(),
-        "final_state": states[-1].tolist(),
-        "peak_roll_pitch_rad": float(tilt.max()),
-        "plant_limit_ok": bool(tilt.max() <= np.pi / 4),
-        "max_abs_control": float(np.abs(applied).max()) if len(applied) else float("nan"),
-        "max_control_step": float(control_steps.max()) if len(control_steps) else float("nan"),
-    }
-
-
 def run_closed_loop(trial):
     rows, states, controls = [], [], []
     state = curr_state.copy()
@@ -729,7 +703,7 @@ def run_closed_loop(trial):
         "latency_mean_s": float(table["latency_seconds"].mean()),
         "latency_min_s": float(table["latency_seconds"].min()),
         "latency_max_s": float(table["latency_seconds"].max()),
-        **tracking_metrics(states, controls),
+        **tracking_metrics(states, controls, curr_control, sample_time),
     }
     return {"table": table, "states": states, "controls": controls, "metrics": metrics}
 
@@ -749,7 +723,7 @@ if closed_loop_runs:
     key_metrics = ["position_rmse_m", "position_max_error_m", "peak_roll_pitch_rad", "max_control_step",
                    "latency_mean_s", "latency_max_s"]
     display(trial_metrics[["steps_completed", "timeouts", "delta_violations", "absolute_violations",
-                           "plant_limit_ok", *key_metrics]])
+                           "steps_at_du_max", "plant_limit_ok", *key_metrics]])
     across_trials = trial_metrics[key_metrics].agg(["mean", "std", "min", "max"])
     display(across_trials)
     latencies = closed_loop_table["latency_seconds"].dropna()
@@ -816,6 +790,8 @@ matlab_comparison = {
         "Arithmetic: HLS top values are Q17.15 and the model type is half precision.",
         "Alignment: row k is the state at t = k*Ts (Ts = 0.05 s); row 0 is the shared initial state, the last "
         "row the state after the last applied control. Both use normalized controls in [-100, 100].",
+        "Control steps start from u = 0 for both (MATLAB's initial guess; MATLAB has no du bound, so "
+        "steps_at_du_max is informational for it).",
     ],
 }
 if closed_loop_runs and matlab_file.is_file():
@@ -846,11 +822,12 @@ if closed_loop_runs and matlab_file.is_file():
             "reference_max_deviation_m": float(np.abs(
                 matlab_reference - spiral_reference(np.arange(samples) * sample_time)[:, 0:3]
             ).max()),
-            "matlab_metrics": tracking_metrics(matlab_states, matlab_controls),
+            "matlab_metrics": tracking_metrics(matlab_states, matlab_controls, np.zeros(4), sample_time),
             "per_trial": per_trial,
         })
         shown = ["samples", "position_rmse_m", "position_max_error_m", "position_max_error_time_s",
-                 "final_position_error_m", "peak_roll_pitch_rad", "max_abs_control", "max_control_step"]
+                 "final_position_error_m", "peak_roll_pitch_rad", "max_abs_control", "max_control_step",
+                 "steps_at_du_max"]
         side_by_side = pd.DataFrame({
             "MATLAB fmincon": {key: matlab_comparison["matlab_metrics"][key] for key in shown},
             **{f"KV260 trial {run['metrics']['trial']}": {key: run["metrics"][key] for key in shown}

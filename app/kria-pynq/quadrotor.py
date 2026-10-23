@@ -8,6 +8,9 @@ import numpy as np
 NX = 12
 NU = 4
 DEFAULT_TS = 0.05
+U_LIMIT = 100.0  # normalized control bound (config.hpp u_min/u_max)
+DU_MAX = 20.0  # per-sample control step bound (config.hpp du_max)
+PLANT_ANGLE_LIMIT = np.pi / 4  # true roll/pitch limit of the plant
 
 
 def spiral_reference(times: Any) -> np.ndarray:
@@ -259,3 +262,39 @@ def quadrotor_step(
         k4 = quadrotor_derivative(state_array + sample_time * k3, normalized_control)
         return state_array + sample_time / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
     raise ValueError(f"unknown integration method {method!r}")
+
+
+def tracking_metrics(
+    states: Any, controls: Any, initial_control: Any, sample_time: float = DEFAULT_TS
+) -> dict[str, Any]:
+    """Tracking and constraint metrics for a closed-loop run against spiral_reference.
+
+    states[k] is the plant state at t = k * sample_time: row 0 is the initial state and the last row
+    is the state after the last applied control. controls[k] is applied from t_k to t_k+1. Control
+    steps include the move from initial_control to controls[0]. Reaching DU_MAX is allowed and
+    counted in steps_at_du_max; exceeding it (beyond a 1e-3 tolerance) is a du violation.
+    """
+    states = np.asarray(states, dtype=np.float64)
+    controls = np.asarray(controls, dtype=np.float64).reshape(-1, NU)
+    times = np.arange(len(states)) * sample_time
+    position_error = states[:, 0:3] - spiral_reference(times)[:, 0:3]
+    distance = np.linalg.norm(position_error, axis=1)
+    tilt = np.abs(states[:, 3:5])
+    applied = controls[np.all(np.isfinite(controls), axis=1)]
+    control_steps = np.abs(np.diff(np.vstack([initial_control, applied]), axis=0))
+    return {
+        "samples": len(states),
+        "position_rmse_m": float(np.sqrt(np.mean(distance**2))),
+        "position_max_error_m": float(distance.max()),
+        "position_max_error_time_s": float(times[distance.argmax()]),
+        "final_time_s": float(times[-1]),
+        "final_position_error_m": position_error[-1].tolist(),
+        "final_state": states[-1].tolist(),
+        "peak_roll_pitch_rad": float(tilt.max()),
+        "plant_limit_ok": bool(tilt.max() <= PLANT_ANGLE_LIMIT),
+        "max_abs_control": float(np.abs(applied).max()) if len(applied) else float("nan"),
+        "max_control_step": float(control_steps.max()) if len(control_steps) else float("nan"),
+        "steps_at_du_max": int(np.sum(np.any(control_steps >= DU_MAX - 1e-3, axis=1))),
+        "du_violations": int(np.sum(np.any(control_steps > DU_MAX + 1e-3, axis=1))),
+        "bound_violations": int(np.sum(np.any(np.abs(applied) > U_LIMIT + 1e-3, axis=1))),
+    }
