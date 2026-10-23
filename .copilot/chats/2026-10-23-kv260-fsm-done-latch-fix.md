@@ -169,11 +169,103 @@ Fixed in `nmpc_solver_v2_debug.tcl` (second fix set) and **verified in the fix4 
   4. Evaluator FIFO imbalance across calls (drain on the last horizon step).
   5. Detect `interaction` `ap_vld` handshake that could never complete (`ap_none`).
 
+## Stateless inertia weight (fix5, 2026-10-23)
+
+- Problem (simulated with the synthesized `ap_fixed<32,17>`): `update`'s `static w` decayed by `slope` per call and reset when `w + slope <= wf`. Rounding made w0 = 0.899994, slope = -0.00799561 and wf = 0.100006, so the reset fell at call 101, not 100. Only the first solve after programming used the intended schedule (0.900 → 0.108); each later solve started with w ≈ 0.10–0.12 for k iterations and drifted one iteration further per solve.
+- Fix: `update` takes `int iteration` (`ap_none`) and computes `w = w0 + slope * iteration`. The static weight and its decay are removed. The block design wires `pso_fsm_1/k` to both `detectGlobalMinimum_0/interaction` and `updateParticlesWithD_0/iteration`. During state 7/8 of iteration i, `k = i`. The software model passes its loop counter `k`.
+- `main_hls_update.cpp` now also checks statelessness: two calls with identical inputs, stream and iteration must give bit-identical outputs. **C/RTL cosim: update PASS** (repeat A = repeat B in RTL; iteration 0 unchanged from before). Detect and evaluator regression PASS.
+- `nmpc_solver_update_s` IP rebuilt (7.3 ns estimated at 10 ns, `input [31:0] iteration`). Previous IP: `hw/hls/ip_backup_2026-10-23_pre_wfix/`.
+- Build `nmpc_solver_v2_fix5`: timing met, WNS +0.993 ns, WHS +0.010 ns, no critical warnings.
+  - The netlist wires `pso_fsm_1_k` to `.interaction` and `.iteration`.
+  - Bitstream `3b8ac35e5af4f794b0d0b2682fb5c9490e13b3b3b80a0b919e60f5f86a8323e1`, HWH `bad68dc81fdc088f4719af321a4d9328e88f2810587d26b1d8d53f274a2f420e`, BDA `323c0c1f…` (unchanged), LTX `c30e9070…` (unchanged).
+  - Staged as `~/nmpc_fsmfix/overlay-fix5`. `step_prep`, `step4_run`, `step5_validate` and `step6_promote` (with fix5 hashes) target it. **fix5 supersedes fix4.**
+
+## Board validation record (scripted, 2026-10-23)
+
+Both dumps come from `sudo bash ~/nmpc_fsmfix/step5_validate.sh`: a fresh program via `step_prep.sh`, then two consecutive `NmpcOverlay.solve()` calls with identical inputs (`x_curr=[7,10,0,…]`, `xref=0`, `u_curr=0`, `last_best=0`). They are archived in `.copilot/chats/logs/`.
+
+| Dump | Overlay (bit SHA-256) | Prep log | Run | Iterations / time | Hardware J |
+| --- | --- | --- | --- | --- | --- |
+| `2026-10-23-kv260-fix4-validate.json` (board 06_validate_180001) | fix4 `c79aa9e2…` | 05_prep_175940 | 0 / 1 | 100 / 494.7 ms, 100 / 494.9 ms | 4554.4618 / 4580.2143 |
+| `2026-10-23-kv260-fix5-validate.json` (board 06_validate_183929) | fix5 `3b8ac35e…` | 05_prep_183909 | 0 / 1 | 100 / 494.6 ms, 100 / 494.7 ms | 4585.6985 / 4613.5150 |
+
+Host analysis (`app/kria-pynq/validate_hw_run.py`, 20 software seeds), with J(new_best) recomputed by the C evaluator:
+
+| Run | Hardware J | Half model (hardware's model) | Float model | Constraints |
+| --- | --- | --- | --- | --- |
+| fix4 run 0 | 4554.46 | 4554.60 (0.003 %) | 4556.02 (0.034 %) | OK |
+| fix4 run 1 | 4580.21 | 4580.66 (0.010 %) | 4581.09 (0.019 %) | OK |
+| fix5 run 0 | 4585.70 | 4585.98 (0.006 %) | 10738.60 (134 %) | OK |
+| fix5 run 1 | 4613.52 | 4613.79 (0.006 %) | 10765.17 (133 %) | OK |
+
+- **Implementation consistency: verified.** Against the hardware's own half-precision model, every run is within 0.010 %. Tolerance: ap_fixed<32,17> top level plus half model; the residual comes from the half arithmetic the C emulation reproduces. Bounds, du_max steps and non-increasing bestfitness all hold.
+- The half-model C build is currently a scratch build (volatile stripped, linked to `libIp_floating_point_v7_1_bitacc_cmodel`) and not yet in the repo validator.
+- **Model fidelity: OPEN.** For the fix5 solutions, the half and float dynamics models disagree by about 2.3× in J. Neither is established as correct for the plant: compare against a higher-precision reference and find the first divergence before deciding.
+- Software PSO reference (20 seeds, same inputs): float J 4383–4592 (median 4465); ap_fixed with float model 4387–4606 (median 4486). Hardware J sits at the 90–100th percentile, but these use different model precisions, so this is not yet a like-for-like quality comparison.
+- Consecutive solves differ (new_best mean |diff| ≈ 28) because the free-running RNG continues between solves. In fix5 the inertia schedule is identical for every solve.
+
+## Model fidelity: half vs float vs double reference (2026-10-23)
+
+Scratch harness (`scratchpad/fidelity/fidelity.cpp`): it drives `System::nmpc_cost_function_lowflow` step by step, using headers with `volatile` stripped so `half` compiles in C, and links `libIp_floating_point_v7_1_bitacc_cmodel`. It logs the state, objective terms and roll/pitch limit flags per horizon step. Variants: REF (double, std::sin, the high-precision reference; it shares the model equations, so it does not check them), FLT (float, std::sin), DFS (double, fast sin), HWD/HWF (ap_fixed with double/float model, fast sin), HW (ap_fixed with half model, fast sin, matching the hardware).
+
+| Control | REF J | FLT J | DFS J | HWD/HWF J | HW J (hardware) | Roll/pitch outside ±π/4 |
+| --- | --- | --- | --- | --- | --- | --- |
+| fix5 run 0 `new_best` | 10787.51 | 10787.51 | 10738.41 | 10738.60 | 4585.98 (4585.70) | step 24 in all variants except HW |
+| fix4 run 0 `new_best` | 4528.91 | 4528.91 | 4555.43 | 4556.02 | 4554.60 (4554.46) | none |
+| zero control | 5066 | 5066 | 5066 | 5066 | 5066 | none |
+
+- **Mechanism.** The only finite state limits are roll and pitch at ±π/4 (0.78540). Outside them, the step error is weighted 1e4 instead of Q/Qf, so J is discontinuous at the limit. Under REF, fix5's solution reaches roll 0.79029 at the final step (24); HW predicts 0.78506, just inside. That single crossing explains the whole 2.3× gap. fix4's solution peaks at 0.78438 (REF), inside the limit.
+- **Error budget** (max deviation over the horizon, fix5): fast sin vs REF gives x 0.120 m, roll 0.0047 rad, yaw 0.0068 rad; half vs double gives x 0.0014 m, roll 0.0005 rad. **The fast sin table dominates model error (about 10× half).** Every fast-sin variant departs from REF by step 4. Cause: a 1024-entry table (6.1 mrad step) indexed with `trunc(angle*512/π)`, neither rounded nor interpolated.
+- **Plant correctness.** Against the reference, the fix5 hardware solution violates the roll limit by about 0.005 rad (0.29°) at the end of the horizon. PSO drives tilt to the limit, and model error decides which side it lands on. FLT equals REF here, so float with std::sin is a faithful stand-in for the reference in this regime.
+- Also noted: `fastsin` can index `table[1024]` (out of bounds) when the scaled angle is a negative multiple of 1024; `fastcos` double-scales but is unused.
+
+## Fast-sin root cause and fix (2026-10-23, decision: table/rounding fix plus margin)
+
+- **Root cause of the model error:** the `fast_cossin_table` held **1023 samples of sin(2πk/1022)**, i.e. `np.linspace(0, 2π, 1023)` (max fit error 8.9e-16), declared `[1024]` so the last slot was 0. `fastsin` indexes it as 2π/1024 per entry, so the phase error grows with the angle: 3.1 mrad at π/2 (every cos is computed as sin(θ+π/2)) and 4.6 mrad near 3π/4. Interpolation could not help, which isolated the table as the cause. Constant rounding (Ts −2.4e-4, R −2.3 %) contributes only about 0.5 mrad.
+- Measured on 14 controls (4 board + 10 software), max error vs REF (roll rad / x m):
+
+| Variant | HW (half) | DFS (double) |
+| --- | --- | --- |
+| old table, truncation (shipped) | 0.00825 / 0.149 | 0.00745 / 0.147 |
+| corrected table, truncation | 0.00282 / 0.038 | 0.00210 / 0.036 |
+| **corrected table, rounding (chosen)** | **0.00148 / 0.0075** | 0.00070 / 0.0069 |
+| corrected table, ap_fixed interpolation | 0.00121 / 0.0025 | 0.00049 / 0.0017 |
+| exact sin (reference for the fast-sin path) | 0.00127 / 0.0023 | 0.00049 / 0.0017 |
+
+- **Fix (a), `models/fast_sin_cos.hpp`:** the table is regenerated as sin(2πk/1024), k = 0..1023. `fastsin` rounds to the nearest entry and wraps with `& MASK` (correct for negative indices, removes the `table[1024]` read). Interpolation was not chosen: it adds a second table read and arithmetic in the dominant evaluator loop for less than the half-precision error.
+- **Fix (b), `config.hpp`:** `_angle_limit_margin = 0.01` tightens the roll/pitch cost limits to ±(π/4 − 0.01) in both C and hardware.
+- **Check:** software PSO with the new hardware arithmetic and margin (10 seeds) gives **0 plant-limit violations under REF**, with peak |roll/pitch| 0.7750–0.7759 against π/4 = 0.7854.
+- Note: J remains discontinuous at the (now tightened) cost limit, so a REF-vs-HW J comparison can still jump by about 6000 when solutions sit on that limit. Validation must report plant-limit violations separately from the J gap.
+- Rebuild in progress: evaluator cosim plus the `nmpc_solver_costF` IP (previous IP in `hw/hls/ip_backup_2026-10-23_pre_sinfix/`); then integrated build `fix6`.
+
+## fix6 preparation, tests and validator (2026-10-23)
+
+- **fix5 is not promoted** (decision with the review): its sine-table defect can produce a true tilt-limit violation. On the board, `step6_promote.sh` is a refusing placeholder; the fix5 script is kept as `step6_promote_fix5.DISABLED`, and the fix5 files are retained for rollback and comparison.
+- **Host-compiler hazard:** host g++ 11 miscompiles Xilinx `ap_private` multi-word paths (>64-bit `ap_fixed` intermediates such as `(ap_fixed)system_pi*2 - x`) at -O1/-O2. UBSan reports shifts of negative values in `ap_private.h`, and the results vary with unrelated flags. **All host tools that use ap_fixed are built at -O0.** Earlier -O1/-O2 numbers were re-derived at -O0; the conclusions are unchanged (board consistency ≤ 0.010 %; fix5 REF plant violation at step 24; new model error ≤ 1.5 mrad).
+- **Unit tests** `hw/hls/source/src/main_hls_model_unit_test.cpp` (-O0): table is 1024 entries = sin(2πk/1024) exactly; 21 index/wrap cases (negatives, ±0.5 ties, ±1024, ±2048, 1023.4–1023.6); local_sin error ≤ step/2 (0.00307) for float and double over [−4π, 4π] and 0.00315 for half over the operating range; penalty switch at, just inside and just outside the cost limit, plus the plant-limit classification. **UNIT_PASS.**
+- **Synthesized ROMs (new costF IP):** the sine ROM has 1024 words with 0 mismatches against half(sin(2πk/1024)). The limit ROMs hold ±0.775391 for roll and pitch (π/4 − 0.01) and ±1000 elsewhere. HLS stores the upper limits as 21-bit words that are sign-extended to 25 bits and then zero-extended. Evaluator cosim **PASS**. HLS estimate 10.624 ns; latency 483–493 k cycles (about 6 % more for rounding).
+- **Validator** `app/kria-pynq/validate_hw_run.py` (with `main_hls_validate.cpp` `trajectory` mode) builds float (REF), hw and half variants (the half build uses a `volatile`-free header copy, `-DHW_MODEL_HALF_CSIM` and the FPO library with RPATH). Per run it reports (a) hardware vs half-model consistency (tolerance 0.1 %), (b) the model gap vs REF (fidelity to the equations, not physical validation), (c) true ±π/4 violations on the REF trajectory, plus cost-limit crossings, control constraints and an optional `--seeds N` software comparison. Exit status is non-zero on any failure of (a), (c) or the control constraints.
+- Negative test on the fix5 dump: (a) FAIL (old model vs current sources, as expected), (c) FAIL at step 24 (peaks 0.79029 / 0.79295) → `VALIDATION FAIL`, as intended.
+
 ## Next steps
 
-1. Commit the source, testbench and BD changes (not yet committed). Generated build directories and backups stay out of git.
-2. Make `overlay-fix4` the default overlay for `nmpc_overlay.py` and the notebook (`/root/jupyter_notebooks/nmpc_hls/app/kria-pynq/overlay`).
-3. Validate results numerically against the C software model for the same inputs (compare `new_best` and the final `bestfitness` within fixed-point/half tolerance).
-4. Reset or parameterize `update`'s `static w` per solve before closed-loop (multi-solve) use.
-5. Performance: about 5 ms per iteration at 100 MHz. Profile the evaluator (dominant, about 4.8 ms) before comparing with the paper's reported timings, which used a different configuration (S = 5, kmax = 25 for the drone).
-6. Board procedure for any PL change remains: power cycle, `xmutil unloadapp`, cpuidle `state1` off, program. Avoid long JTAG sessions.
+1. **fix6 build done** (`hw/hdl/build/nmpc_solver_v2_fix6`): timing met, WNS +1.068 ns, WHS +0.010 ns, no critical warnings.
+   - Full fix set verified in the netlist: FSM poll loops, evaluator drain, detect without `interaction_ap_vld`, update `iteration` port, `pso_fsm_1_k` driving `.interaction` and `.iteration`, fan-out present and no broadcaster.
+   - Synthesized ROMs: the sine ROM has 1024 words with 0 mismatches; limits ±1000, roll/pitch ±0.775391.
+   - Hashes: bit `300bd96693f57d02f6a7700e7797073175f785cd18b0dd989cd533aae3066b99`, hwh `386639a3dfc133dc8fbf962197c265a919febb1c10bb8d18bd4739ff020be4f7`, bda `323c0c1f…` (unchanged), ltx `c30e9070…` (unchanged), XSA `5e10800e7bdfe4668f2933056268b5de82f24e7c621b458765d6de0b6d3304cb` (`hw/exported_platform/nmpc_solver_v2_fix6/nmpc_solver_v2.xsa`).
+   - Packaged as `app/kria-pynq/overlay-fix6`, staged on the board; `step_prep`, `step4_run` and `step5_validate` target fix6. The promotion placeholder still refuses.
+2. **fix6 board validation PASSED** (`step5_validate.sh`; prep log at 19:44 board time, programmed in 4.66 s; dump `logs/2026-10-23-kv260-fix6-validate.json`, board `06_validate_194435.json`). `validate_hw_run.py --seeds 10` reports `VALIDATION PASS`:
+
+| Run | Time | Hardware J | (a) half-model J | (b) REF J / max model error | (c) peak tilt (REF) / ±π/4 | SW percentile (float/hw) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | 523.9 ms | 4407.2700 | 4407.2500 (0.0005 %) | 4409.5406 (−0.05 %) / 1.20 mrad, 3.4 mm | 0.77503 / none | 10 / 20 |
+| 1 | 524.1 ms | 4500.8849 | 4500.9049 (0.0004 %) | 4503.1168 (−0.05 %) / 1.03 mrad, 2.1 mm | 0.77413 / none | 60 / 70 |
+
+   - Cost-limit crossings: none in either model. Control constraints OK. Software PSO, 10 seeds: float J 4367.91–4557.02, hw J 4359.06–4544.73. Solve time is about 6 % above fix5 (rounding), as predicted.
+3. **fix6 PROMOTED** at 2026-10-23T19:47:42Z (`step6_promote.sh`, record `logs/07_promote_194742.txt`, also `PROMOTION.txt` inside the overlay). The installed overlay `/root/jupyter_notebooks/nmpc_hls/app/kria-pynq/overlay` has bit `300bd966…`, hwh `386639a3…`, bda `323c0c1f…`, manifest `1310d023…`, and source XSA `nmpc_solver_v2_fix6`. Status: VALIDATED for implementation consistency and numerical fidelity to the model equations, true ±π/4 met on the reference trajectory; **physical plant validation pending**.
+   - **Rollback chain (caution):** fix5 had already been promoted as EXPERIMENTAL at 18:58:08Z (`logs/07_promote_185808.txt`), before the decision to wait for fix6. So:
+     - `overlay.rollback-20261023-194742` = **fix5** (`3b8ac35e…`, sine-table defect, can violate the tilt limit: **not safe for control**);
+     - `overlay.rollback-20261023-185807` = the original August overlay (hangs in the FSM).
+     The rollback command printed by the fix6 promotion therefore reinstalls fix5. The safe source copy of fix6 is `~/nmpc_fsmfix/overlay-fix6`.
+3. Commit atomically: (i) fast-sin table/rounding, (ii) angle margin, (iii) model unit tests, (iv) validator plus the `HW_MODEL_HALF_CSIM` opt-in, (v) docs and validation dumps.
+4. Open: a trusted independent plant reference (physical or independent model) before claiming model correctness; performance profiling.
