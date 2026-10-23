@@ -922,7 +922,7 @@ proc create_hier_cell_mem_bank { parentCell nameHier } {
   # Create instance: last_best, and set properties
   set last_best [ create_bd_cell -type inline_hdl -vlnv xilinx.com:inline_hdl:ilconstant:1.0 last_best ]
   set_property -dict [list \
-    CONFIG.CONST_VAL {440} \
+    CONFIG.CONST_VAL {1344} \
     CONFIG.CONST_WIDTH {32} \
   ] $last_best
 
@@ -938,7 +938,7 @@ proc create_hier_cell_mem_bank { parentCell nameHier } {
   # Create instance: local_uss_addr, and set properties
   set local_uss_addr [ create_bd_cell -type inline_hdl -vlnv xilinx.com:inline_hdl:ilconstant:1.0 local_uss_addr ]
   set_property -dict [list \
-    CONFIG.CONST_VAL {120} \
+    CONFIG.CONST_VAL {200} \
     CONFIG.CONST_WIDTH {32} \
   ] $local_uss_addr
 
@@ -962,7 +962,7 @@ proc create_hier_cell_mem_bank { parentCell nameHier } {
   # Create instance: x_curr_local_addr, and set properties
   set x_curr_local_addr [ create_bd_cell -type inline_hdl -vlnv xilinx.com:inline_hdl:ilconstant:1.0 x_curr_local_addr ]
   set_property -dict [list \
-    CONFIG.CONST_VAL {40} \
+    CONFIG.CONST_VAL {16} \
     CONFIG.CONST_WIDTH {32} \
   ] $x_curr_local_addr
 
@@ -994,7 +994,7 @@ proc create_hier_cell_mem_bank { parentCell nameHier } {
   # Create instance: find_local_addr, and set properties
   set find_local_addr [ create_bd_cell -type inline_hdl -vlnv xilinx.com:inline_hdl:ilconstant:1.0 find_local_addr ]
   set_property -dict [list \
-    CONFIG.CONST_VAL {0} \
+    CONFIG.CONST_VAL {512} \
     CONFIG.CONST_WIDTH {32} \
   ] $find_local_addr
 
@@ -1002,7 +1002,7 @@ proc create_hier_cell_mem_bank { parentCell nameHier } {
   # Create instance: xref_local_addr, and set properties
   set xref_local_addr [ create_bd_cell -type inline_hdl -vlnv xilinx.com:inline_hdl:ilconstant:1.0 xref_local_addr ]
   set_property -dict [list \
-    CONFIG.CONST_VAL {40} \
+    CONFIG.CONST_VAL {64} \
     CONFIG.CONST_WIDTH {32} \
   ] $xref_local_addr
 
@@ -2431,29 +2431,29 @@ connect_bd_intf_net -intf_net [get_bd_intf_nets axi_smc_1_M00_AXI] [get_bd_intf_
   # Create address segments
   assign_bd_address -offset 0xA0000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs nmpc_solver/pso_fsm_1/s_axi_control/Reg] -force
   assign_bd_address -offset 0xA0010000 -range 0x00010000 -with_name SEG_pso_fsm_1_Reg_1 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs nmpc_solver/pso_fsm_1/s_axi_control_r/Reg] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_constraints_mem] [get_bd_addr_segs nmpc_solver/constraint_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_current_mem] [get_bd_addr_segs nmpc_solver/current_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_pso_mem] [get_bd_addr_segs nmpc_solver/pso_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_v_mem] [get_bd_addr_segs nmpc_solver/v_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_x_mem] [get_bd_addr_segs nmpc_solver/x_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_y_mem] [get_bd_addr_segs nmpc_solver/y_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_constraints_mem] [get_bd_addr_segs nmpc_solver/constraint_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_current_mem] [get_bd_addr_segs nmpc_solver/current_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_pso_mem] [get_bd_addr_segs nmpc_solver/pso_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_v_mem] [get_bd_addr_segs nmpc_solver/v_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_x_mem] [get_bd_addr_segs nmpc_solver/x_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_y_mem] [get_bd_addr_segs nmpc_solver/y_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/detectGlobalMinimum_0/Data_m_axi_pso_mem] [get_bd_addr_segs nmpc_solver/pso_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/detectGlobalMinimum_0/Data_m_axi_y_mem] [get_bd_addr_segs nmpc_solver/y_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/evaluateFitnessAndDe_0/Data_m_axi_current_mem] [get_bd_addr_segs nmpc_solver/current_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/evaluateFitnessAndDe_0/Data_m_axi_pso_mem] [get_bd_addr_segs nmpc_solver/pso_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/evaluateFitnessAndDe_0/Data_m_axi_x_mem] [get_bd_addr_segs nmpc_solver/x_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/evaluateFitnessAndDe_0/Data_m_axi_y_mem] [get_bd_addr_segs nmpc_solver/y_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/pso_fsm_1/Data_m_axi_constraints_mem] [get_bd_addr_segs nmpc_solver/constraint_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/pso_fsm_1/Data_m_axi_current_mem] [get_bd_addr_segs nmpc_solver/current_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_constraints_mem] [get_bd_addr_segs nmpc_solver/constraint_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_current_mem] [get_bd_addr_segs nmpc_solver/current_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_pso_mem] [get_bd_addr_segs nmpc_solver/pso_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_v_mem] [get_bd_addr_segs nmpc_solver/v_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_x_mem] [get_bd_addr_segs nmpc_solver/x_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/initializeParticles_0/Data_m_axi_y_mem] [get_bd_addr_segs nmpc_solver/y_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_constraints_mem] [get_bd_addr_segs nmpc_solver/constraint_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_current_mem] [get_bd_addr_segs nmpc_solver/current_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_pso_mem] [get_bd_addr_segs nmpc_solver/pso_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_v_mem] [get_bd_addr_segs nmpc_solver/v_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_x_mem] [get_bd_addr_segs nmpc_solver/x_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/updateParticlesWithD_0/Data_m_axi_y_mem] [get_bd_addr_segs nmpc_solver/y_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/detectGlobalMinimum_0/Data_m_axi_pso_mem] [get_bd_addr_segs nmpc_solver/pso_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/detectGlobalMinimum_0/Data_m_axi_y_mem] [get_bd_addr_segs nmpc_solver/y_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/evaluateFitnessAndDe_0/Data_m_axi_current_mem] [get_bd_addr_segs nmpc_solver/current_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/evaluateFitnessAndDe_0/Data_m_axi_pso_mem] [get_bd_addr_segs nmpc_solver/pso_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/evaluateFitnessAndDe_0/Data_m_axi_x_mem] [get_bd_addr_segs nmpc_solver/x_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/evaluateFitnessAndDe_0/Data_m_axi_y_mem] [get_bd_addr_segs nmpc_solver/y_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/pso_fsm_1/Data_m_axi_constraints_mem] [get_bd_addr_segs nmpc_solver/constraint_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/pso_fsm_1/Data_m_axi_current_mem] [get_bd_addr_segs nmpc_solver/current_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
   assign_bd_address -offset 0x00000000 -range 0x80000000 -target_address_space [get_bd_addr_spaces nmpc_solver/pso_fsm_1/Data_m_axi_nmpc_io] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP2/HP0_DDR_LOW] -force
   assign_bd_address -offset 0xC0000000 -range 0x20000000 -target_address_space [get_bd_addr_spaces nmpc_solver/pso_fsm_1/Data_m_axi_nmpc_io] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP2/HP0_QSPI] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/pso_fsm_1/Data_m_axi_pso_mem] [get_bd_addr_segs nmpc_solver/pso_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces nmpc_solver/pso_fsm_1/Data_m_axi_pso_mem] [get_bd_addr_segs nmpc_solver/pso_mem/axi_bram_ctrl_0/S_AXI/Mem0] -force
 
   # Exclude Address Segments
   exclude_bd_addr_seg -target_address_space [get_bd_addr_spaces nmpc_solver/pso_fsm_1/Data_m_axi_nmpc_io] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP2/HP0_DDR_HIGH]
