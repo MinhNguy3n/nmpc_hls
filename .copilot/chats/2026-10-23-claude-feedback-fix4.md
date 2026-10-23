@@ -73,3 +73,73 @@
 ### Clarify the promotion question
 
 The current recommendation is **wait for fix6**. A separate fix5 experimental promotion is not worthwhile when its known fast-sin defect can produce a true tilt-limit violation; retain the files for rollback and comparison instead.
+
+## Feedback on the 100-step fix6 notebook run (2026-10-24)
+
+### Evidence review
+
+- **Correction after inspecting the full workspace notebook:** `app/kria-pynq/kv260_nmpc_demo_kv260.ipynb` has saved cell 16 outputs for five 100-step trials, cell 18 has the MATLAB comparison, and cell 20 records validation statuses and the run directory. The separate `kv260_nmpc_demo.ipynb` remains the 10-step/one-trial smoke test; retain both rather than treating them as conflicting results.
+- Cell 16 reports five successful 100-step trials with zero timeouts, delta/bound violations, and plant-limit crossings. Aggregate position RMSE is 0.354217 ± 0.006398 m, max error 0.603886 ± 0.008877 m, peak tilt 0.143010 ± 0.001785 rad, and mean solve latency 0.522892 s. Cell 20 marks Tcl-only checks `skipped` with reasons and all checks that ran as pass.
+- The full notebook outputs support Claude's summary. The separate attachment excerpt by itself did not expose the outputs, which caused my earlier incorrect statement that the 100-step results were not inspectable.
+- The board archive is still at `/root/jupyter_notebooks/nmpc_hls/app/kria-pynq/validation_logs/20261023T220440Z_rk4_100x5`; copy it into the workspace for durable raw data. The notebook contains the rendered outputs, but board-side artifacts include per-trial histories.
+- The controller uses the simulated plant and the same model equations; the RK4 plant is a better integration match than Euler, but this still does not establish physical-plant performance. At 0.523 s per solve versus a 50 ms sample period, this remains offline HIL, not real-time control.
+- The controller uses the simulated plant and the same model equations; the RK4 plant is a better integration match than Euler, but this still does not establish physical-plant performance. Also, 0.523 s per solve is about 10.5 times the 50 ms sample period, so this remains offline HIL, not real-time control.
+
+### Recommended order
+
+1. **Archive the exact 100-step run first.** Preserve the executed notebook with outputs, state/control/reference histories, per-step timing and fitness, configuration (`plant_integrator`, sample time, horizon, initial state, reference), fix6 artifact hash, and a JSON/CSV metrics report. Include the final state at 5 s. The notebook already saves state/control history and timing, but ensure `closed_loop_metrics` and the exact run configuration are saved too.
+2. **Fix reporting before treating the report as a pass/fail artifact.** Missing repo-only Tcl inputs should be `skipped`/`unavailable` with a reason, not `False` (which implies a failed check). Keep FPGA artifact/hash checks and actual runtime checks as pass/fail. Use a tri-state result or separate status/reason fields.
+3. **Compare MATLAB with identical metric definitions and explicit data.** Use `drone_spiral_dir.mat`; document time alignment, sample count, initial/final-state inclusion, units, and the 25-step HLS versus 60-step MATLAB horizon/optimizer/weight differences. Present this as a descriptive comparison, not an apples-to-apples benchmark.
+4. **Measure stochastic spread before changing the controller configuration.** Five 100-step trials are about 4.4 minutes of board solve time, not one minute total. Reset the simulated initial state and warm start for each trial; document that the free-running RNG continues and whether trials share one stream or reprogram/reset between trials. Report RMSE, maximum/final error, peak tilt, violations, and latency distribution per run and across runs.
+5. **Then screen speed/quality candidates on the PC.** The 0.523 ms/evaluation estimate is a useful first-order budget, not a timing guarantee: startup/IO costs and HLS scheduling/resource use need measurement. A 5×25 configuration estimates around 65 ms serially; two parallel cost units could approach 33 ms only under ideal scaling. Include margin below the 50 ms deadline, and evaluate tracking/constraint metrics over multiple random runs before selecting a hardware rebuild.
+6. **Keep physical tests gated.** Do not connect the result to actuators based on this perfect-model simulation alone. First meet the real-time budget and test model mismatch/disturbances in simulation; physical validation needs a separate safety plan and independent plant evidence.
+
+### Decision
+
+The fix6 five-trial baseline is now evidenced by the full notebook output. Preserve it as the reference, copy the raw board archive, then proceed with PC screening. Treat the MATLAB comparison as descriptive because optimizer, horizon, weights, and integrator differ. The central engineering gap remains real-time performance; physical-plant robustness is unvalidated.
+
+## Feedback on five-trial baseline and PC configuration screening (2026-10-24)
+
+### Baseline assessment
+
+- The full workspace `app/kria-pynq/kv260_nmpc_demo_kv260.ipynb` contains the five-trial outputs, MATLAB comparison, and final status report. The separate 10-step smoke-test notebook remains distinct.
+- Fetch the board's exact `validation_logs/20261023T220440Z_rk4_100x5/` output into the workspace before committing the summary. Keep per-trial states, controls, references, timing and configuration with the aggregate report. Preserve the earlier one-run archive as well.
+- There is a small metric completeness issue in the attached `tracking_metrics`: `max_control_step` uses `np.diff(applied)` and omits the transition from initial `u_curr` to the first applied control. The loop's `delta_violation` counter does test that first transition, so use that counter for pass/fail or pass `u_curr` into `tracking_metrics` and prepend it when calculating the maximum.
+- Clarify the statement that the 20-unit step limit is “hit” but has “no step-size violations”: distinguish reaching exactly `du_max` from exceeding it. The loop's `delta_violation` should mean strictly greater than the allowed bound plus tolerance.
+
+### Feedback on the PC screening proposal
+
+1. **Proceed with a PC closed-loop simulator before any rebuild.** It is the right next experiment for selecting particle/iteration settings; keep fix6 as the untouched baseline. Compile candidate binaries from isolated header copies, not by editing the live HLS source/config or generated IP in place.
+2. **Treat the 10×100 PC check as distributional, not run-by-run reproduction.** The hardware AXI-stream RNG sequence differs from the PC RNG, and the board's five trials share a continuing stream. Compare repeated-run distributions and control/constraint metrics with matched initial conditions and the same RK4 plant, not individual control sequences. Record RNG implementation/seeding and whether each trial resets or continues its stream.
+3. **Keep the hardware arithmetic for selection if feasible.** If `-O0` plus emulated half makes the full grid too slow, first compare the faster surrogate against the half model across a representative sample of states/controls, including near-limit trajectories and candidate rankings—not only the 10×100 aggregate. A surrogate that matches average cost but changes constraint crossings or ranking is not a safe screening model.
+4. **Use the evaluation-count calculation only as a rough budget.** The measured 0.523 ms/evaluation includes some system overhead and will not necessarily scale linearly. Check HLS evaluator latency/throughput and fix6 resource reports, then include PYNQ/launch overhead and margin in the deadline estimate. Two/four parallel cost units may not provide ideal 2×/4× speedup because of memory ports, routing, timing, and shared resources.
+5. **Choose candidates using more than mean RMSE.** For each setting and at least five deterministic PC seeds, report RMSE, max and final position error, peak tilt/true-limit crossings, absolute and delta-control violations, and latency estimate. Set a deadline criterion (with margin under 50 ms) as well as the proposed quality tolerance. Avoid accepting a setting on mean RMSE if a seed violates a hard constraint.
+6. **Keep control-weight tuning separate.** The MATLAB R-weight difference is a plausible explanation for the more aggressive controls, but changing R during the particle/iteration screen would confound the comparison. First compare configurations at fixed fix6 weights; then run a separate weight-sensitivity study.
+7. **The run is not real-time or physical validation.** The five-trial baseline is still a software-plant HIL simulation at roughly 10.5× the sample period. Physical tests should remain gated until real-time feasibility and model mismatch/safety tests are addressed.
+
+### Decision
+
+Proceed with the proposed PC screening after copying the five-trial board archive and fixing the first-control-step metric. Compare candidate quality statistically with the hardware-arithmetic model where practical; use HLS reports for architecture/latency estimates, and make no rebuild until one configuration meets both quality and deadline-margin criteria.
+
+## Recheck of full five-trial notebook outputs and PC-screening proposal (2026-10-24)
+
+### Verified in `kv260_nmpc_demo_kv260.ipynb`
+
+- Cell 16 contains the five 100-step trial outputs. Each has 100 completed steps, zero timeouts, zero delta/bound violations, and `plant_limit_ok=True`.
+- Across trials: RMSE mean 0.354217 m, std 0.006398 m (range 0.348958–0.363396); maximum position error mean 0.603886 m, std 0.008877 m; peak tilt mean 0.143010 rad, std 0.001785; mean latency 0.522892 s/solve, with max observed 0.523551 s.
+- Four trials reached exactly `du_max=20`; that is an active constraint, not a violation. Trial 3 max step was 19.7793. Per-step `delta_violations` are all zero.
+- Cell 18 compares the same 101 state samples and reports reference alignment within `7.1e-15 m`. It documents the material differences (25 vs 60 horizon, PSO vs fmincon, weights and RK4 vs Euler), so treat it as descriptive, not an apples-to-apples benchmark.
+- Cell 20 correctly reports missing Tcl checks as skipped with reasons, while runtime/artifact/constraint checks that ran pass. The run archive is board-side at `validation_logs/20261023T220440Z_rk4_100x5/`.
+
+### Recommendation on PC screening
+
+Proceed with the proposed PC screen before any rebuild:
+
+1. Calibrate the PC 10×100 hardware-arithmetic/RK4 closed loop against the board's **distribution**, not exact trajectories: PC and hardware use different RNG streams. Record seeding/stream policy and compare RMSE, max/final error, tilt, constraints, and latency inputs over multiple runs.
+2. Build each particle/iteration candidate from isolated header copies and verify compile-time settings. Keep fix6 sources and overlay untouched until a candidate is selected.
+3. Prefer the exact hardware arithmetic/half model. If a faster surrogate is necessary, validate it on representative trajectories near the angle limit and compare candidate rankings/constraint crossings—not just average objective.
+4. Screen multiple seeds, requiring hard constraints and quality limits (including worst/percentile error, not only mean RMSE). Use the 50 ms deadline with margin.
+5. Treat 0.523 ms/evaluation and ideal 2×/4× parallel speedups as rough estimates only. Refine with HLS cycle/resource reports, include host/launch overhead, and measure actual FPGA latency after the single selected rebuild.
+6. Keep MATLAB weight tuning and plant-mismatch robustness as separate experiments so they do not confound particle/iteration screening.
+
+The 5×100 experiment is a good validated fix6 software-plant baseline, but it is still about 10.5× slower than the 50 ms sample interval and is not physical-plant validation.
