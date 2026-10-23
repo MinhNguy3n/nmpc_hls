@@ -180,33 +180,54 @@ public:
     memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_n_U>(uu_fifo, (_system_hw_real *)&control_guess[0]);
         
     // volatile _system_hw_real *x_ref_ptr, *u_current_ptr;
+    // step_loop: for (unsigned i = 0; i < N; ++i) {
+    // #pragma HLS PIPELINE off
+    //     // unsigned k_u_aux = i*_system_n_U;
+    //     // k_u = (k_u == k_cg_last)? k_cg_last : k_u_aux;
+        
+    //     nmpc_cost_function_lowflow(
+    //         x_current, 
+    //         uu_fifo, 
+    //         &xref[i*_system_Nx], 
+    //         Jui_in, 
+    //         Ji_in, 
+    //         i,
+    //         x_next,
+    //         Jui_out, 
+    //         Ji_out
+    //     );
+
+    //     // x_ref_ptr = &xref[k_xref];
+    //     get_next_uu(i, control_guess, uu_fifo, uu_last_ram);
+    //     memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_n_U>(Jui_in, Jui_out);
+    //     memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_Nx>(Ji_in, Ji_out);
+    //     memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_Nx>(x_current, x_next);
+    // }
+    // // J_error(Jui_in, Ji_in, &xref[(N-1)*_system_Nx], x_current, J);
+    // J_error(Jui_in, Ji_in, J);
     step_loop: for (unsigned i = 0; i < N; ++i) {
 #ifdef DEBUG_SYSTEM
         std::cout << "Horizon[" << i << "]"<< std::endl;
 #endif
     #pragma HLS PIPELINE off
-        // unsigned k_u_aux = i*_system_n_U;
-        // k_u = (k_u == k_cg_last)? k_cg_last : k_u_aux;
-        
-        nmpc_cost_function_lowflow(
-            x_current, 
-            uu_fifo, 
-            &xref[i*_system_Nx], 
-            Jui_in, 
-            Ji_in, 
-            i,
-            x_next,
-            Jui_out, 
-            Ji_out
-        );
+        nmpc_cost_function_lowflow(x_current, uu_fifo, &xref[i*_system_Nx],
+                                   Jui_in, Ji_in, i, x_next, Jui_out, Ji_out);
 
-        // x_ref_ptr = &xref[k_xref];
-        get_next_uu(i, control_guess, uu_fifo, uu_last_ram);
         memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_n_U>(Jui_in, Jui_out);
         memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_Nx>(Ji_in, Ji_out);
-        memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_Nx>(x_current, x_next);
+
+        if (i < N - 1) {
+            // Only feed the next horizon step; the last step has no consumer.
+            get_next_uu(i, control_guess, uu_fifo, uu_last_ram);
+            memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_Nx>(x_current, x_next);
+        } else {
+            // Drain the final predicted state so x_next is empty for the next call.
+            volatile _system_hw_real x_final_sink;
+            drain_x_next: for (unsigned j = 0; j < _system_Nx; ++j) {
+                x_final_sink = x_next[j];
+            }
+        }
     }
-    // J_error(Jui_in, Ji_in, &xref[(N-1)*_system_Nx], x_current, J);
     J_error(Jui_in, Ji_in, J);
 }
 
