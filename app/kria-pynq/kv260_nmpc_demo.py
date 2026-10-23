@@ -55,14 +55,15 @@ from package_overlay import pso_fsm_register_map
 repo_root = notebook_dir.parents[1] if notebook_dir.name == "kria-pynq" else notebook_dir
 paths = {
     "address_csv": repo_root / "hw/exported_platform/nmpc_solver_v2_debug/AddressSegments.csv",
-    "vivado_tcl": repo_root / "hw/hdl/design_nmpc_solver.tcl",
+    "vivado_tcl": repo_root / "hw/hdl/nmpc_solver_v2_debug.tcl",
     "ip_repo": repo_root / "hw/hls/vitis_ip_repo",
     "config_hpp": repo_root / "hw/hls/source/include/config.hpp",
     "matlab_model": repo_root / "app/matlab_ws/QuadrotorSystem.m",
     "xsa": repo_root / "hw/exported_platform/nmpc_solver_v2.xsa",
     "xsa_files": repo_root / "hw/exported_platform/",
-    "handoff_hwh": repo_root / "hw/exported_platform/nmpc_solver_v2_debug/design_nmpc_solver.hwh",
-    "handoff_bda": repo_root / "hw/exported_platform/nmpc_solver_v2_debug/design_nmpc_solver.bda",
+    # The deployed overlay is the authoritative hardware description on the board.
+    "handoff_hwh": repo_root / "app/kria-pynq/overlay/design_nmpc_solver.hwh",
+    "handoff_bda": repo_root / "app/kria-pynq/overlay/design_nmpc_solver.bda",
     "bitstream": repo_root / "hw/exported_platform/nmpc_solver_v2_debug/nmpc_solver_v2.bit",
     "overlay": repo_root / "app/kria-pynq/overlay",
     "logs": repo_root / "app/kria-pynq/validation_logs",
@@ -115,6 +116,10 @@ if not tcl_path.is_file():
 else:
 
     tcl_text = tcl_path.read_text(encoding="utf-8")
+tcl_has_fix_set = all(marker in tcl_text for marker in ("axis_rand_fanout", "updateParticlesWithD_0/iteration"))
+if tcl_text and not tcl_has_fix_set:
+    print("This repository Tcl predates the deployed fix set (stale snapshot): the static Tcl audit "
+          "below is informational only. The deployed overlay HWH is audited in the next cell.")
 
 
 
@@ -150,7 +155,7 @@ smartconnects = re.findall(
 )
 
 constants = re.findall(
-    r"# Create instance: (\w+).*?CONFIG.CONST_VAL \{(\d+)\}",
+    r"set (\w+) \[ create_bd_cell -type inline_hdl -vlnv xilinx\.com:inline_hdl:ilconstant:1\.0 \w+ \]\s*set_property -dict \[list \\\s*CONFIG\.CONST_VAL \{(\d+)\}",
     tcl_text,
     re.DOTALL,
 )
@@ -294,9 +299,10 @@ hardware_map_checks = {
     "control_base": any(v.get("SI") == "s_axi_control" and v.get("BA") == "0x00A0000000" for v in bda_vertices.values()),
     "argument_base": any(v.get("SI") == "s_axi_control_r" and v.get("BA") == "0x00A0010000" for v in bda_vertices.values()),
     "worker_done_wiring": all(port in hwh_text for port in worker_done_ports),
-    "axis_broadcaster_present": "axis_broadcaster_0" in hwh_text,
+    "random_fanout_present": "axis_rand_fanout_0" in hwh_text,
+    "axis_broadcaster_absent": "axis_broadcaster" not in hwh_text,
 }
-display(pd.Series(hardware_map_checks, name="pass_or_present"))
+display(pd.Series(hardware_map_checks, name="pass"))
 
 layout_rows = []
 
@@ -314,18 +320,29 @@ def check_layout(name, regions, capacity=8192):
         })
     return rows
 
-layout_rows += check_layout("current_mem", [
-    ("u_curr", 0, 4 * 4), ("x_curr", 16, 12 * 4),
-    ("xref", 64, 25 * 12 * 4), ("last_best", 1264, 25 * 4 * 4),
-])
-layout_rows += check_layout("pso_mem", [
-    ("bestfitness", 0, 100 * 4), ("find_local", 400, 10 * 4),
-    ("global_min", 448, 25 * 4 * 4),
-])
-layout_rows += check_layout("constraints_mem", [
-    ("du_max", 0, 4 * 4), ("du_min", 16, 4 * 4),
-    ("u_max", 32, 4 * 4), ("u_min", 48, 4 * 4), ("uss", 64, 4 * 4),
-])
+# Region offsets come from the deployed overlay's HWH (mem_bank constants), not from assumptions.
+hwh_constants = {}
+for module in re.finditer(
+    r'<MODULE[^>]*FULLNAME="/nmpc_solver/mem_bank/([^"]+)"[^>]*>(.*?)</MODULE>', hwh_text, re.DOTALL
+):
+    value = re.search(r'<PARAMETER NAME="CONST_VAL" VALUE="([^"]+)"', module.group(2))
+    if value:
+        hwh_constants[module.group(1)] = int(value.group(1), 0)
+memory_regions = {
+    "current_mem": [("u_curr", "u_curr_local_addr", 4 * 4), ("x_curr", "x_curr_local_addr", 12 * 4),
+                    ("xref", "xref_local_addr", 25 * 12 * 4), ("last_best", "last_best", 25 * 4 * 4)],
+    "pso_mem": [("bestfitness", "bestfitness", 100 * 4), ("find_local", "find_local_addr", 10 * 4),
+                ("global_min", "global_best_local", 25 * 4 * 4)],
+    "constraints_mem": [(name, f"local_{name}_addr", 4 * 4) for name in ("du_max", "du_min", "u_max", "u_min", "uss")],
+}
+missing_constants = sorted(
+    {constant for regions in memory_regions.values() for _, constant, _ in regions} - set(hwh_constants)
+)
+if missing_constants:
+    print("Overlay HWH lacks mem_bank constants", missing_constants, "- BRAM layout check skipped.")
+else:
+    for memory, regions in memory_regions.items():
+        layout_rows += check_layout(memory, [(name, hwh_constants[constant], size) for name, constant, size in regions])
 for particle_memory in ("x_mem", "y_mem", "v_mem"):
     layout_rows += check_layout(particle_memory, [("particles", 0, 10 * 25 * 4 * 4)])
 layout_table = pd.DataFrame(layout_rows)
@@ -501,6 +518,7 @@ display(runtime_ps_map)
 
 
 sample_time = 0.05
+plant_integrator = "rk4"  # matches the hardware model's RK4 prediction; "euler" is the old forward step
 
 
 
@@ -560,7 +578,7 @@ if solver is not None:
 
         fitness_has_signal = bool(np.any(np.abs(fitness) >= 1.0 / 32768.0))
 
-        predicted_next_state = quadrotor_step(curr_state, best_controls[0], sample_time)
+        predicted_next_state = quadrotor_step(curr_state, best_controls[0], sample_time, method=plant_integrator)
 
         print({
 
@@ -628,122 +646,88 @@ else:
 # In[9]:
 
 
+closed_loop_steps = 10  # about 0.52 s of board time per step: 100 steps take about 52 s
 closed_loop_rows = []
-
 closed_loop_states = []
-
 closed_loop_controls = []
-
+closed_loop_metrics = {}
 if solver is not None:
-
     state = curr_state.copy()
-
     control = curr_control.copy()
-
     warm_start = last_best.copy()
-
-    for step in range(10):
-
+    timed_out = False
+    for step in range(closed_loop_steps):
         current_time = step * sample_time
-
         step_reference = reference_horizon(current_time, 25, sample_time)
-
-        timed_out = False
-
         try:
-
             result = solver.solve(state, step_reference, control, warm_start, 120.0)
-
             sequence = result.control_sequence
-
             applied_control = sequence[0].copy()
-
             delta_violation = bool(np.any(np.abs(applied_control - control) > 20.0 + 1e-3))
-
             absolute_violation = bool(np.any(np.abs(applied_control) > 100.0 + 1e-3))
-
-            next_state = quadrotor_step(state, applied_control, sample_time)
-
+            next_state = quadrotor_step(state, applied_control, sample_time, method=plant_integrator)
             warm_start = np.vstack([sequence[1:], sequence[-1]])
-
             fitness = float(result.best_fitness[-1])
-
             latency = result.elapsed_seconds
-
         except TimeoutError:
-
             timed_out = True
-
             applied_control = np.full(4, np.nan)
-
             next_state = state.copy()
-
             delta_violation = absolute_violation = False
-
             fitness = latency = np.nan
-
         closed_loop_rows.append({
-
             "step": step, "time": current_time, "fitness": fitness,
-
             "latency_seconds": latency, "timeout": timed_out,
-
             "delta_violation": delta_violation,
-
             "absolute_violation": absolute_violation,
-
         })
-
         closed_loop_states.append(state.copy())
-
         closed_loop_controls.append(applied_control.copy())
-
         if timed_out:
-
             break
-
         state, control = next_state, applied_control
-
-
+    if not timed_out:
+        closed_loop_states.append(state.copy())  # plant state after the last applied control
 
 closed_loop_table = pd.DataFrame(closed_loop_rows)
-
 display(closed_loop_table)
-
 if closed_loop_states:
-
     state_history = np.asarray(closed_loop_states)
-
     control_history = np.asarray(closed_loop_controls)
-
     times = np.arange(len(state_history)) * sample_time
-
     references = spiral_reference(times)
-
+    position_error = state_history[:, 0:3] - references[:, 0:3]
+    tilt = np.abs(state_history[:, 3:5])
+    finite_controls = control_history[np.all(np.isfinite(control_history), axis=1)]
+    closed_loop_metrics = {
+        "plant_integrator": plant_integrator,
+        "steps_requested": closed_loop_steps,
+        "steps_completed": int((~closed_loop_table["timeout"]).sum()),
+        "timeouts": int(closed_loop_table["timeout"].sum()),
+        "position_rmse_m": float(np.sqrt(np.mean(np.sum(position_error ** 2, axis=1)))),
+        "position_max_error_m": float(np.max(np.linalg.norm(position_error, axis=1))),
+        "final_position_error_m": position_error[-1].tolist(),
+        "peak_roll_pitch_rad": float(tilt.max()),
+        "plant_limit_rad": float(np.pi / 4),
+        "plant_limit_ok": bool(tilt.max() <= np.pi / 4),
+        "control_bounds_ok": bool(np.all(np.abs(finite_controls) <= 100.0 + 1e-3)),
+        "delta_violations": int(closed_loop_table["delta_violation"].sum()),
+        "latency_mean_s": float(closed_loop_table["latency_seconds"].mean()),
+        "latency_max_s": float(closed_loop_table["latency_seconds"].max()),
+    }
+    display(pd.Series(closed_loop_metrics, name="closed loop", dtype=object))
     fig, axes = plt.subplots(3, 1, figsize=(8, 7), sharex=True)
-
     for axis, index, label in zip(axes, range(3), ("x", "y", "z")):
-
-        axis.plot(times, state_history[:, index], label="KV260 HIL")
-
+        axis.plot(times, state_history[:, index], label=f"KV260 HIL ({plant_integrator} plant)")
         axis.plot(times, references[:, index], "--", label="reference")
-
         axis.set_ylabel(label)
-
         axis.grid(True, alpha=0.3)
-
     axes[0].legend()
-
     axes[-1].set_xlabel("time [s]")
-
     plt.show()
-
 else:
-
     state_history = np.empty((0, 12))
-
     control_history = np.empty((0, 4))
-
     print("Closed-loop hardware test skipped.")
 
 
@@ -852,6 +836,7 @@ validation_report = {
     "numerical_validity": bool(
         one_step_result is not None and np.all(np.isfinite(one_step_result.control_sequence))
     ),
+    "closed_loop_plant_limit": bool(closed_loop_metrics.get("plant_limit_ok", False)),
     "control_constraints": bool(
         one_step_result is not None
         and np.all(np.abs(one_step_result.control_sequence) <= 100.0 + 1e-3)
@@ -862,6 +847,7 @@ export_payload = {
     "project": project_config,
     "clock_checks": clock_checks,
     "hardware_map_checks": hardware_map_checks,
+    "closed_loop_metrics": closed_loop_metrics,
     "artifact_checks": artifact_checks,
     "matlab_comparison": matlab_comparison,
     "diagnostics": diagnostics,
