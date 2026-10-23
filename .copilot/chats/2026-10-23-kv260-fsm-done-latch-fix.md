@@ -1,11 +1,69 @@
 # KV260 NMPC FSM Stall: Root Cause and Fix
 
+## Handoff for the next agent (current state, end of 2026-10-23)
+
+Read this section first. Everything below it is the chronological log, kept for evidence.
+
+### Status
+
+- **The hardware solver works end to end on the KV260.** The current design is **fix6**: 100 PSO iterations in about 524 ms, `ap_done` asserts, results are written back, and it passed scripted board validation (`VALIDATION PASS`, see "Board validation record" and the fix6 run table under "fix6 build, validation, promotion and commits").
+- **fix6 is promoted** as the notebook's default overlay (`/root/jupyter_notebooks/nmpc_hls/app/kria-pynq/overlay`), status VALIDATED. Scope: implementation consistency and numerical fidelity to the model equations; the true ±π/4 tilt constraint holds on the reference trajectory. **Physical plant validation is still pending.**
+- Eight defects were found and fixed, each in its own commit: five that hung the FSM or silently corrupted data, the inertia-weight drift across solves, and two model-fidelity defects (sine table, tilt margin):
+
+| Commit | Fix |
+| --- | --- |
+| `f02b57c` | FSM sampled the worker `ap_done` inputs once at `ap_start` → volatile, II=1 polling; live `debug_state` (AXI-Lite `0x18`) |
+| `40a6719` | Random-stream broadcaster deadlock → any-ready fan-out `hw/hdl/src/axis_rand_fanout.v` |
+| `664899d` | Local BRAMs mapped at `0xC0000000` (DECERR) and overlapping offsets → segments at `0x0`, offsets respaced |
+| `5bf5ab5` | Evaluator FIFOs left full across calls → drain on the last horizon step (`hls_system.hpp`) |
+| `61ba9ec` | `detect`'s `interaction` `ap_vld` handshake could never complete → `ap_none` |
+| `842989b` | `update`'s `static w` drifted across solves → `w = w0 + slope * iteration`, wired from FSM `k` |
+| `c102f6c` | Fast-sin table had 1023 samples of a 1022-sample period, indexed as 1024 → regenerated 1024 entries, rounded index, masked wrap |
+| `4039b30` | Roll/pitch cost limits tightened by `_angle_limit_margin = 0.01` rad (`config.hpp`) |
+
+  Supporting commits: `ab8c7a4` (`HW_ARITH_CSIM`), `307d261` (C-sim `rand_real`), `c05e7e8` (worker cosim testbenches), `f74e9cf` and `5760206` (validator), `8b569ab` (model unit tests), `79a539e` and `b8370ed` (docs). All are on branch `origin/build`, **not pushed**.
+
+### Board state (`ubuntu@10.42.0.29`, sudo needs the user's password, so the user runs root steps)
+
+- The overlay staged and promoted is `~/nmpc_fsmfix/overlay-fix6`: bit `300bd96693f57d02f6a7700e7797073175f785cd18b0dd989cd533aae3066b99`, hwh `386639a3dfc133dc8fbf962197c265a919febb1c10bb8d18bd4739ff020be4f7`, bda `323c0c1f…`, XSA `hw/exported_platform/nmpc_solver_v2_fix6/nmpc_solver_v2.xsa` (`5e10800e…`), LTX `c30e9070…` (host only).
+- **Rollback caveat:** `overlay.rollback-20261023-194742` holds **fix5** (sine-table defect, can violate the tilt limit: **not safe for control**). `overlay.rollback-20261023-185807` holds the original August overlay, which hangs. Restore fix6 from `~/nmpc_fsmfix/overlay-fix6`. It is suggested to rename the fix5 copy to `overlay.rollback-fix5-UNSAFE` (needs sudo).
+- **Board scripts exist only on the board** in `~/nmpc_fsmfix/` (not in the repo); logs go to `~/nmpc_fsmfix/logs/`:
+  - `step_prep.sh` (root): `xmutil unloadapp` if the starter app is active; disables cpuidle `state1` on all CPUs (JTAG lockup mitigation, resets on reboot); programs the overlay via `NmpcOverlay(..., download=True)`.
+  - `step4_run.sh` (root): one bounded solve with live FSM-state logging and sentinel checks.
+  - `step5_validate.sh` (root): runs `step_prep.sh`, then two consecutive `NmpcOverlay.solve()` calls; writes `logs/06_validate_*.json` for `validate_hw_run.py`.
+  - `step6_promote.sh` (root): hash-checked copy of `overlay-fix6` to the notebook overlay, with a rollback copy and `PROMOTION.txt`. It has already been run.
+- The safe board procedure for any PL change: power cycle → `step_prep.sh` → run. Keep the UART (`screen /dev/ttyUSB1 115200`) open. Avoid long JTAG sessions: Vivado HW Manager connections caused Linux soft lockups; disabling cpuidle mitigated this.
+
+### Reproducing the build (Vivado/Vitis 2025.2 only, `/tools/Xilinx/2025.2`)
+
+- HLS IPs: `hw/hls/scripts/hls_script_pso.tcl` builds all five IPs into the **gitignored** `hw/hls/vitis_ip_repo/`, so rebuilt IPs are not in git. Settings: FSM 10 ns, costF 8 ns, others 10 ns; vendor `tu-dresden` for FSM/costF, `tu-dresden_turun-yliopisto` for the rest.
+- Integrated design: source `hw/hdl/nmpc_solver_v2_debug.tcl` with `--origin_dir hw/hdl --project_name <name>` from `hw/hdl/build/`. Clear the 2025.1 incremental checkpoint (`INCREMENTAL_CHECKPOINT {}`, `AUTO_INCREMENTAL_CHECKPOINT 0`), then `update_ip_catalog -rebuild`, `validate_bd_design`, `generate_target`, synth, impl to `write_bitstream`, `write_debug_probes`, `write_hw_platform -fixed -include_bit`. (The wrapper used, `build_fix6.tcl`, was in a temporary scratch area and is not saved.) Then run `app/kria-pynq/package_overlay.py --xsa … --output overlay-<name>`.
+- Checks, run from `hw/hls`: `vitis-run --mode hls --tcl scripts/hls_script_{evaluate,detect,update}_cosim.tcl` (all PASS); host unit test `src/main_hls_model_unit_test.cpp` (build command in its header, **-O0**); validator `python3 app/kria-pynq/validate_hw_run.py <dump.json> [--seeds N]`.
+
+### Hazards learned the hard way
+
+- **Cosim needs `-DHW_ARITH_CSIM`** in the testbench flags. Plain C simulation uses `float` top-level types while the RTL ports are `ap_fixed<32,17>`, so the bit patterns are misread (float 0.2 comes back as 0.203125) and correct RTL looks broken.
+- **Host g++ 11 miscompiles >64-bit `ap_fixed` intermediates at -O1/-O2.** Build every host tool that uses ap_fixed at **-O0**.
+- The C++ `half` emulation has no `volatile` operators: the half model only builds in C from a header copy without `volatile` (the validator does this) with `-DHW_MODEL_HALF_CSIM`, linked to `/tools/Xilinx/2025.2/lnx64/tools/fpo_v7_1/libIp_floating_point_v7_1_bitacc_cmodel.so` (RPATH, `--disable-new-dtags`).
+- Several headers (`config.hpp`, `hls_pso.hpp`, model headers) use **CRLF**; keep it when editing.
+- J is **discontinuous** at the roll/pitch cost limit (1e4 penalty), so small model differences can change J by about 6000. Classify safety from the plant-limit check (c), never from total cost.
+- The double reference (REF) uses the same model equations, so it measures numerical fidelity only, not physical correctness.
+
+### Open items (priority order)
+
+1. **Physical plant validation:** a trusted independent dynamics reference or plant-level test before claiming the controller is correct for the drone.
+2. Board hygiene: rename the fix5 rollback copy (above).
+3. Performance profiling: about 5.2 ms per iteration, dominated by the evaluator (HLS estimate 10.6 ns against the 10 ns clock, yet Vivado meets timing with WNS +1.07 ns).
+4. Optional: commit the board scripts and the Vivado build wrapper into the repo so the flow is reproducible without this note.
+
 ## Session metadata
 
-- Created: 2026-10-23 (Claude Code)
+- Created: 2026-10-23 (Claude Code); updated at the end of the session for the next agent.
 - Continues: [2026-08-18 KV260 NMPC ILA Overlay Debug](2026-08-18-kv260-ila-overlay-debug.md), [2026-09-13 summary](2026-09-13-kv260-ila-overlay-debug-summary.md)
-- Target board: KV260, now at `ubuntu@10.42.0.29` (Xilinx MAC `00:0a:35:0f:24:00`). The SD card was reimaged: the SSH host key changed and key-based login is not yet installed.
-- Toolchain: only Vivado/Vitis **2025.2** is installed now (`/tools/Xilinx/2025.2`). The `tcl_run/nmpc_solver_v2` project was built with 2025.1 and was left untouched.
+- Target board: KV260 at `ubuntu@10.42.0.29` (Xilinx MAC `00:0a:35:0f:24:00`; the August notes used 10.42.0.48). It is the same SD image as August; only the SSH host key changed. Key-based SSH login is installed for `ubuntu`; sudo still needs the user's password.
+- Toolchain: only Vivado/Vitis **2025.2** is installed (`/tools/Xilinx/2025.2`). The old `tcl_run/nmpc_solver_v2` project (2025.1) was left untouched; all builds since are fresh projects under `hw/hdl/build/nmpc_solver_v2_fix*`.
+
+## Chronological log
 
 ## Root cause (verified in shipped RTL)
 
@@ -247,7 +305,7 @@ Scratch harness (`scratchpad/fidelity/fidelity.cpp`): it drives `System::nmpc_co
 - **Validator** `app/kria-pynq/validate_hw_run.py` (with `main_hls_validate.cpp` `trajectory` mode) builds float (REF), hw and half variants (the half build uses a `volatile`-free header copy, `-DHW_MODEL_HALF_CSIM` and the FPO library with RPATH). Per run it reports (a) hardware vs half-model consistency (tolerance 0.1 %), (b) the model gap vs REF (fidelity to the equations, not physical validation), (c) true ±π/4 violations on the REF trajectory, plus cost-limit crossings, control constraints and an optional `--seeds N` software comparison. Exit status is non-zero on any failure of (a), (c) or the control constraints.
 - Negative test on the fix5 dump: (a) FAIL (old model vs current sources, as expected), (c) FAIL at step 24 (peaks 0.79029 / 0.79295) → `VALIDATION FAIL`, as intended.
 
-## Next steps
+## fix6 build, validation, promotion and commits (record)
 
 1. **fix6 build done** (`hw/hdl/build/nmpc_solver_v2_fix6`): timing met, WNS +1.068 ns, WHS +0.010 ns, no critical warnings.
    - Full fix set verified in the netlist: FSM poll loops, evaluator drain, detect without `interaction_ap_vld`, update `iteration` port, `pso_fsm_1_k` driving `.interaction` and `.iteration`, fan-out present and no broadcaster.
@@ -267,5 +325,6 @@ Scratch harness (`scratchpad/fidelity/fidelity.cpp`): it drives `System::nmpc_co
      - `overlay.rollback-20261023-194742` = **fix5** (`3b8ac35e…`, sine-table defect, can violate the tilt limit: **not safe for control**);
      - `overlay.rollback-20261023-185807` = the original August overlay (hangs in the FSM).
      The rollback command printed by the fix6 promotion therefore reinstalls fix5. The safe source copy of fix6 is `~/nmpc_fsmfix/overlay-fix6`.
-3. Commit atomically: (i) fast-sin table/rounding, (ii) angle margin, (iii) model unit tests, (iv) validator plus the `HW_MODEL_HALF_CSIM` opt-in, (v) docs and validation dumps.
-4. Open: a trusted independent plant reference (physical or independent model) before claiming model correctness; performance profiling.
+4. **Committed** (atomic, not pushed): `c102f6c` fast-sin table/rounding, `4039b30` angle margin, `8b569ab` model unit tests, `5760206` validator plus the `HW_MODEL_HALF_CSIM` opt-in, `b8370ed` docs and validation dumps. Not committed on purpose: the unrelated `graphs/nmpc_pso_system_overview.svg` change and the local `hw/hls/ip_backup_2026-10-23_*` IP backups.
+
+Remaining work: see **Open items** in the handoff section at the top.

@@ -2,7 +2,7 @@
 
 Read the newest relevant handoff before continuing a task. These files record verified state, safe diagnostic commands, and the immediate next step.
 
-- [2026-10-23 KV260 FSM stall root cause and fix](2026-10-23-kv260-fsm-done-latch-fix.md) (newest; supersedes the state-0 stall hypothesis)
+- [2026-10-23 KV260 NMPC hang root causes, fixes and validated fix6 overlay](2026-10-23-kv260-fsm-done-latch-fix.md) (newest; **start with its "Handoff for the next agent" section**; supersedes the state-0 stall hypothesis)
 - [2026-08-18 KV260 NMPC ILA Overlay Debug](2026-08-18-kv260-ila-overlay-debug.md)
 
 ## Session Archives
