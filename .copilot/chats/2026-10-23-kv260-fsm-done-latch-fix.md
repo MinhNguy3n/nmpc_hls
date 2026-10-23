@@ -1,6 +1,6 @@
 # KV260 NMPC FSM Stall: Root Cause and Fix
 
-## Handoff for the next agent (current state, end of 2026-10-23)
+## Handoff for the next agent (current state, 2026-10-24)
 
 Read this section first. Everything below it is the chronological log, kept for evidence.
 
@@ -22,6 +22,9 @@ Read this section first. Everything below it is the chronological log, kept for 
 | `4039b30` | Roll/pitch cost limits tightened by `_angle_limit_margin = 0.01` rad (`config.hpp`) |
 
   Supporting commits: `ab8c7a4` (`HW_ARITH_CSIM`), `307d261` (C-sim `rand_real`), `c05e7e8` (worker cosim testbenches), `f74e9cf` and `5760206` (validator), `8b569ab` (model unit tests), `79a539e` and `b8370ed` (docs). All are on branch `origin/build`, **not pushed**.
+- **Since the promotion (2026-10-24): closed-loop HIL baseline on fix6.** The notebook `app/kria-pynq/kv260_nmpc_demo.ipynb` runs the hardware solver against a software plant (RK4, the same equations as the hardware prediction model) on the spiral reference. Five 100-step trials: position RMSE **0.354 ± 0.006 m**, max error 0.604 ± 0.009 m (always at t = 1.1 s, the start-up transient), peak roll/pitch 0.143 rad (limit 0.785), **0.523 s per solve** (p95 0.5232 s, max 0.5236 s), no timeouts, no bound or du violations (du_max = 20 is reached, not exceeded, 0–3 steps per trial). Details: "Closed-loop HIL baseline and PC screening (2026-10-24)" at the end of this file.
+- **The central gap is real-time performance:** 0.523 s per solve against Ts = 0.05 s (about 10.5× too slow). This is a perfect-model, offline HIL test, not real-time or physical validation. A PC screen of particle/iteration settings (exact hardware arithmetic) is under way to choose one configuration for a single rebuild.
+- Commits for this work: `b255d14` (user's pso_fsm_1/v2_debug notebook edits), `95e7edd` (RK4 plant), `8eeeec0` and `e3b519a` (notebook audits, metrics, trials, tri-state report, per-run export), `5710982` (shared `tracking_metrics`), `c4a7555` (validator `serve` mode), `1eb8843` (build overrides), `c0ea1ce` (`screen_pso_config.py`), `683d65b` (dated executed notebooks), `b41d5ed`/`b66fcee` (docs). Not pushed.
 
 ### Board state (`ubuntu@10.42.0.29`, sudo needs the user's password, so the user runs root steps)
 
@@ -32,6 +35,8 @@ Read this section first. Everything below it is the chronological log, kept for 
   - `step4_run.sh` (root): one bounded solve with live FSM-state logging and sentinel checks.
   - `step5_validate.sh` (root): runs `step_prep.sh`, then two consecutive `NmpcOverlay.solve()` calls; writes `logs/06_validate_*.json` for `validate_hw_run.py`.
   - `step6_promote.sh` (root): hash-checked copy of `overlay-fix6` to the notebook overlay, with a rollback copy and `PROMOTION.txt`. It has already been run.
+- **Notebook updates are staged in `~/nmpc_fsmfix/hil_trials/`** and installed by the user with `sudo bash ~/nmpc_fsmfix/hil_trials/archive_and_install.sh`. It moves a legacy flat export into its own run folder, packs every unpacked `validation_logs/<run>/` into `~/nmpc_fsmfix/runs/<run>.tar.gz` (readable by `ubuntu`, so they can be copied off without sudo), then installs the notebook, `.py` export and `quadrotor.py` with backups (`*.bak_<time>`), skipping files already installed. The user ran it on 2026-10-24 with the staged files notebook `1fcc6f531c0d`, `.py` `a0a2a5c1c007`, `quadrotor.py` `b2ea56acd503` (commit `5710982`); the script prints the installed hashes for comparison.
+- **Run archives:** the notebook writes each run to `validation_logs/<UTC time>_<plant>_<steps>x<trials>/` (run config, overlay hashes, per-trial metrics, `closed_loop_histories.npz`). Copies are in the workspace's gitignored `app/kria-pynq/validation_logs/`: `20261023T210957Z_rk4_100x1_legacy`, `20261023T215819Z_rk4_10x1` (smoke test), `20261023T220440Z_rk4_100x5` (**the baseline**).
 - The safe board procedure for any PL change: power cycle → `step_prep.sh` → run. Keep the UART (`screen /dev/ttyUSB1 115200`) open. Avoid long JTAG sessions: Vivado HW Manager connections caused Linux soft lockups; disabling cpuidle mitigated this.
 
 ### Reproducing the build (Vivado/Vitis 2025.2 only, `/tools/Xilinx/2025.2`)
@@ -48,17 +53,23 @@ Read this section first. Everything below it is the chronological log, kept for 
 - Several headers (`config.hpp`, `hls_pso.hpp`, model headers) use **CRLF**; keep it when editing.
 - J is **discontinuous** at the roll/pitch cost limit (1e4 penalty), so small model differences can change J by about 6000. Classify safety from the plant-limit check (c), never from total cost.
 - The double reference (REF) uses the same model equations, so it measures numerical fidelity only, not physical correctness.
+- **PC solves in the exact hardware arithmetic are slow:** about 83 s per 10×100 solve in `half` mode (the FPO bit-accurate library), 7.7 s in `hw` mode, 0.03 s in `float`. Run closed-loop screens in parallel processes (16 cores) and keep the `float` surrogate for quick cross-checks only.
+- `half`-mode closed-loop solves print `WARNING: assign NaN to fixed point value` (stderr; about 70 in the screen's first 12 minutes, none on the initial problem): some particle evaluation overflows the half model. In C simulation NaN, ±inf and overflow all saturate the `ap_fixed<32,17>` cost to +65535.99997, so such a particle has the worst cost and is never selected. Whether the RTL float-to-fixed conversion maps NaN the same way is **not verified**; check it (cosim or the HLS conversion semantics) before relying on it.
+- `execute()`'s own `J` output is garbage on the host (it reads the uninitialized `bestfitness`, not `local_bestfitness`); use the validator's `Jrecomputed`. Host-only, does not affect the hardware.
+- The notebook's `elapsed_seconds` covers `ap_start` → `ap_done` only (plus 0.1 ms polling). PS-side encoding, cache flush and invalidate are extra and must be added to any real-time budget.
+- The board's PSO trials share one continuing hardware random stream; the PC uses `rand()` with one seed per trial. Compare PC and board **as distributions**, never trajectory by trajectory.
 
 ### Open items (priority order)
 
-1. **Physical plant validation:** a trusted independent dynamics reference or plant-level test before claiming the controller is correct for the drone.
-2. Board hygiene: rename the fix5 rollback copy (above).
-3. Performance profiling: about 5.2 ms per iteration, dominated by the evaluator (HLS estimate 10.6 ns against the 10 ns clock, yet Vivado meets timing with WNS +1.07 ns).
-4. Optional: commit the board scripts and the Vivado build wrapper into the repo so the flow is reproducible without this note.
+1. **Real-time performance (in progress):** finish the PC screen (`screen_pso_config.py`, see the last section), check that the PC 10×100 distribution matches the board baseline, then choose the smallest configuration that keeps hard constraints on every seed and quality within the agreed tolerance **and** meets 50 ms with margin (single evaluator: about 80 particle evaluations per solve; more needs parallel evaluators or a faster evaluator). Only then do one HLS/Vivado rebuild and measure the real latency on the board. Keep fix6 untouched as the baseline.
+2. **Separate experiments, after the screen** (do not mix them into it): control-weight sensitivity (MATLAB uses 0.02·u² vs R = 0.0005 here, a plausible cause of the 3.6× larger controls); horizon length; plant-mismatch and disturbance tests in simulation.
+3. **Physical plant validation:** a trusted independent dynamics reference or plant-level test before claiming the controller is correct for the drone. Physical tests stay gated until real-time feasibility and mismatch/safety tests are done.
+4. Board hygiene: rename the fix5 rollback copy (above).
+5. Optional: commit the board scripts and the Vivado build wrapper into the repo so the flow is reproducible without this note.
 
 ## Session metadata
 
-- Created: 2026-10-23 (Claude Code); updated at the end of the session for the next agent.
+- Created: 2026-10-23 (Claude Code); updated 2026-10-24 with the closed-loop HIL baseline and the PC screen.
 - Continues: [2026-08-18 KV260 NMPC ILA Overlay Debug](2026-08-18-kv260-ila-overlay-debug.md), [2026-09-13 summary](2026-09-13-kv260-ila-overlay-debug-summary.md)
 - Target board: KV260 at `ubuntu@10.42.0.29` (Xilinx MAC `00:0a:35:0f:24:00`; the August notes used 10.42.0.48). It is the same SD image as August; only the SSH host key changed. Key-based SSH login is installed for `ubuntu`; sudo still needs the user's password.
 - Toolchain: only Vivado/Vitis **2025.2** is installed (`/tools/Xilinx/2025.2`). The old `tcl_run/nmpc_solver_v2` project (2025.1) was left untouched; all builds since are fresh projects under `hw/hdl/build/nmpc_solver_v2_fix*`.
@@ -328,3 +339,35 @@ Scratch harness (`scratchpad/fidelity/fidelity.cpp`): it drives `System::nmpc_co
 4. **Committed** (atomic, not pushed): `c102f6c` fast-sin table/rounding, `4039b30` angle margin, `8b569ab` model unit tests, `5760206` validator plus the `HW_MODEL_HALF_CSIM` opt-in, `b8370ed` docs and validation dumps. Not committed on purpose: the unrelated `graphs/nmpc_pso_system_overview.svg` change and the local `hw/hls/ip_backup_2026-10-23_*` IP backups.
 
 Remaining work: see **Open items** in the handoff section at the top.
+
+## Closed-loop HIL baseline and PC screening (2026-10-24)
+
+### Notebook changes (`app/kria-pynq/kv260_nmpc_demo.ipynb`, `.py` export regenerated with each)
+
+- Audits read the deployed overlay's HWH/BDA: the random fan-out is present and the broadcaster absent, and the BRAM layout comes from the HWH `mem_bank` constants (no overlaps). The repository Tcl is not on the board, so its checks report **skipped** with a reason, not failed; an unloaded overlay likewise skips the solve checks.
+- The plant is `quadrotor_step(..., method="rk4")`, which matches the C double reference trajectory to 2.3e-7 (forward Euler was 0.39 m off).
+- `closed_loop_steps` / `closed_loop_trials`: each trial restarts from x0 = [7, 10, 0…], zero control and zero warm start. Metrics come from `quadrotor.tracking_metrics` (shared with the PC screen): RMSE, max/final error, final state, peak roll/pitch vs ±π/4, controls, control steps **including the first one from u_curr**, `steps_at_du_max` (allowed) vs du/bound violations, and the latency distribution.
+- The MATLAB comparison uses `app/matlab_ws/drone_spiral_dir.mat` explicitly (its reference equals `spiral_reference` to 7e-15 m) and is **descriptive only**: fmincon with a 60-step horizon, weight 1 on position/attitude errors, 0.02·u², no terminal cost, no du bound, and a forward-Euler plant, vs PSO with 25 steps, Q/Qf/R from `config.hpp`, du_max = 20 and RK4. Both use normalized controls in [−100, 100].
+
+### Board runs (fix6, bit `300bd966…`)
+
+| Run | Plant, steps × trials | Position RMSE | Max error | Peak tilt | Solve latency | Violations |
+| --- | --- | --- | --- | --- | --- | --- |
+| `kv260_nmpc_demo_fix6_euler10_2026-10-23.ipynb` | Euler, 10 × 1 | – | – | – | 0.5226–0.5234 s | none |
+| `…_rk4_10x1` (smoke test) | RK4, 10 × 1 | 0.230 m | – | – | median 0.5230 s | none |
+| `kv260_nmpc_demo_fix6_rk4_100_2026-10-24.ipynb` | RK4, 100 × 1 | 0.345 m | 0.604 m | 0.144 rad | 0.5229 s mean | none |
+| `…_rk4_100x5` (**baseline**) | RK4, 100 × 5 | 0.354 ± 0.006 m | 0.604 ± 0.009 m | 0.143 ± 0.002 rad | median 0.5229 s, p95 0.5232 s, max 0.5236 s | none (du_max reached 0–3 times per trial) |
+
+- Final position at t = 5 s is about (9.2, 12.37, 0.62) against the reference (9.5, 12.5, 0.625). The x axis lags for about 2 s, overshoots about 0.45 m near t = 3.3 s, then settles; y and z track closely.
+- MATLAB over the same 101 samples: RMSE 0.572 m, max error 0.939 m at 1.75 s, peak tilt 0.072 rad, |u| ≤ 9.1. The hardware controller tracks better but is more aggressive (tilt ×2, controls up to 33–40). The R-weight difference is a hypothesis for this, not tested.
+
+### Latency model (fix6 HLS reports, 100 MHz PL clock)
+
+- Evaluator: 493,052 cycles per call (10 particles), i.e. 48,978 per particle = 25 horizon steps × 1,955 (each RK4 prediction is 4 × 440 cycles of the half model). Update 10,891, detect 337 cycles. About 504k cycles = 5.04 ms per iteration; measured 5.23 ms, so the remaining 3.7 % is unexplained (per-iteration AXI latency or fixed per-solve cost; not yet separated).
+- Single evaluator, rough serial estimate ≈ iterations × (particles × 50k + 0.3k) cycles: 5×25 ≈ 63–65 ms, 5×18 or 3×30 ≈ 45–47 ms, 4×20 or 3×25 ≈ 38–42 ms. Within 50 ms with 20 % margin means about 80 particle evaluations. fix6 uses 41 % LUT, 24 % BRAM, 6 % DSP; one evaluator is about 23k LUT, so 2–3 parallel evaluators look affordable, but memory ports and timing may prevent ideal scaling. Measure on the board after any rebuild.
+
+### PC screen (`app/kria-pynq/screen_pso_config.py`)
+
+- Builds each particles × iterations candidate from an isolated header copy (`validate_hw_run.build` overrides), checks the binary's reported settings, and runs the notebook's closed loop through the validator's `serve` mode (one process per trial; `srand(seed)` once, stream continues across solves). Trials are saved to the gitignored `app/kria-pynq/validation_logs/pc_screen/` as they finish, and an interrupted screen resumes. `--board validation_logs/20261023T220440Z_rk4_100x5` adds the board baseline to the summary.
+- Running since 2026-10-24 01:24 local time: `--mode half --configs 10x100,10x50,10x25,5x50,5x25,5x18,3x30 --seeds 1-5 --steps 100 --jobs 12`, log `validation_logs/pc_screen/screen_half.log`, about 2.5 h expected (each 10×100 trial ≈ 2.3 h).
+- `float` surrogate preview (5 seeds; not for selection): RMSE 0.329 (10×100), 0.344 (10×50), 0.376 (10×25), 0.359 (5×50), 0.392 (5×25), 0.408 (5×18), 0.402 m (3×30); peak tilt ≈ 0.145 rad and no violations in all. The `half` results and the PC-vs-board calibration decide; the surrogate's ranking must be checked against `half` before using it for any later sweep.
