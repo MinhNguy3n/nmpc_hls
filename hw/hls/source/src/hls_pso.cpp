@@ -684,7 +684,9 @@ void rand_real(_pso_hw_real &rand_value){
 #if (defined(__SYNTHESIS__) || defined(SYNTH_RAND))
 	rand_core.rand_num(rand_num_out);
 #else
-	rand_num_out = (_pso_hw_real)rand()/(_pso_hw_real)RAND_MAX;
+	// Divide in double: converting rand() and RAND_MAX to ap_fixed<32,17> first saturates both,
+	// which made every value ~1.0 in HW_ARITH_CSIM builds.
+	rand_num_out = (_pso_hw_real)((double)rand() / (double)RAND_MAX);
 #endif
 	rand_value = rand_num_out;
 }
