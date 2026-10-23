@@ -53,9 +53,13 @@ def angle_margin() -> float:
     return float(match.group(1)) if match else 0.0
 
 
-def build(mode: str, xilinx: Path) -> Path:
+def build(mode: str, xilinx: Path, overrides: dict[str, int] | None = None) -> Path:
+    """Build the validation tool; overrides replace `#define NAME value` lines of config.hpp
+    (e.g. {"_n_S": 5, "_maxiter": 25}) in an isolated header copy, never in the source tree."""
+    overrides = overrides or {}
+    tag = mode + "".join(f"_{name.strip('_')}{value}" for name, value in sorted(overrides.items()))
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
-    binary = BUILD_DIR / f"validate_{mode}"
+    binary = BUILD_DIR / f"validate_{tag}"
     sources = [HLS_SOURCE / "src" / f for f in
                ("main_hls_validate.cpp", "hls_pso.cpp", "aux_functions.cpp", "hls_nonlinear_solver.cpp")]
     headers = list((HLS_SOURCE / "include").rglob("*.hpp"))
@@ -66,11 +70,19 @@ def build(mode: str, xilinx: Path) -> Path:
     flags, libs = [], []
     if mode in ("hw", "half"):
         flags = list(HW_FLAGS)
-    if mode == "half":
-        # The C++ half emulation has no volatile operators: build from a copy without them.
-        include = BUILD_DIR / "half_include"
+    if mode == "half" or overrides:
+        include = BUILD_DIR / f"include_{tag}"
         shutil.rmtree(include, ignore_errors=True)
         shutil.copytree(HLS_SOURCE / "include", include)
+        config = include / "config.hpp"
+        text = config.read_bytes()
+        for name, value in overrides.items():
+            text, count = re.subn(rb"(#define %s[ \t]+)\S+" % name.encode(), rb"\g<1>%d" % value, text)
+            if count != 1:
+                raise ValueError(f"config.hpp defines {name} {count} times, expected once")
+        config.write_bytes(text)
+    if mode == "half":
+        # The C++ half emulation has no volatile operators: build from a copy without them.
         for name in ("hls_system.hpp", "models/hls_sniffbot.hpp"):
             path = include / name
             path.write_bytes(re.sub(rb"\bvolatile ", b"", path.read_bytes()))
