@@ -237,6 +237,8 @@ if { $obj != {} } {
 
 # Set 'sources_1' fileset object
 set obj [get_filesets sources_1]
+# Add RTL module referenced by the block design (random-stream fan-out)
+add_files -norecurse -fileset $obj [file normalize "$origin_dir/src/axis_rand_fanout.v"]
 # Set 'sources_1' fileset file properties for remote files
 # None
 
@@ -421,7 +423,6 @@ proc cr_bd_design_nmpc_solver { parentCell } {
   tu-dresden_turun-yliopisto:hls:updateParticlesWithDuConstrains:1.0\
   tu-dresden_turun-yliopisto:hls:detectGlobalMinimum:1.0\
   tu-dresden_turun-yliopisto:hls:rand_wrapper:1.0\
-  xilinx.com:ip:axis_broadcaster:1.1\
   tu-dresden:hls:evaluateFitnessAndDetectLocalBest:1.0\
   tu-dresden:hls:pso_fsm:1.0\
   xilinx.com:inline_hdl:ilconstant:1.0\
@@ -1101,31 +1102,9 @@ proc create_hier_cell_nmpc_solver { parentCell nameHier } {
   # Create instance: y_mem
   create_hier_cell_y_mem $hier_obj y_mem
 
-  # Create instance: axis_broadcaster_0, and set properties
-  set axis_broadcaster_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_broadcaster:1.1 axis_broadcaster_0 ]
-  set_property -dict [list \
-    CONFIG.HAS_TKEEP {0} \
-    CONFIG.HAS_TLAST {0} \
-    CONFIG.HAS_TREADY {1} \
-    CONFIG.HAS_TSTRB {0} \
-    CONFIG.M_TDATA_NUM_BYTES {4} \
-    CONFIG.M_TUSER_WIDTH {0} \
-    CONFIG.S_TDATA_NUM_BYTES {4} \
-    CONFIG.S_TUSER_WIDTH {0} \
-    CONFIG.TDEST_WIDTH {0} \
-    CONFIG.TID_WIDTH {0} \
-  ] $axis_broadcaster_0
-
-  set_property -dict [list \
-    CONFIG.HAS_TKEEP.VALUE_MODE {auto} \
-    CONFIG.HAS_TLAST.VALUE_MODE {auto} \
-    CONFIG.HAS_TREADY.VALUE_MODE {auto} \
-    CONFIG.HAS_TSTRB.VALUE_MODE {auto} \
-    CONFIG.M_TUSER_WIDTH.VALUE_MODE {auto} \
-    CONFIG.S_TUSER_WIDTH.VALUE_MODE {auto} \
-    CONFIG.TDEST_WIDTH.VALUE_MODE {auto} \
-    CONFIG.TID_WIDTH.VALUE_MODE {auto} \
-  ] $axis_broadcaster_0
+  # Create instance: axis_rand_fanout_0 (replaces the AXI4-Stream broadcaster, which deadlocks because
+  # initializeParticles and updateParticles never consume the random stream concurrently)
+  set axis_rand_fanout_0 [ create_bd_cell -type module -reference axis_rand_fanout axis_rand_fanout_0 ]
 
 
   # Create instance: v_mem
@@ -1182,8 +1161,8 @@ proc create_hier_cell_nmpc_solver { parentCell nameHier } {
 
   # Create interface connections
   connect_bd_intf_net -intf_net S_AXI_1 [get_bd_intf_pins current_mem/S_AXI] [get_bd_intf_pins smartconnect_0/M00_AXI]
-  connect_bd_intf_net -intf_net axis_broadcaster_0_M00_AXIS [get_bd_intf_pins axis_broadcaster_0/M00_AXIS] [get_bd_intf_pins initializeParticles_0/p_rand_port]
-  connect_bd_intf_net -intf_net axis_broadcaster_0_M01_AXIS [get_bd_intf_pins axis_broadcaster_0/M01_AXIS] [get_bd_intf_pins updateParticlesWithD_0/p_rand_port]
+  connect_bd_intf_net -intf_net axis_rand_fanout_0_m0_axis [get_bd_intf_pins axis_rand_fanout_0/m0_axis] [get_bd_intf_pins initializeParticles_0/p_rand_port]
+  connect_bd_intf_net -intf_net axis_rand_fanout_0_m1_axis [get_bd_intf_pins axis_rand_fanout_0/m1_axis] [get_bd_intf_pins updateParticlesWithD_0/p_rand_port]
   connect_bd_intf_net -intf_net detectGlobalMinimum_0_m_axi_pso_mem [get_bd_intf_pins smartconnect_2/S02_AXI] [get_bd_intf_pins detectGlobalMinimum_0/m_axi_pso_mem]
   connect_bd_intf_net -intf_net detectGlobalMinimum_0_m_axi_y_mem [get_bd_intf_pins detectGlobalMinimum_0/m_axi_y_mem] [get_bd_intf_pins smartconnect_3/S02_AXI]
   connect_bd_intf_net -intf_net evaluateFitnessAndDe_1_m_axi_current_mem [get_bd_intf_pins evaluateFitnessAndDe_0/m_axi_current_mem] [get_bd_intf_pins smartconnect_0/S01_AXI]
@@ -1201,7 +1180,7 @@ proc create_hier_cell_nmpc_solver { parentCell nameHier } {
   connect_bd_intf_net -intf_net pso_fsm_1_m_axi_nmpc_io [get_bd_intf_pins M00_AXI] [get_bd_intf_pins pso_fsm_1/m_axi_nmpc_io]
   connect_bd_intf_net -intf_net [get_bd_intf_nets pso_fsm_1_m_axi_nmpc_io] [get_bd_intf_pins M00_AXI] [get_bd_intf_pins ila_0/SLOT_0_AXI]
   connect_bd_intf_net -intf_net pso_fsm_1_m_axi_pso_mem [get_bd_intf_pins smartconnect_2/S01_AXI] [get_bd_intf_pins pso_fsm_1/m_axi_pso_mem]
-  connect_bd_intf_net -intf_net rand_wrapper_0_rand_out [get_bd_intf_pins rand_wrapper_0/rand_out] [get_bd_intf_pins axis_broadcaster_0/S_AXIS]
+  connect_bd_intf_net -intf_net rand_wrapper_0_rand_out [get_bd_intf_pins rand_wrapper_0/rand_out] [get_bd_intf_pins axis_rand_fanout_0/s_axis]
   connect_bd_intf_net -intf_net s_axi_control_input_1 [get_bd_intf_pins s_axi_control_input] [get_bd_intf_pins pso_fsm_1/s_axi_control_r]
   connect_bd_intf_net -intf_net s_axi_control_pso_1 [get_bd_intf_pins s_axi_control_pso] [get_bd_intf_pins pso_fsm_1/s_axi_control]
   connect_bd_intf_net -intf_net smartconnect_1_M00_AXI [get_bd_intf_pins smartconnect_1/M00_AXI] [get_bd_intf_pins constraint_mem/S_AXI]
@@ -1218,7 +1197,7 @@ proc create_hier_cell_nmpc_solver { parentCell nameHier } {
 
   # Create port connections
   connect_bd_net -net aclk_0_1  [get_bd_pins aclk] \
-  [get_bd_pins axis_broadcaster_0/aclk] \
+  [get_bd_pins axis_rand_fanout_0/aclk] \
   [get_bd_pins rand_wrapper_0/ap_clk] \
   [get_bd_pins current_mem/s_axi_aclk] \
   [get_bd_pins constraint_mem/s_axi_aclk] \
@@ -1239,7 +1218,6 @@ proc create_hier_cell_nmpc_solver { parentCell nameHier } {
   [get_bd_pins pso_fsm_1/ap_clk] \
   [get_bd_pins ila_0/clk]
   connect_bd_net -net aresetn_0_1  [get_bd_pins aresetn] \
-  [get_bd_pins axis_broadcaster_0/aresetn] \
   [get_bd_pins rand_wrapper_0/ap_rst_n] \
   [get_bd_pins y_mem/s_axi_aresetn] \
   [get_bd_pins current_mem/s_axi_aresetn] \
