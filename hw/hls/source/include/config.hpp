@@ -119,13 +119,16 @@ const _hw_top_real rand_max = 1.0;
     const _hw_top_real  _pmin[] =  {-1, -1, -1, -1};
 
     const _hw_top_real drone_pi = 3.14159265359;
+    // Roll/pitch limits are tightened by this margin in the cost so the remaining model error
+    // (fast sin, half precision: <= ~1.5 mrad) cannot turn into a real violation of +-pi/4.
+    const _hw_top_real _angle_limit_margin = 0.01;
     const unsigned short _controlled_state[] = {1, 1, 1, 2, 2, 2, 0, 0, 0, 0, 0, 0};
     const _hw_top_real  _state_upper_limits[_Nx] =  { 
          1e3,  
          1e3,  
          1e3,  
-         drone_pi*(_hw_top_real).25,  
-         drone_pi*(_hw_top_real).25,  
+         drone_pi*(_hw_top_real).25 - _angle_limit_margin,  
+         drone_pi*(_hw_top_real).25 - _angle_limit_margin,  
          1e3,  
          1e3, 1e3, 1e3, 1e3, 1e3, 1e3
     };
@@ -133,8 +136,8 @@ const _hw_top_real rand_max = 1.0;
         -1e3, 
         -1e3, 
         -1e3, 
-        -drone_pi*(_hw_top_real).25, 
-        -drone_pi*(_hw_top_real).25, 
+        -drone_pi*(_hw_top_real).25 + _angle_limit_margin, 
+        -drone_pi*(_hw_top_real).25 + _angle_limit_margin, 
         -1e3, 
         -1e3, -1e3, -1e3, -1e3, -1e3, -1e3};
     const _hw_top_real  _Q[] =  {
