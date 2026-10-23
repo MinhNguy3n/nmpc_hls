@@ -21,7 +21,7 @@ from __future__ import annotations
 
 
 # Run this cell if pandas is not installed on the Kria-PYNQ environment
-get_ipython().run_line_magic('pip', 'install pandas')
+#%pip install pandas
 
 
 # In[2]:
@@ -54,16 +54,16 @@ from package_overlay import pso_fsm_register_map
 
 repo_root = notebook_dir.parents[1] if notebook_dir.name == "kria-pynq" else notebook_dir
 paths = {
-    "address_csv": repo_root / "hw/exported_platform/design_nmpc_solver/AddressSegments.csv",
+    "address_csv": repo_root / "hw/exported_platform/nmpc_solver_v2_debug/AddressSegments.csv",
     "vivado_tcl": repo_root / "hw/hdl/design_nmpc_solver.tcl",
     "ip_repo": repo_root / "hw/hls/vitis_ip_repo",
     "config_hpp": repo_root / "hw/hls/source/include/config.hpp",
     "matlab_model": repo_root / "app/matlab_ws/QuadrotorSystem.m",
-    "xsa": repo_root / "hw/exported_platform/design_nmpc_solver.xsa",
+    "xsa": repo_root / "hw/exported_platform/nmpc_solver_v2.xsa",
     "xsa_files": repo_root / "hw/exported_platform/",
-    "handoff_hwh": repo_root / "hw/exported_platform/design_nmpc_solver/design_nmpc_solver.hwh",
-    "handoff_bda": repo_root / "hw/exported_platform/design_nmpc_solver/design_nmpc_solver.bda",
-    "bitstream": repo_root / "hw/exported_platform/design_nmpc_solver/design_nmpc_solver.bit",
+    "handoff_hwh": repo_root / "hw/exported_platform/nmpc_solver_v2_debug/design_nmpc_solver.hwh",
+    "handoff_bda": repo_root / "hw/exported_platform/nmpc_solver_v2_debug/design_nmpc_solver.bda",
+    "bitstream": repo_root / "hw/exported_platform/nmpc_solver_v2_debug/nmpc_solver_v2.bit",
     "overlay": repo_root / "app/kria-pynq/overlay",
     "logs": repo_root / "app/kria-pynq/validation_logs",
 }
@@ -278,7 +278,7 @@ display(exported_ps_map)
 
 pso_fsm_interfaces = set(
     exported_ps_map.loc[
-        exported_ps_map.get("instance", pd.Series(dtype=str)) == "/nmpc_solver/pso_fsm_0", "interface"
+        exported_ps_map.get("instance", pd.Series(dtype=str)) == "/nmpc_solver/pso_fsm_1", "interface"
     ]
 ) if not exported_ps_map.empty else set()
 expected_pso_interfaces = {"s_axi_control", "s_axi_control_r"}
@@ -291,8 +291,8 @@ hardware_map_checks = {
     "pso_fsm_control_interfaces": pso_fsm_interfaces == expected_pso_interfaces,
 #     "control_base": "0x00A0030000" in [f"0x{int(value, 0):010X}" for value in bda_vertices.values() if value.get("SI") == "s_axi_control"],
 #     "argument_base": "0x00A0040000" in [f"0x{int(value, 0):010X}" for value in bda_vertices.values() if value.get("SI") == "s_axi_control_r"],
-    "control_base": any(v.get("SI") == "s_axi_control" and v.get("BA") == "0x00A0030000" for v in bda_vertices.values()),
-    "argument_base": any(v.get("SI") == "s_axi_control_r" and v.get("BA") == "0x00A0040000" for v in bda_vertices.values()),
+    "control_base": any(v.get("SI") == "s_axi_control" and v.get("BA") == "0x00A0000000" for v in bda_vertices.values()),
+    "argument_base": any(v.get("SI") == "s_axi_control_r" and v.get("BA") == "0x00A0010000" for v in bda_vertices.values()),
     "worker_done_wiring": all(port in hwh_text for port in worker_done_ports),
     "axis_broadcaster_present": "axis_broadcaster_0" in hwh_text,
 }
@@ -363,47 +363,48 @@ for key in ("xsa", "xsa_files", "overlay"):
     path = paths[key]
     if path.is_file():
         artifact_candidates.append({"location": key, "file": str(path), "suffix": path.suffix})
-
     elif path.is_dir():
         for artifact in path.rglob("*"):
             if artifact.is_file() and artifact.suffix.lower() in {".xsa", ".bit", ".hwh", ".bd", ".v", ".json", ".bda"}:
                 artifact_candidates.append({"location": key, "file": str(artifact), "suffix": artifact.suffix})
 
 artifact_table = pd.DataFrame(artifact_candidates)
-
 display(artifact_table)
 
 overlay_files = {
     "bit": paths["overlay"] / "design_nmpc_solver.bit",
     "hwh": paths["overlay"] / "design_nmpc_solver.hwh",
     "bda": paths["overlay"] / "design_nmpc_solver.bda",
-    "xsa": paths["overlay"] / "xsa.json",
+    "manifest": paths["overlay"] / "manifest.json",
 }
-
 artifact_checks = {name: path.is_file() for name, path in overlay_files.items()}
+artifact_checks["matching_basename"] = (
+    artifact_checks["bit"]
+    and artifact_checks["hwh"]
+    and overlay_files["bit"].stem == overlay_files["hwh"].stem
+)
+artifact_checks["manifest_revision"] = False
+artifact_checks["manifest_hashes"] = False
+manifest = None
+if artifact_checks["manifest"]:
+    try:
+        manifest = json.loads(overlay_files["manifest"].read_text(encoding="utf-8"))
+        artifact_checks["manifest_revision"] = int(manifest.get("design_revision", 0)) == DESIGN_REVISION
+        from hashlib import sha256
+        artifact_checks["manifest_hashes"] = all(
+            sha256((paths["overlay"] / name).read_bytes()).hexdigest() == details["sha256"]
+            for name, details in manifest.get("files", {}).items()
+        )
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+        print("Invalid overlay manifest:", error)
 
-artifact_checks["matching_basename"] = True
-
-# artifact_checks["manifest_revision"] = False
-
-# if overlay_files["xsa"].is_file():
-
-#     manifest = json.loads(overlay_files["xsa"].read_text(encoding="utf-8"))
-#     print(manifest.get("design_revision"))
-#     print(DESIGN_REVISION)
-#     artifact_checks["manifest_revision"] = manifest.get("design_revision") == DESIGN_REVISION
-
-artifact_checks["manifest_revision"] = True
 display(pd.Series(artifact_checks, name="pass"))
 artifacts_ready = all(artifact_checks.values())
-
-if artifacts_ready == True:
-    print("All overlay artifacts are available! Now you can do a test run.")
+if artifacts_ready:
+    print("Matching revision-4 overlay artifacts are available.")
+    print("Packaged from:", manifest.get("source_xsa"))
 else:
-    build_command = f"cd {repo_root} && ./hw/build_kv260_overlay.sh"
-    print("Run on the Vivado/Vitis development machine:\n", build_command)
-    print("The build Tcl performs validate_bd_design, synth_1, impl_1/write_bitstream, and write_hw_platform -include_bit.")
-
+    print("Copy the timing-clean overlay package from the Vivado/Vitis build machine before continuing.")
 
 
 # ## 10. Load the NMPC Overlay on the KV260
@@ -418,14 +419,14 @@ else:
 #
 # Although the algorithm uses real values, the synthesized top ports are `ap_fixed<32,17>`. Buffers must therefore be `int32` Q17.15 words, not `float32`; sending IEEE floats would produce invalid fixed-point values.
 
-# In[8]:
+# In[7]:
 
 
 pynq_available = __import__("importlib").util.find_spec("pynq") is not None
 solver = None
 
 if artifacts_ready and pynq_available:
-    solver = NmpcOverlay(paths["overlay"])
+    solver = NmpcOverlay(paths["overlay"], download=False)
     print("IP dictionary")
     display(pd.DataFrame.from_dict(solver.overlay.ip_dict, orient="index"))
     print("Clock dictionary", getattr(solver.overlay, "clock_dict", {}))
@@ -455,13 +456,14 @@ runtime_ps_map = exported_ps_map.copy()
 if solver is not None:
     runtime_ps_map = pd.DataFrame([
         {
-            "instance": "/nmpc_solver/pso_fsm_0",
+            "instance": "/nmpc_solver/pso_fsm_1",
             "interface": interface,
             "base": f"0x{aperture['base']:08X}",
             "range": aperture["range"],
         }
         for interface, aperture in solver.register_map.items()
     ])
+    print(solver.register_map)
 display(runtime_ps_map)
 
 
@@ -495,10 +497,12 @@ display(runtime_ps_map)
 #
 # Apply the first optimized control to the Python translation of `QuadrotorSystem.m`/`hls_sniffbot.hpp`. Returning this state directly from PL would require another output buffer or model-propagation HLS interface.
 
-# In[9]:
+# In[8]:
 
 
 sample_time = 0.05
+
+
 
 curr_state = np.array([7.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
@@ -544,6 +548,8 @@ if solver is not None:
 
         best_controls = one_step_result.control_sequence
 
+        fitness = one_step_result.best_fitness
+
         finite = np.all(np.isfinite(best_controls))
 
         absolute_ok = np.all(np.abs(best_controls) <= 100.0 + 1e-3)
@@ -551,6 +557,8 @@ if solver is not None:
         deltas = np.diff(np.vstack([curr_control, best_controls]), axis=0)
 
         delta_ok = np.all(np.abs(deltas) <= 20.0 + 1e-3)
+
+        fitness_has_signal = bool(np.any(np.abs(fitness) >= 1.0 / 32768.0))
 
         predicted_next_state = quadrotor_step(curr_state, best_controls[0], sample_time)
 
@@ -562,11 +570,19 @@ if solver is not None:
 
             "first_control": best_controls[0].tolist(),
 
+            "fitness_min": float(np.min(fitness)),
+
+            "fitness_max": float(np.max(fitness)),
+
+            "fitness_has_signal": fitness_has_signal,
+
             "finite": bool(finite),
 
             "absolute_limits_ok": bool(absolute_ok),
 
             "delta_limits_ok": bool(delta_ok),
+
+            "runtime_status": solver.runtime_status(),
 
             "pl_output": "25x4 best control sequence",
 
@@ -574,9 +590,15 @@ if solver is not None:
 
         })
 
+        if one_step_result.iterations != 100 or not fitness_has_signal:
+
+            print("Diagnostic: expected 100 completed iterations and a nonzero fitness signal for this nonzero reference. Verify that the board overlay manifest is revision 4 and was packaged from the timing-clean nmpc_solver_v2 XSA.")
+
+
+
         plt.figure(figsize=(8, 3))
 
-        plt.plot(one_step_result.best_fitness)
+        plt.plot(fitness)
 
         plt.xlabel("PSO iteration")
 
@@ -590,9 +612,7 @@ if solver is not None:
 
         print("Solver timeout:", error)
 
-        print("AP_CTRL:", hex(solver.control.read(0x00)))
-
-        print("AP_RETURN / last completed iteration:", solver.control.read(0x10))
+        print("Runtime status:", solver.runtime_status())
 
 else:
 
@@ -605,7 +625,7 @@ else:
 #
 # The bounded loop sends state to PL, waits for the optimized trajectory, applies its first control to the software plant, shifts the trajectory for warm start, and advances the spiral reference. It records state, control, fitness, latency, timeout, and constraint status.
 
-# In[10]:
+# In[9]:
 
 
 closed_loop_rows = []
@@ -741,7 +761,7 @@ else:
 #
 # The diagnostic cell checks stale address metadata, mismatched artifacts, invalid DMA addresses, cache handling assumptions, worker handshake topology, random-stream topology, reset status, and GPIO slicing.
 
-# In[11]:
+# In[ ]:
 
 
 matlab_comparison = {"available": False, "notes": [
@@ -801,7 +821,7 @@ print(json.dumps(diagnostics, indent=2))
 #
 # Save platform tables, address comparisons, runtime metadata, controls, predicted states, histories, timing, diagnostics, and a machine-readable pass/fail report under `validation_logs`.
 
-# In[12]:
+# In[ ]:
 
 
 paths["logs"].mkdir(parents=True, exist_ok=True)
@@ -856,3 +876,7 @@ if solver is not None:
 
 
 # In[ ]:
+
+
+
+
