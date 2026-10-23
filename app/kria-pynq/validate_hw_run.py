@@ -1,25 +1,35 @@
-"""Numerically validate a hardware NMPC solve dumped by the board validation script.
+"""Numerically validate hardware NMPC solves dumped by the board validation script.
 
-Builds hw/hls/source/src/main_hls_validate.cpp twice (float reference, and the hardware
-top-level arithmetic via -DHW_ARITH_CSIM) and, for every hardware run in the JSON dump:
+For every hardware run in the JSON dump, three results are reported separately:
 
-* recomputes J(new_best) with the C evaluator and compares it with the hardware's final
-  bestfitness (absolute / relative error),
-* checks the constraints per element (u bounds, du_max steps from u_curr) and that
-  bestfitness never increases,
-* places the hardware cost within the distribution of software PSO solves (same inputs,
-  several seeds, one process per seed so update's static inertia weight starts fresh).
+(a) Implementation consistency: the hardware's final bestfitness against J(new_best)
+    recomputed with the hardware's own arithmetic (ap_fixed<32,17> top level, half model,
+    fast sin) in C. This checks the FPGA implementation, not the model.
+(b) Model gap: J and per-state trajectory deviation of the hardware model against a
+    double-precision reference (REF: double arithmetic, std::sin). REF uses the same model
+    equations, so this measures numerical fidelity to those equations only; it is not a
+    physical validation of the plant model.
+(c) Plant constraint: the true roll/pitch limit +-pi/4 checked on the REF trajectory. The
+    tightened cost-function limit (pi/4 - _angle_limit_margin) is reported for information.
+    Total cost alone cannot classify safety: the hard 1e4 penalty is discontinuous at the
+    cost limit.
 
-Element-wise equality with a software solve is not expected: the hardware random stream is
-shared through an any-ready fan-out with AXIS register slices, so its sequence differs from
+Control constraints (u bounds, du_max steps from u_curr, non-increasing bestfitness) are
+checked as well. With --seeds N the hardware cost is also placed among N software PSO solves.
+
+Element-wise equality with a software solve is not expected: the hardware random stream reaches
+the workers through AXIS register slices and the any-ready fan-out, so its sequence differs from
 the software RNG. Component-level bit-exactness is covered by the HLS cosim testbenches.
 
-Usage: python3 validate_hw_run.py <validate.json> [--seeds N]
+Usage: python3 validate_hw_run.py <validate.json> [--seeds N] [--xilinx /tools/Xilinx/2025.2]
 """
 from __future__ import annotations
 
 import argparse
 import json
+import math
+import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -29,45 +39,78 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 HLS_SOURCE = REPO / "hw/hls/source"
 BUILD_DIR = REPO / "hw/hls/nmpc_solver_validate_build"
-XILINX_INCLUDE = Path("/tools/Xilinx/2025.2/Vitis/include")
 
 NX, NU, HORIZON = 12, 4, 25
 U_MIN, U_MAX, DU_MAX = -100.0, 100.0, 20.0
-MODES = {"float": [], "hw": ["-DHW_ARITH_CSIM", "-DUSE_FAST_SIN_COS"]}
+PLANT_ANGLE_LIMIT = math.pi / 4
+CONSISTENCY_TOLERANCE = 1e-3  # relative, hardware vs half model
+HW_FLAGS = ["-DHW_ARITH_CSIM", "-DUSE_FAST_SIN_COS"]
 
 
-def build(mode: str) -> Path:
+def angle_margin() -> float:
+    text = (HLS_SOURCE / "include/config.hpp").read_text()
+    match = re.search(r"_angle_limit_margin\s*=\s*([0-9.eE+-]+)", text)
+    return float(match.group(1)) if match else 0.0
+
+
+def build(mode: str, xilinx: Path) -> Path:
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
     binary = BUILD_DIR / f"validate_{mode}"
     sources = [HLS_SOURCE / "src" / f for f in
                ("main_hls_validate.cpp", "hls_pso.cpp", "aux_functions.cpp", "hls_nonlinear_solver.cpp")]
-    newest = max(p.stat().st_mtime for p in [*sources, *(HLS_SOURCE / "include").rglob("*.hpp")])
+    headers = list((HLS_SOURCE / "include").rglob("*.hpp"))
+    newest = max(p.stat().st_mtime for p in [*sources, *headers])
     if binary.exists() and binary.stat().st_mtime > newest:
         return binary
-    command = ["g++", "-std=c++11", "-O2", "-w", "-D__VITIS__", "-DPSO_CONFIG", "-DSNIFFBOT_CONFIG",
-               f"-I{HLS_SOURCE / 'include'}", f"-I{HLS_SOURCE / 'include/models'}", f"-I{XILINX_INCLUDE}",
-               *MODES[mode], "-o", str(binary), *map(str, sources)]
+    include = HLS_SOURCE / "include"
+    flags, libs = [], []
+    if mode in ("hw", "half"):
+        flags = list(HW_FLAGS)
+    if mode == "half":
+        # The C++ half emulation has no volatile operators: build from a copy without them.
+        include = BUILD_DIR / "half_include"
+        shutil.rmtree(include, ignore_errors=True)
+        shutil.copytree(HLS_SOURCE / "include", include)
+        for name in ("hls_system.hpp", "models/hls_sniffbot.hpp"):
+            path = include / name
+            path.write_bytes(re.sub(rb"\bvolatile ", b"", path.read_bytes()))
+        flags.append("-DHW_MODEL_HALF_CSIM")
+        fpo = xilinx / "lnx64/tools/fpo_v7_1"
+        # RPATH (not RUNPATH) so the library's own gmp/mpfr dependencies resolve from fpo too.
+        libs = [f"-L{fpo}", "-lIp_floating_point_v7_1_bitacc_cmodel", "-Wl,--disable-new-dtags",
+                f"-Wl,-rpath,{fpo}"]
+    # -O0: host GCC miscompiles the multi-word ap_private paths used by >64-bit ap_fixed
+    # intermediates at -O1/-O2 (garbage costs); Vitis csim builds without optimisation too.
+    command = ["g++", "-std=c++11", "-O0", "-w", "-D__VITIS__", "-DPSO_CONFIG", "-DSNIFFBOT_CONFIG",
+               f"-I{include}", f"-I{include / 'models'}", f"-I{xilinx / 'Vitis/include'}",
+               *flags, "-o", str(binary), *map(str, sources), *libs]
     subprocess.run(command, check=True)
     return binary
 
 
-def run_tool(binary: Path, args: list[str], values: list[float]) -> dict[str, list[float]]:
+def run_tool(binary: Path, args: list[str], values: list[float]) -> dict[str, list]:
     result = subprocess.run([str(binary), *args], input=" ".join(f"{v:.9g}" for v in values),
                             capture_output=True, text=True, check=True)
-    parsed = {}
+    parsed: dict[str, list] = {"S": []}
     for line in result.stdout.splitlines():
         key, *rest = line.split() or [""]
-        if key in ("J", "Jrecomputed", "u"):  # skip HLS simulation library messages
+        if key == "S":
+            parsed["S"].append([float(v) for v in rest[1:]])
+        elif key in ("J", "Jrecomputed", "u"):  # skip HLS simulation library messages
             parsed[key] = [float(v) for v in rest]
     return parsed
 
 
-def constraint_report(new_best: np.ndarray, u_curr: np.ndarray, bestfitness: np.ndarray) -> list[str]:
+def trajectory(binary: Path, base: list[float], u: np.ndarray) -> np.ndarray:
+    steps = np.asarray(run_tool(binary, ["trajectory"], [*base, *u.reshape(-1)])["S"])
+    return steps  # columns: x[0..NX-1], accumulated state cost, accumulated control cost
+
+
+def control_problems(new_best: np.ndarray, u_curr: np.ndarray, bestfitness: np.ndarray) -> list[str]:
     problems = []
     if np.any(new_best < U_MIN) or np.any(new_best > U_MAX):
         problems.append("control outside [u_min, u_max]")
-    steps = np.diff(np.vstack([u_curr, new_best]), axis=0)
-    worst = float(np.max(np.abs(steps)))
+    worst = float(np.max(np.abs(np.diff(np.vstack([u_curr, new_best]), axis=0))))
     if worst > DU_MAX + 1e-3:
         problems.append(f"step of {worst:.4f} exceeds du_max {DU_MAX}")
     rises = np.flatnonzero(np.diff(bestfitness) > 0)
@@ -79,7 +122,8 @@ def constraint_report(new_best: np.ndarray, u_curr: np.ndarray, bestfitness: np.
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("dump", type=Path)
-    parser.add_argument("--seeds", type=int, default=20)
+    parser.add_argument("--seeds", type=int, default=0, help="software PSO solves to compare against")
+    parser.add_argument("--xilinx", type=Path, default=Path("/tools/Xilinx/2025.2"))
     args = parser.parse_args()
 
     record = json.loads(args.dump.read_text())
@@ -88,19 +132,19 @@ def main() -> int:
     xref = np.asarray(inputs["xref"]).reshape(-1)
     u_curr = np.asarray(inputs["u_curr"])
     last_best = np.asarray(inputs["last_best"]).reshape(-1)
-    binaries = {mode: build(mode) for mode in MODES}
+    base = [*x_curr, *xref]
+    tools = {mode: build(mode, args.xilinx) for mode in ("float", "hw", "half")}
+    cost_limit = PLANT_ANGLE_LIMIT - angle_margin()
 
     print(f"Overlay: {record.get('overlay')}   runs: {len(record['runs'])}")
+    print(f"Limits: plant |roll|,|pitch| <= {PLANT_ANGLE_LIMIT:.5f}; cost function <= {cost_limit:.5f}")
     software = {}
-    for mode, binary in binaries.items():
-        costs = []
-        for seed in range(1, args.seeds + 1):
-            out = run_tool(binary, ["solve", str(seed)], [*x_curr, *xref, *u_curr, *last_best])
-            costs.append(out["Jrecomputed"][0])
+    for mode in ("float", "hw") if args.seeds else ():
+        costs = [run_tool(tools[mode], ["solve", str(seed)], [*base, *u_curr, *last_best])["Jrecomputed"][0]
+                 for seed in range(1, args.seeds + 1)]
         software[mode] = np.asarray(costs)
-        c = software[mode]
-        print(f"Software PSO ({mode}, {args.seeds} seeds): J min {c.min():.2f}  median {np.median(c):.2f}  "
-              f"max {c.max():.2f}")
+        print(f"Software PSO ({mode}, {args.seeds} seeds): J min {min(costs):.2f}  "
+              f"median {np.median(costs):.2f}  max {max(costs):.2f}")
 
     failures = 0
     for run in record["runs"]:
@@ -109,22 +153,40 @@ def main() -> int:
         j_hw = float(bestfitness[-1])
         print(f"\nRun {run['run']}: iterations {run['iterations']}, {run['elapsed_seconds'] * 1e3:.1f} ms, "
               f"hardware J {j_hw:.4f}")
-        for mode, binary in binaries.items():
-            j = run_tool(binary, ["cost"], [*x_curr, *xref, *new_best.reshape(-1)])["J"][0]
-            rank = float(np.mean(software[mode] <= j_hw)) * 100
-            print(f"  J(new_best) recomputed ({mode}): {j:.4f}   abs err {abs(j - j_hw):.4f}   "
-                  f"rel err {abs(j - j_hw) / abs(j):.3%}   hardware J at software percentile {rank:.0f}")
-        problems = constraint_report(new_best, u_curr, bestfitness)
-        print("  constraints: " + ("OK (bounds, du_max steps, non-increasing bestfitness)" if not problems
-                                   else "; ".join(problems)))
-        failures += bool(problems)
+
+        j_half = run_tool(tools["half"], ["cost"], [*base, *new_best.reshape(-1)])["J"][0]
+        consistent = abs(j_half - j_hw) <= CONSISTENCY_TOLERANCE * abs(j_half)
+        print(f"  (a) implementation consistency: half-model J {j_half:.4f}, "
+              f"rel diff {abs(j_half - j_hw) / abs(j_half):.4%} -> {'PASS' if consistent else 'FAIL'}")
+
+        ref = trajectory(tools["float"], base, new_best)
+        hw = trajectory(tools["half"], base, new_best)
+        j_ref = ref[-1, NX] + ref[-1, NX + 1]
+        print(f"  (b) model gap vs REF (fidelity to the model equations, not physical validation): "
+              f"REF J {j_ref:.4f} ({(j_hw - j_ref) / j_ref:+.2%}); max |hw-REF| roll/pitch "
+              f"{np.abs(hw[:, 3:5] - ref[:, 3:5]).max():.5f} rad, position {np.abs(hw[:, 0:3] - ref[:, 0:3]).max():.4f} m")
+
+        tilt_ref = np.abs(ref[:, 3:5]).max(axis=1)
+        tilt_hw = np.abs(hw[:, 3:5]).max(axis=1)
+        plant_steps = np.flatnonzero(tilt_ref > PLANT_ANGLE_LIMIT).tolist()
+        print(f"  (c) plant constraint on REF: peak |roll/pitch| {tilt_ref.max():.5f}, "
+              f"steps beyond +-pi/4 {plant_steps or 'none'} -> {'FAIL' if plant_steps else 'PASS'}; "
+              f"cost-limit crossings REF {np.flatnonzero(tilt_ref > cost_limit).tolist() or 'none'}, "
+              f"hardware model {np.flatnonzero(tilt_hw > cost_limit).tolist() or 'none'}")
+
+        problems = control_problems(new_best, u_curr, bestfitness)
+        print("  control constraints: " + ("OK (bounds, du_max steps, non-increasing bestfitness)"
+                                           if not problems else "; ".join(problems)))
+        for mode, costs in software.items():
+            print(f"  software PSO ({mode}): hardware J at percentile {np.mean(costs <= j_hw) * 100:.0f}")
+        failures += (not consistent) + bool(plant_steps) + bool(problems)
 
     if len(record["runs"]) > 1:
         a, b = (np.asarray(r["new_best"]) for r in record["runs"][:2])
-        diff = np.abs(a - b)
-        print(f"\nConsecutive solves: new_best max |diff| {diff.max():.4f}, mean {diff.mean():.4f}; "
+        print(f"\nConsecutive solves: new_best max |diff| {np.abs(a - b).max():.4f}; "
               f"J {record['runs'][0]['bestfitness'][-1]:.4f} vs {record['runs'][1]['bestfitness'][-1]:.4f} "
-              f"(expected to differ: the RNG and update's static w carry over between solves)")
+              f"(expected to differ: the free-running RNG continues between solves)")
+    print(f"\n{'VALIDATION PASS' if not failures else f'VALIDATION FAIL ({failures})'}")
     return 1 if failures else 0
 
 

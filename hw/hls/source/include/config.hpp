@@ -25,11 +25,13 @@
 
 // typedef half _hw_top_real;
 typedef ap_fixed<32,17,AP_RND_INF,AP_SAT_SYM> _hw_top_real; // round to +/-inf and simmetrical saturation
-#if defined(__SYNTHESIS__)
+#if defined(__SYNTHESIS__) || defined(HW_MODEL_HALF_CSIM)
 typedef half _hw_model_real;
 #else
 // HW_ARITH_CSIM: top-level types match the RTL ports (needed for cosim); the model stays
 // float because the C++ half emulation cannot operate on the model's volatile ports.
+// HW_MODEL_HALF_CSIM selects half anyway; it only builds from a header copy without
+// `volatile` (app/kria-pynq/validate_hw_run.py makes one for its half-model build).
 typedef float _hw_model_real;
 #endif
 // typedef ap_fixed<32,16,AP_RND_INF,AP_SAT_SYM> _hw_model_real;
