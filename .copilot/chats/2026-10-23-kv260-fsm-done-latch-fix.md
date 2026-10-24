@@ -69,6 +69,7 @@ Read this section first. Everything below it is the chronological log, kept for 
 2. **Separate experiments, after the screen** (do not mix them into it): control-weight sensitivity (MATLAB uses 0.02·u² vs R = 0.0005 here, a plausible cause of the 3.6× larger controls); horizon length; plant-mismatch and disturbance tests in simulation.
 3. **Physical plant validation:** a trusted independent dynamics reference or plant-level test before claiming the controller is correct for the drone. Physical tests stay gated until real-time feasibility and mismatch/safety tests are done.
 4. Board hygiene: rename the fix5 rollback copy (above).
+   - PC hygiene: lingering is disabled (`loginctl show-user minh -p Linger` = no). Do not re-enable it without asking.
 5. Optional: commit the board scripts and the Vivado build wrapper into the repo so the flow is reproducible without this note.
 
 ## Session metadata
@@ -373,7 +374,7 @@ Remaining work: see **Open items** in the handoff section at the top.
 ### PC screen (`app/kria-pynq/screen_pso_config.py`)
 
 - Builds each particles × iterations candidate from an isolated header copy (`validate_hw_run.build` overrides), checks the binary's reported settings, and runs the notebook's closed loop through the validator's `serve` mode (one process per trial; `srand(seed)` once, stream continues across solves). Trials are saved to the gitignored `app/kria-pynq/validation_logs/pc_screen/` as they finish, and an interrupted screen resumes. `--board validation_logs/20261023T220440Z_rk4_100x5` adds the board baseline to the summary.
-- Run as a `systemd --user` transient service so it survives logout (`systemd-run --user --unit=pc-screen-half --nice=10 …`, with `loginctl enable-linger` on). A first run inside the Claude Code session was stopped after about 50 min and restarted this way; its log is `screen_half_aborted.log`. Command: `--mode half --configs 10x100,10x50,10x25,5x50,5x25,5x18,3x30 --seeds 1-5 --steps 100 --jobs 12`, log `validation_logs/pc_screen/screen_half.log`. Under 12 parallel jobs a solve takes about 2.5× its single-process time (144 s for 10×100), so the full screen took about 6 h.
+- Run as a `systemd --user` transient service (`systemd-run --user --unit=pc-screen-half --nice=10 …`). Lingering was enabled temporarily for this run; the user has since disabled it and it must **stay disabled**: ask before changing it. For a future long screen, keep a session active or agree another approach with the user. A first run inside the Claude Code session was stopped after about 50 min and restarted this way; its log is `screen_half_aborted.log`. Command: `--mode half --configs 10x100,10x50,10x25,5x50,5x25,5x18,3x30 --seeds 1-5 --steps 100 --jobs 12`, log `validation_logs/pc_screen/screen_half.log`. Under 12 parallel jobs a solve takes about 2.5× its single-process time (144 s for 10×100), so the full screen took about 6 h.
 - `float` surrogate preview (5 seeds; not for selection): RMSE 0.329 (10×100), 0.344 (10×50), 0.376 (10×25), 0.359 (5×50), 0.392 (5×25), 0.408 (5×18), 0.402 m (3×30); peak tilt ≈ 0.145 rad and no violations in all. The `half` results and the PC-vs-board calibration decide; the surrogate's ranking must be checked against `half` before using it for any later sweep.
 
 ### PC screen results (`half` mode, 5 seeds, 100 steps each; 2026-10-24)

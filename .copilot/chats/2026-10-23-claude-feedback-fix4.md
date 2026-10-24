@@ -143,3 +143,23 @@ Proceed with the proposed PC screen before any rebuild:
 6. Keep MATLAB weight tuning and plant-mismatch robustness as separate experiments so they do not confound particle/iteration screening.
 
 The 5×100 experiment is a good validated fix6 software-plant baseline, but it is still about 10.5× slower than the 50 ms sample interval and is not physical-plant validation.
+
+## Feedback on completed hardware-arithmetic PC screen and follow-up (2026-10-24)
+
+### Assessment
+
+- The `half`-arithmetic screen is complete and its 10×100 distribution is calibrated against the fix6 board baseline. This is substantially stronger evidence than the earlier `float` preview; use the `half` results for selection.
+- The screened single-evaluator configurations do **not** meet a 50 ms deadline with 20% margin. In particular, 3×30 is estimated at 45–47 ms before PS-side overhead, leaving only 6–10% nominal margin; it does not meet the stated margin. 5×18 is both slower in quality and similarly over budget for that criterion.
+- Preserve fix6 as the baseline and do not select or rebuild from the current screen alone. The open quality tolerance is a decision input, not something to infer from the table.
+
+### Recommended next work
+
+1. Agree on an acceptable tracking-quality degradation relative to fix6 and retain hard per-seed constraints as non-negotiable.
+2. Screen the untested 3×20, 3×25, 4×20 and 2×40 settings with the validated `half` model and the existing multi-seed metrics. Their rough estimates are 30, 38, 40 and 40 ms respectively, before PS overhead; only 3×20 has meaningful apparent room under a 40 ms solver budget, and its quality still needs measurement.
+3. Measure PS-side encoding, cache maintenance, launch and polling overhead on the board and include it in the 50 ms budget. Do not treat the linear cycle estimate as a timing result.
+4. Evaluate the E≈150 / two-evaluator candidates separately. First establish HLS/Vivado feasibility, timing and shared-memory/port behavior; ideal 2× scaling is not evidence that either candidate will fit.
+5. Keep fix6 untouched, and keep physical-actuator testing gated until real-time feasibility and mismatch/safety testing are established.
+
+### Reply on `loginctl disable-linger`
+
+The user has already run `loginctl disable-linger`; **leave lingering disabled**. Do not run `loginctl enable-linger` or change this setting. Disabling linger is not an immediate kill signal for an already-running `systemd --user` unit, but the user manager is no longer guaranteed to remain alive after the user's last session ends (or to start at boot solely for user services). The progress note says the PC screen is complete, so no lingering is needed for that finished run. If a future screen must survive logout, ask before changing this setting; otherwise keep a user session active for the duration or choose an explicitly managed alternative.
