@@ -23,7 +23,7 @@ Read this section first. Everything below it is the chronological log, kept for 
 
   Supporting commits: `ab8c7a4` (`HW_ARITH_CSIM`), `307d261` (C-sim `rand_real`), `c05e7e8` (worker cosim testbenches), `f74e9cf` and `5760206` (validator), `8b569ab` (model unit tests), `79a539e` and `b8370ed` (docs). All are on branch `origin/build`, **not pushed**.
 - **Since the promotion (2026-10-24): closed-loop HIL baseline on fix6.** The notebook `app/kria-pynq/kv260_nmpc_demo.ipynb` runs the hardware solver against a software plant (RK4, the same equations as the hardware prediction model) on the spiral reference. Five 100-step trials: position RMSE **0.354 ± 0.006 m**, max error 0.604 ± 0.009 m (always at t = 1.1 s, the start-up transient), peak roll/pitch 0.143 rad (limit 0.785), **0.523 s per solve** (p95 0.5232 s, max 0.5236 s), no timeouts, no bound or du violations (du_max = 20 is reached, not exceeded, 0–3 steps per trial). Details: "Closed-loop HIL baseline and PC screening (2026-10-24)" at the end of this file.
-- **The central gap is real-time performance:** 0.523 s per solve against Ts = 0.05 s (about 10.5× too slow). This is a perfect-model, offline HIL test, not real-time or physical validation. A PC screen of particle/iteration settings (exact hardware arithmetic) is under way to choose one configuration for a single rebuild.
+- **The central gap is real-time performance:** 0.523 s per solve against Ts = 0.05 s (about 10.5× too slow). This is a perfect-model, offline HIL test, not real-time or physical validation. A PC screen of particle/iteration settings in the exact hardware arithmetic is **complete** (2026-10-24). The PC model reproduces the board baseline at 10×100 (RMSE 0.354 ± 0.009 vs 0.354 ± 0.006 m). Quality depends more on iterations than on particles. No screened setting meets 50 ms with 20 % margin on a single evaluator: 3×30 is +15 % RMSE at about 45–47 ms estimated. Results and options: "PC screen results" at the end of this file.
 - Commits for this work: `b255d14` (user's pso_fsm_1/v2_debug notebook edits), `95e7edd` (RK4 plant), `8eeeec0` and `e3b519a` (notebook audits, metrics, trials, tri-state report, per-run export), `5710982` (shared `tracking_metrics`), `c4a7555` (validator `serve` mode), `1eb8843` (build overrides), `c0ea1ce` (`screen_pso_config.py`), `683d65b` (dated executed notebooks), `b41d5ed`/`b66fcee` (docs). Not pushed.
 
 ### Board state (`ubuntu@10.42.0.29`, sudo needs the user's password, so the user runs root steps)
@@ -61,7 +61,11 @@ Read this section first. Everything below it is the chronological log, kept for 
 
 ### Open items (priority order)
 
-1. **Real-time performance (in progress):** finish the PC screen (`screen_pso_config.py`, see the last section), check that the PC 10×100 distribution matches the board baseline, then choose the smallest configuration that keeps hard constraints on every seed and quality within the agreed tolerance **and** meets 50 ms with margin (single evaluator: about 80 particle evaluations per solve; more needs parallel evaluators or a faster evaluator). Only then do one HLS/Vivado rebuild and measure the real latency on the board. Keep fix6 untouched as the baseline.
+1. **Real-time performance:** the first PC screen is done and calibrated against the board (see "PC screen results"). Next:
+   - agree a quality tolerance;
+   - screen the iteration-heavy, low-E candidates and E ≈ 150 candidates for two evaluators;
+   - measure the PS-side per-step overhead on the board.
+   Then choose one configuration that keeps hard constraints on every seed and meets 50 ms with margin, do one HLS/Vivado rebuild, and measure the real latency. Keep fix6 untouched as the baseline.
 2. **Separate experiments, after the screen** (do not mix them into it): control-weight sensitivity (MATLAB uses 0.02·u² vs R = 0.0005 here, a plausible cause of the 3.6× larger controls); horizon length; plant-mismatch and disturbance tests in simulation.
 3. **Physical plant validation:** a trusted independent dynamics reference or plant-level test before claiming the controller is correct for the drone. Physical tests stay gated until real-time feasibility and mismatch/safety tests are done.
 4. Board hygiene: rename the fix5 rollback copy (above).
@@ -369,5 +373,29 @@ Remaining work: see **Open items** in the handoff section at the top.
 ### PC screen (`app/kria-pynq/screen_pso_config.py`)
 
 - Builds each particles × iterations candidate from an isolated header copy (`validate_hw_run.build` overrides), checks the binary's reported settings, and runs the notebook's closed loop through the validator's `serve` mode (one process per trial; `srand(seed)` once, stream continues across solves). Trials are saved to the gitignored `app/kria-pynq/validation_logs/pc_screen/` as they finish, and an interrupted screen resumes. `--board validation_logs/20261023T220440Z_rk4_100x5` adds the board baseline to the summary.
-- Running since 2026-10-24 01:24 local time: `--mode half --configs 10x100,10x50,10x25,5x50,5x25,5x18,3x30 --seeds 1-5 --steps 100 --jobs 12`, log `validation_logs/pc_screen/screen_half.log`, about 2.5 h expected (each 10×100 trial ≈ 2.3 h).
+- Run as a `systemd --user` transient service so it survives logout (`systemd-run --user --unit=pc-screen-half --nice=10 …`, with `loginctl enable-linger` on). A first run inside the Claude Code session was stopped after about 50 min and restarted this way; its log is `screen_half_aborted.log`. Command: `--mode half --configs 10x100,10x50,10x25,5x50,5x25,5x18,3x30 --seeds 1-5 --steps 100 --jobs 12`, log `validation_logs/pc_screen/screen_half.log`. Under 12 parallel jobs a solve takes about 2.5× its single-process time (144 s for 10×100), so the full screen took about 6 h.
 - `float` surrogate preview (5 seeds; not for selection): RMSE 0.329 (10×100), 0.344 (10×50), 0.376 (10×25), 0.359 (5×50), 0.392 (5×25), 0.408 (5×18), 0.402 m (3×30); peak tilt ≈ 0.145 rad and no violations in all. The `half` results and the PC-vs-board calibration decide; the surrogate's ranking must be checked against `half` before using it for any later sweep.
+
+### PC screen results (`half` mode, 5 seeds, 100 steps each; 2026-10-24)
+
+Summary: `python3 app/kria-pynq/screen_pso_config.py --mode half --configs … --seeds 1-5 --out app/kria-pynq/validation_logs/pc_screen --board app/kria-pynq/validation_logs/20261023T220440Z_rk4_100x5` (it reuses the saved trials).
+
+| Setting | E | RMSE m (mean ± std, worst) | Δ vs 10×100 | Max error m (mean, worst) | Peak tilt rad (worst) | du/bound violations | Steps at du_max (mean) | Single-evaluator estimate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| board 10×100 | 1000 | 0.354 ± 0.006, 0.363 | – | 0.604, 0.614 | 0.145 | 0/0 | 0–3 | measured 523 ms |
+| 10×100 | 1000 | 0.354 ± 0.009, 0.362 | – | 0.604, 0.621 | 0.146 | 0/0 | 0.6 | 501–520 ms |
+| 10×50 | 500 | 0.368 ± 0.007, 0.375 | +4.0 % | 0.615, 0.628 | 0.145 | 0/0 | 0.6 | 251–260 ms |
+| 5×50 | 250 | 0.381 ± 0.013, 0.397 | +7.9 % | 0.631, 0.641 | 0.147 | 0/0 | 1.4 | 125–130 ms |
+| 10×25 | 250 | 0.404 ± 0.021, 0.434 | +14.2 % | 0.649, 0.678 | 0.151 | 0/0 | 0.2 | 125–130 ms |
+| 5×25 | 125 | 0.408 ± 0.013, 0.424 | +15.5 % | 0.644, 0.680 | 0.150 | 0/0 | 1.8 | 63–65 ms |
+| 3×30 | 90 | 0.407 ± 0.007, 0.415 | +15.2 % | 0.661, 0.665 | 0.146 | 0/0 | 2.0 | 45–47 ms |
+| 5×18 | 90 | 0.436 ± 0.026, 0.478 | +23.4 % | 0.686, 0.718 | 0.167 | 0/0 | 2.2 | 45–47 ms |
+
+The estimate is iterations × (particles × 50,067 + 337) cycles at 100 MHz; the upper bound adds the unexplained 3.7 %. It excludes PS-side overhead.
+
+- **Calibration passes:** PC `half` at 10×100 matches the board distribution (RMSE, max error and tilt agree to within one standard deviation; final error 0.307 vs 0.315 m). The PC screen is a valid proxy for the board's control quality.
+- **Iterations matter more than particles:** at equal E, 5×50 beats 10×25 (−0.023 m, Welch t −2.0) and 3×30 beats 5×18 (−0.029 m, t −2.4). 3×30 matches 5×25 (t −0.1) at 72 % of its cost. Peak tilt stays within 0.14–0.17 rad (limit 0.785) and there are no du or bound violations in any trial.
+- **Deadline:** with a single evaluator, nothing screened meets 50 ms with 20 % margin. 3×30 and 5×18 come out at about 45–47 ms (6–10 % margin before PS overhead). Candidates not yet screened: 3×20 (E 60, about 30 ms), 3×25 (75, about 38 ms), 4×20 and 2×40 (80, about 40 ms). E ≈ 150 settings (3×50, 5×30) fit 50 ms only with two parallel evaluators (ideal scaling).
+- **The `float` surrogate is not safe for selection:** its RMSE is 1–7 % lower than `half` with a setting-dependent bias, so it swaps the near-tied 5×25 and 3×30. It also mis-ranks the worst-case tilt: 5×18 gives 0.150 in `float` but 0.167 in `half`, and 3×30 0.154 vs 0.146. Use it for coarse trends only.
+- `half` printed 249 NaN-to-fixed warnings over the whole screen. All of them saturate to the worst cost in C simulation (see Hazards).
+
