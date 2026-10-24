@@ -62,9 +62,9 @@ Read this section first. Everything below it is the chronological log, kept for 
 ### Open items (priority order)
 
 1. **Real-time performance:** the first PC screen is done and calibrated against the board (see "PC screen results"). Next:
-   - agree a quality tolerance;
-   - screen the iteration-heavy, low-E candidates and E ≈ 150 candidates for two evaluators;
-   - measure the PS-side per-step overhead on the board.
+   - the quality tolerance is agreed and the low-E screen is done (3×25 and 2×40 pass; see "Second PC screen");
+   - measure the PS-side per-step overhead on the board (the notebook change is ready, not yet run or committed);
+   - treat E ≈ 150 two-evaluator candidates as a separate HLS/Vivado feasibility study.
    Then choose one configuration that keeps hard constraints on every seed and meets 50 ms with margin, do one HLS/Vivado rebuild, and measure the real latency. Keep fix6 untouched as the baseline.
 2. **Separate experiments, after the screen** (do not mix them into it): control-weight sensitivity (MATLAB uses 0.02·u² vs R = 0.0005 here, a plausible cause of the 3.6× larger controls); horizon length; plant-mismatch and disturbance tests in simulation.
 3. **Physical plant validation:** a trusted independent dynamics reference or plant-level test before claiming the controller is correct for the drone. Physical tests stay gated until real-time feasibility and mismatch/safety tests are done.
@@ -399,4 +399,22 @@ The estimate is iterations × (particles × 50,067 + 337) cycles at 100 MHz; the
 - **Deadline:** with a single evaluator, nothing screened meets 50 ms with 20 % margin. 3×30 and 5×18 come out at about 45–47 ms (6–10 % margin before PS overhead). Candidates not yet screened: 3×20 (E 60, about 30 ms), 3×25 (75, about 38 ms), 4×20 and 2×40 (80, about 40 ms). E ≈ 150 settings (3×50, 5×30) fit 50 ms only with two parallel evaluators (ideal scaling).
 - **The `float` surrogate is not safe for selection:** its RMSE is 1–7 % lower than `half` with a setting-dependent bias, so it swaps the near-tied 5×25 and 3×30. It also mis-ranks the worst-case tilt: 5×18 gives 0.150 in `float` but 0.167 in `half`, and 3×30 0.154 vs 0.146. Use it for coarse trends only.
 - `half` printed 249 NaN-to-fixed warnings over the whole screen. All of them saturate to the worst cost in C simulation (see Hazards).
+
+### Second PC screen: low-E single-evaluator candidates (`half`, 5 seeds; 2026-10-24)
+
+**Quality tolerance agreed with the user** (selection criterion from now on): zero du/bound/tilt violations on **every** seed; worst-seed peak tilt ≤ 0.2 rad; mean RMSE ≤ +20 % of the fix6 baseline (≤ 0.425 m); worst-seed max error ≤ 0.75 m.
+
+The run was a session background task (`--configs 3x20,3x25,4x20,2x40`, log `validation_logs/pc_screen/screen_half2.log`, about 40 min, 27 NaN-to-fixed warnings).
+
+| Setting | E | RMSE m (mean ± std, worst) | Δ vs 10×100 | Max error m (mean, worst) | Peak tilt rad (worst) | Violations | Tolerance | Single-evaluator estimate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 3×30 (first screen) | 90 | 0.407 ± 0.007, 0.415 | +15.2 % | 0.661, 0.665 | 0.146 | 0/0 | pass | 45–47 ms |
+| 2×40 | 80 | 0.402 ± 0.007, 0.409 | +13.6 % | 0.659, 0.670 | 0.144 | 0/0 | **pass** | 40–42 ms |
+| 4×20 | 80 | 0.430 ± 0.008, 0.441 | +21.5 % | 0.679, 0.693 | 0.154 | 0/0 | fail (RMSE) | 40–42 ms |
+| 3×25 | 75 | 0.416 ± 0.022, 0.436 | +17.5 % | 0.669, 0.688 | 0.146 | 0/0 | **pass** | 38–39 ms |
+| 3×20 | 60 | 0.435 ± 0.021, 0.463 | +22.9 % | 0.681, 0.711 | 0.157 | 0/0 | fail (RMSE) | 30–31 ms |
+
+- Fewer particles with more iterations keeps winning: at E = 80, 2×40 beats 4×20 by 0.028 m.
+- 2×40 has no randomly initialized particle: particle 0 is the warm start and particle 1 the stable zero, so randomness enters only through the velocity updates. Its exploration under disturbances or model mismatch is untested.
+- **Deadline:** the passing candidates are estimated at 38–39 ms (3×25) and 40–42 ms (2×40) before PS-side overhead. Against a 40 ms total (50 ms with 20 % margin), 3×25 fits only if the overhead is about 1–2 ms or less, and 2×40 does not fit. The board PS-overhead measurement (notebook `ps_overhead_seconds`, not yet run) decides this. A rebuild would then give the real latency.
 
