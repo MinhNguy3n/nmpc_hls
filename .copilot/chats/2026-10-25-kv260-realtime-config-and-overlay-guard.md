@@ -225,7 +225,7 @@ The board sample passed the agreed criteria. The RMSE margin is very small, and 
 
 ### Repository state
 
-- **Committed** on `origin/build`, not pushed: everything through the 3×24 commits `c00ff1c` (HLS), `494e033` (host) and the following docs/run-record commit. **`config.hpp` is now 3×24**; a fix6 rebuild needs `_n_S 10`, `_maxiter 100`.
+- **Committed** on the local branch `origin/build`, and **pushed by the user** to the GitHub branch literally named `origin/build` (`refs/heads/origin/build`; verified with `git ls-remote` on 2026-10-25 at `4be555b`). The remote's separate `build` branch (`fbb8878`) is older and unrelated. Committed: everything through the 3×24 commits `c00ff1c` (HLS), `494e033` (host) and the following docs/run-record commit. **`config.hpp` is now 3×24**; a fix6 rebuild needs `_n_S 10`, `_maxiter 100`.
 - **Not to be committed:**
   - `graphs/nmpc_pso_system_overview.svg` (unrelated user change);
   - `hw/hls/ip_backup_2026-10-2*`;
