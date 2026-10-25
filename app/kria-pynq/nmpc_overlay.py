@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 import json
 from pathlib import Path
 import time
@@ -19,6 +20,11 @@ FRACTIONAL_BITS = 15
 FIXED_SCALE = 1 << FRACTIONAL_BITS
 
 DDR_LOW_LIMIT = 0x80000000
+
+# Written after a successful download=True and required by download=False. /run is cleared on
+# every reboot, so the marker never outlives the bitstream it describes.
+LOADED_MARKER = Path("/run/nmpc_overlay_loaded.json")
+BOOT_ID = Path("/proc/sys/kernel/random/boot_id")
 
 AP_CTRL = 0x00
 AP_RETURN = 0x10
@@ -88,6 +94,12 @@ class NmpcOverlay:
                 f"{overlay_path}"
             )
 
+        bitstream_sha256 = sha256(bitstream.read_bytes()).hexdigest()
+        if download:
+            LOADED_MARKER.unlink(missing_ok=True)  # until this download succeeds
+        else:
+            self._check_loaded(bitstream, bitstream_sha256)
+
         self.overlay = Overlay(str(bitstream), download=download)
         self.register_map = manifest["platform"][FSM_INSTANCE]
         control_map = self.register_map["s_axi_control"]
@@ -104,6 +116,35 @@ class NmpcOverlay:
         }
         self._closed = False
         self._configure_arguments()
+        if download:
+            LOADED_MARKER.write_text(json.dumps({
+                "bitstream": str(bitstream),
+                "bitstream_sha256": bitstream_sha256,
+                "boot_id": BOOT_ID.read_text().strip(),
+                "programmed_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }, indent=1) + "\n")
+
+    @staticmethod
+    def _check_loaded(bitstream: Path, bitstream_sha256: str) -> None:
+        """Refuse download=False unless this bitstream was programmed in this boot.
+
+        Accessing the solver's registers while the PL holds no design, or another one, gets no
+        AXI response: the CPU stalls and the whole board freezes (no network, no serial).
+        """
+        try:
+            marker = json.loads(LOADED_MARKER.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            marker = {}
+        if marker.get("boot_id") == BOOT_ID.read_text().strip() and marker.get(
+            "bitstream_sha256"
+        ) == bitstream_sha256:
+            return
+        loaded = marker.get("bitstream", "nothing recorded")
+        raise RuntimeError(
+            f"The PL is not known to hold {bitstream.name} (sha256 {bitstream_sha256[:12]}) in "
+            f"this boot ({LOADED_MARKER}: {loaded}). Touching its registers now could freeze the "
+            "board. Program it first: sudo bash ~/nmpc_fsmfix/step_prep.sh, or use download=True."
+        )
 
     @staticmethod
     def _verify_manifest(overlay_path: Path) -> dict[str, Any]:

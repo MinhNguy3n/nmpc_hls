@@ -641,7 +641,7 @@ else:
 
 # ## 17. Run a Closed-Loop Quadrotor Hardware Test
 #
-# The bounded loop sends state to PL, waits for the optimized trajectory, applies its first control to the software plant, shifts the trajectory for warm start, and advances the spiral reference. It records state, control, fitness, latency, timeout, and constraint status.
+# The bounded loop sends state to PL, waits for the optimized trajectory, applies its first control to the software plant, shifts the trajectory for warm start, and advances the spiral reference. It records state, control, fitness, latency, timeout, and constraint status. `latency_seconds` covers `ap_start` to `ap_done`; `ps_overhead_seconds` is the rest of each `solve()` call (input encoding, cache flush and invalidate, launch, polling exit, output decoding), which a real-time control period must also include.
 #
 # `closed_loop_steps` sets the run length (10 is the smoke test; 100 steps take about 52 s of board time) and `closed_loop_trials` repeats the run from the same initial state and zero warm start (5 x 100 steps take about 4.4 min). The free-running hardware RNG is not reset, so the trials share one continuing random stream and sample the PSO's run-to-run spread. The software plant uses the same equations as the hardware prediction model: this is a perfect-model, offline HIL test, not real-time control (one solve takes about 0.52 s against Ts = 0.05 s).
 #
@@ -663,7 +663,9 @@ def run_closed_loop(trial):
         current_time = step * sample_time
         step_reference = reference_horizon(current_time, 25, sample_time)
         try:
+            call_started = time.monotonic()
             result = solver.solve(state, step_reference, control, warm_start, 120.0)
+            solve_call = time.monotonic() - call_started
             sequence = result.control_sequence
             applied_control = sequence[0].copy()
             delta_violation = bool(np.any(np.abs(applied_control - control) > 20.0 + 1e-3))
@@ -677,10 +679,13 @@ def run_closed_loop(trial):
             applied_control = np.full(4, np.nan)
             next_state = state.copy()
             delta_violation = absolute_violation = False
-            fitness = latency = np.nan
+            fitness = latency = solve_call = np.nan
         rows.append({
             "trial": trial, "step": step, "time": current_time, "fitness": fitness,
             "latency_seconds": latency, "timeout": timed_out,
+            # Whole solve() call; the overhead is the PS-side part outside ap_start..ap_done
+            # (input encoding, cache flush/invalidate, launch, polling exit, output decoding).
+            "solve_call_seconds": solve_call, "ps_overhead_seconds": solve_call - latency,
             "delta_violation": delta_violation,
             "absolute_violation": absolute_violation,
         })
@@ -703,6 +708,8 @@ def run_closed_loop(trial):
         "latency_mean_s": float(table["latency_seconds"].mean()),
         "latency_min_s": float(table["latency_seconds"].min()),
         "latency_max_s": float(table["latency_seconds"].max()),
+        "ps_overhead_median_s": float(table["ps_overhead_seconds"].median()),
+        "ps_overhead_max_s": float(table["ps_overhead_seconds"].max()),
         **tracking_metrics(states, controls, curr_control, sample_time),
     }
     return {"table": table, "states": states, "controls": controls, "metrics": metrics}
@@ -721,12 +728,13 @@ if closed_loop_runs:
     closed_loop_table = pd.concat([run["table"] for run in closed_loop_runs], ignore_index=True)
     trial_metrics = pd.DataFrame([run["metrics"] for run in closed_loop_runs]).set_index("trial")
     key_metrics = ["position_rmse_m", "position_max_error_m", "peak_roll_pitch_rad", "max_control_step",
-                   "latency_mean_s", "latency_max_s"]
+                   "latency_mean_s", "latency_max_s", "ps_overhead_median_s", "ps_overhead_max_s"]
     display(trial_metrics[["steps_completed", "timeouts", "delta_violations", "absolute_violations",
                            "steps_at_du_max", "plant_limit_ok", *key_metrics]])
     across_trials = trial_metrics[key_metrics].agg(["mean", "std", "min", "max"])
     display(across_trials)
     latencies = closed_loop_table["latency_seconds"].dropna()
+    overheads = closed_loop_table["ps_overhead_seconds"].dropna()
     closed_loop_metrics = {
         "plant_integrator": plant_integrator,
         "steps_requested": closed_loop_steps,
@@ -738,6 +746,10 @@ if closed_loop_runs:
         "latency_s": {
             "solves": int(latencies.size), "min": float(latencies.min()), "median": float(latencies.median()),
             "p95": float(latencies.quantile(0.95)), "max": float(latencies.max()),
+        },
+        "ps_overhead_s": {
+            "solves": int(overheads.size), "min": float(overheads.min()), "median": float(overheads.median()),
+            "p95": float(overheads.quantile(0.95)), "max": float(overheads.max()),
         },
         "across_trials": across_trials.to_dict(),
         "per_trial": [run["metrics"] for run in closed_loop_runs],
