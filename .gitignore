@@ -16,6 +16,9 @@ nmpc_*/
 pseudorand_stream/
 test_costF/
 vitis_ip_repo/
+# Copies of vitis_ip_repo kept as rollback points before IP rebuilds, and Vitis HLS run logs
+hw/hls/ip_backup_*/
+hw/hls/logs/
 orb_extract/
 build/
 **/hls/nmpc_solver*/
