@@ -437,18 +437,20 @@ protected:
 #pragma HLS PIPELINE //II=11
             current_x_hat = x_hat[j];
             current_x_ref = xref[j];
-            _system_hw_real tmp_err;
-            _system_hw_real tmp_err_ang =  ((_system_hw_real)system_pi*2 - current_x_hat); // operator ambiguous
-            
-            if (controlled_state[j] == 1) 
-                tmp_err = (current_x_hat - current_x_ref);
-            else if (controlled_state[j] == 2) 
-                if ((current_x_hat > (_system_hw_real)system_pi) && (current_x_ref < (_system_hw_real)system_pi))
-                    tmp_err = (tmp_err_ang - current_x_ref);
-                else
-                    tmp_err = ((_system_hw_real)current_x_hat - current_x_ref); // same here
-            else
-                tmp_err = (_system_hw_real)0.0;;
+            // pi and 2*pi in the top type: system_pi is the (half) model type, about 1e-3 off.
+            const _system_hw_real top_pi = 3.14159265358979323846;
+            const _system_hw_real top_two_pi = 6.28318530717958647692;
+            _system_hw_real tmp_err = current_x_hat - current_x_ref;
+
+            if (controlled_state[j] == 2) {
+                // Angle residual wrapped to (-pi, pi]; exact for |x_hat - ref| < 3*pi, e.g. both
+                // angles wrapped, or an unwrapped angle tracking a nearby unwrapped reference.
+                if (tmp_err > top_pi)
+                    tmp_err -= top_two_pi;
+                else if (tmp_err <= -top_pi)
+                    tmp_err += top_two_pi;
+            } else if (controlled_state[j] != 1)
+                tmp_err = (_system_hw_real)0.0;
 
             _system_hw_real Q_local;
             

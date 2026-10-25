@@ -6,6 +6,9 @@
 //      operating range: tilt angles +-0.8 rad, also shifted by +pi/2 for cos)
 //   4. one_step_error penalty switch at, just inside and just outside the tightened roll/pitch
 //      cost limit (pi/4 - _angle_limit_margin), and that the cost limit stays inside +-pi/4
+//   5. one_step_error angle residual (controlled_state 2) is wrap(x_hat - ref) in (-pi, pi] for
+//      nonzero references of both signs, on both sides of +-pi and across the +-pi crossings,
+//      for any |x_hat - ref| < 3*pi (e.g. an unwrapped state against a wrapped reference)
 //
 // Build from hw/hls/source:
 //   g++ -std=c++11 -O0 -D__VITIS__ -DPSO_CONFIG -DSNIFFBOT_CONFIG -DHW_ARITH_CSIM -DUSE_FAST_SIN_COS \
@@ -121,11 +124,43 @@ static void test_thresholds() {
     printf("thresholds: cost limit %.6f (plant %.6f), %zu cases\n", (double)limit, plant, sizeof(cases) / sizeof(cases[0]));
 }
 
+static void test_angle_wrap() {
+    ErrorProbe sys(_u_max, _u_min, _du_max, _controlled_state, _state_upper_limits, _state_lower_limits,
+                   _Q, _Qf, _R, _uss, _Ts);
+    const int j = 5;  // yaw: controlled_state 2, limits +-1e3, so no penalty switch
+    struct Case { double x_hat; double ref; const char *name; };
+    const Case cases[] = {
+        {0.2, -0.1, "small difference"},
+        {3.0, -3.0, "both inside, difference above +pi"},
+        {-3.0, 3.0, "both inside, difference below -pi"},
+        {3.3, 0.5, "x_hat > pi, ref < pi, nonzero ref"},
+        {3.3, 3.0, "x_hat > pi, ref < pi, close"},
+        {3.3, 0.0, "x_hat > pi, ref = 0"},
+        {-3.3, 3.0, "x_hat < -pi, ref > -pi"},
+        {-3.3, -0.5, "x_hat < -pi, ref > -pi, close"},
+        {7.0, 7.1, "both unwrapped beyond 2*pi"},
+        {7.0, 0.8, "unwrapped x_hat, wrapped ref"},
+        {-7.0, -0.8, "negative unwrapped x_hat, wrapped ref"},
+        {1.0 + 2.9 * kPi, 1.0, "difference 2.9*pi (inside the 3*pi contract)"},
+    };
+    for (const Case &c : cases) {
+        _hw_top_real x[_Nx] = {0}, ref[_Nx] = {0}, ji_in[_Nx] = {0}, ji_out[_Nx];
+        x[j] = c.x_hat;
+        ref[j] = c.ref;
+        sys.one_step_error(ji_out, 0, ji_in, x, ref);              // step 0: weight Q[5]
+        double d = std::remainder((double)x[j] - (double)ref[j], 2 * kPi);  // wrap to [-pi, pi]
+        double expected = (double)_Q[j] * d * d;
+        check(std::fabs((double)ji_out[j] - expected) <= 1e-3 * expected + 2e-3, c.name, (double)ji_out[j], expected);
+    }
+    printf("angle wrap: %zu cases\n", sizeof(cases) / sizeof(cases[0]));
+}
+
 int main() {
     test_table();
     test_index_wrap();
     test_accuracy();
     test_thresholds();
+    test_angle_wrap();
     printf(failures ? "UNIT_FAIL (%d)\n" : "UNIT_PASS\n", failures);
     return failures ? 1 : 0;
 }
