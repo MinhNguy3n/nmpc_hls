@@ -85,18 +85,20 @@ int main() {
     int errors = 0;
     init_particles();
     errors += run_update(0, "call 0");
-    errors += run_update(57, "call 1");
+    // An iteration inside the inertia schedule (57 for 100 iterations).
+    const int mid_iteration = 57 * _pso_maxiter / 100;
+    errors += run_update(mid_iteration, "call 1");
 
     // Statelessness: the same inputs, stream and iteration must give identical outputs.
     static _pso_hw_real x_ref[total], v_ref[total];
     init_particles();
-    errors += run_update(57, "repeat A");
+    errors += run_update(mid_iteration, "repeat A");
     for (int i = 0; i < total; i++) {
         x_ref[i] = x[i];
         v_ref[i] = v[i];
     }
     init_particles();
-    errors += run_update(57, "repeat B");
+    errors += run_update(mid_iteration, "repeat B");
     for (int i = 0; i < total; i++) {
         if (x[i] != x_ref[i] || v[i] != v_ref[i]) {
             printf("ERROR: repeated call differs at element %d (state carried between calls)\n", i);

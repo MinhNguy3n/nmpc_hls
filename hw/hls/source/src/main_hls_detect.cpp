@@ -23,8 +23,9 @@ int main() {
         for (int j = 0; j < part; j++)
             y[i * part + j] = i * 100 + j;
 
-    const int interaction[2] = {3, 7};
-    const int best[2] = {6, 2};
+    // Scaled to the PSO size so they stay valid indices (10 particles x 100 iterations: 3/7 and 6/2).
+    const int interaction[2] = {3 % _pso_maxiter, 7 % _pso_maxiter};
+    const int best[2] = {6 % _pso_n_S, 2 % _pso_n_S};
     int errors = 0;
 
     for (int call = 0; call < 2; call++) {
