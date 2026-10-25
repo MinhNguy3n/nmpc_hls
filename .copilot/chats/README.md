@@ -2,7 +2,8 @@
 
 Read the newest relevant handoff before continuing a task. These files record verified state, safe diagnostic commands, and the immediate next step.
 
-- [2026-10-23 KV260 NMPC hang root causes, fixes, validated fix6 overlay, closed-loop HIL baseline and PC screening](2026-10-23-kv260-fsm-done-latch-fix.md) (newest, updated 2026-10-24; **start with its "Handoff for the next agent" section**; supersedes the state-0 stall hypothesis)
+- [2026-10-25 KV260 real-time configuration screening and overlay-load guard](2026-10-25-kv260-realtime-config-and-overlay-guard.md) (newest; **start here**: current state, the 3×24 candidate, next steps)
+- [2026-10-23 KV260 NMPC hang root causes, fixes, validated fix6 overlay, closed-loop HIL baseline and PC screening](2026-10-23-kv260-fsm-done-latch-fix.md) (updated 2026-10-24; reference for the fixes, board scripts, build flow and hazards; supersedes the state-0 stall hypothesis)
 - [GPT-6 review notes](2026-10-23-claude-feedback-fix4.md): external reviews of each step, fix4 to the PC screening plan.
 - [2026-08-18 KV260 NMPC ILA Overlay Debug](2026-08-18-kv260-ila-overlay-debug.md)
 

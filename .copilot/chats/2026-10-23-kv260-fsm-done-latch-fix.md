@@ -4,6 +4,8 @@
 
 Read this section first. Everything below it is the chronological log, kept for evidence.
 
+> **Superseded for the current state by [2026-10-25-kv260-realtime-config-and-overlay-guard.md](2026-10-25-kv260-realtime-config-and-overlay-guard.md)** (PS-overhead measurement, overlay-load guard, NaN conversion co-simulation, 3×24 candidate). This file remains the reference for the fixes, board scripts, build flow and hazards up to 2026-10-24.
+
 ### Status
 
 - **The hardware solver works end to end on the KV260.** The current design is **fix6**: 100 PSO iterations in about 524 ms, `ap_done` asserts, results are written back, and it passed scripted board validation (`VALIDATION PASS`, see "Board validation record" and the fix6 run table under "fix6 build, validation, promotion and commits").
