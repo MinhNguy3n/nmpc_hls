@@ -88,9 +88,30 @@ Notes:
   - about 0.6–2 ms under the 40 ms target;
   - quality from only 5 seeds, with a worst-seed RMSE of 0.445 m against 0.436 m for 3×25.
 
+### 3×24 over 10 seeds (2026-10-25, `half`, log `screen_half4.log`)
+
+| Seed | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| RMSE m | 0.445 | 0.420 | 0.408 | 0.397 | 0.414 | 0.441 | 0.419 | 0.440 | 0.393 | 0.434 |
+| Max error m | 0.696 | 0.696 | 0.681 | 0.642 | 0.660 | 0.719 | 0.672 | 0.657 | 0.656 | 0.681 |
+| Peak tilt rad | 0.154 | 0.148 | 0.139 | 0.139 | 0.147 | 0.154 | 0.142 | 0.149 | 0.139 | 0.144 |
+
+- **Passes the tolerance on every criterion:**
+
+  | Criterion | Limit | Result |
+  | --- | --- | --- |
+  | Violations | 0 on every seed | none (du, bound, plant limit) |
+  | Worst-seed tilt | ≤ 0.2 rad | 0.154 rad |
+  | Worst-seed max error | ≤ 0.75 m | 0.719 m |
+  | Mean RMSE | ≤ 0.425 m | **0.421 m** (std 0.019, worst seed 0.445) |
+
+  du_max is reached 2–5 times per trial and never exceeded. 12 NaN-to-fixed warnings.
+- **The RMSE margin is statistically thin:** the 95 % confidence interval of the mean is 0.408–0.434 m, which contains the limit, and seeds 6–10 alone average 0.425 m. 3×24 is about +19 % RMSE against the board baseline, at the edge of the agreed +20 %.
+- **3×24 remains the only screened setting that meets the tolerance and the 40 ms estimate together.** Whether to rebuild with it, accepting a quality margin within the seed-to-seed noise, is the decision for the user and reviewer.
+
 ### Next steps (priority order)
 
-1. **Extend 3×24 to 10 seeds** in `half` mode (about 30 min on 16 cores; seeds 6–10 reuse the saved 1–5):
+1. **Done (see above):** 3×24 over 10 seeds passes (mean RMSE 0.421 m against 0.425 m). The command, for reference (seeds 6–10 reused the saved 1–5):
 
    ```bash
    cd app/kria-pynq
@@ -99,7 +120,7 @@ Notes:
    ```
 
    Run it as a session background task. **Lingering is disabled on the PC and must stay disabled; ask the user before changing it.** The user keeps the session open for long runs.
-2. **If 3×24 still passes, rebuild once:**
+2. **Decide, then rebuild once with 3×24 (`_n_S 3`, `_maxiter 24`):**
    - set `_n_S 3`, `_maxiter 24` in `hw/hls/source/include/config.hpp` (CRLF; `_slope` follows `_maxiter` automatically);
    - check every HLS pragma depth and the BRAM layout that depends on `_n_S`/`_maxiter` (`pso_maxiter` depths; `bestfitness` region size in `nmpc_overlay.py` `MAX_ITERATIONS`, `HORIZON`, and the notebook);
    - rerun the three worker co-simulations;
