@@ -12,20 +12,18 @@ This continues [2026-10-23-kv260-fsm-done-latch-fix.md](2026-10-23-kv260-fsm-don
 
 This file records what changed since then and what to do next.
 
-### Status in one paragraph
+### Status
 
 **fix6** (bit `300bd966…`) is the validated, promoted baseline and stays untouched. It solves 10 particles × 100 iterations in **0.523 s**, against a 50 ms sample time. The goal now is one rebuild with a configuration that meets the deadline. The PC screen in the exact hardware arithmetic (`half` mode) is calibrated against the board. Across all three screens, **3 particles × 24 iterations (3×24)** is the only setting that meets both:
 
 - the agreed quality tolerance;
 - the 40 ms target (50 ms with 20 % margin), including the measured PS-side overhead.
 
-It meets both only narrowly. Next steps:
+It met both only narrowly on the PC, and the board confirmed it:
 
-1. Run 3×24 for 10 seeds on the PC.
-2. If it still passes, do one rebuild (`_n_S 3`, `_maxiter 24`).
-3. Measure the real latency on the board.
-
-Physical-actuator tests stay gated.
+- **3×24 is rebuilt, staged as `overlay-3x24` and board-validated (2026-10-25)**, but **not promoted**. Five 100-step board trials passed the agreed quality criteria, with a very small RMSE margin (mean 0.4235 m against 0.425 m).
+- Solver plus PS overhead per step: median 39.34 ms, max 40.40 ms. **No step exceeded the 50 ms deadline**, but **3 of 500 steps exceeded the stricter 40 ms target**: the margin is narrow, not a full pass. See "3×24 rebuild and board results".
+- fix6 stays the promoted overlay. Physical-actuator tests stay gated.
 
 ### What happened since the last handoff
 
@@ -109,9 +107,63 @@ Notes:
 - **The RMSE margin is statistically thin:** the 95 % confidence interval of the mean is 0.408–0.434 m, which contains the limit, and seeds 6–10 alone average 0.425 m. 3×24 is about +19 % RMSE against the board baseline, at the edge of the agreed +20 %.
 - **3×24 remains the only screened setting that meets the tolerance and the 40 ms estimate together.** Whether to rebuild with it, accepting a quality margin within the seed-to-seed noise, is the decision for the user and reviewer.
 
+### 3×24 rebuild and board results (2026-10-25)
+
+**Build** (commits `c00ff1c` HLS configuration and testbenches, `494e033` host side):
+
+- `config.hpp` sets `_n_S 3`, `_maxiter 24`. All three worker C/RTL co-simulations pass. The detect and update testbenches are scaled by the configuration and keep their fix6 values at 10×100.
+- All five solver IPs were rebuilt; `init_s` had still been the August build. The fix6 IPs are backed up in `hw/hls/ip_backup_2026-10-25_pre_3x24/` (not in git).
+- The evaluator costs 147,914 cycles per call, i.e. 49,305 per particle, identical to fix6 per particle. One iteration is 151,785 cycles (1.52 ms).
+- Vivado: `hw/hdl/scripts/build_debug_variant.tcl nmpc_solver_v2_3x24` (this wrapper replaces the lost fix-build wrapper). WNS +0.414 ns, WHS +0.010 ns, no critical warnings; LUT 40.6 %, BRAM 23.6 %, the same as fix6.
+- The netlist checks `k == 24` in the FSM and loops 3 particles in the evaluator. The audits pass: random fan-out present, broadcaster absent, register map unchanged, and the memory layout from the HWH fits.
+
+| Artifact | SHA-256 prefix |
+| --- | --- |
+| XSA `hw/exported_platform/nmpc_solver_v2_3x24/nmpc_solver_v2.xsa` | `7fd04f889ec4` |
+| bit | `f2cb0f319348` |
+| hwh | `40acf348a03a` |
+| bda | `323c0c1fe873` (unchanged) |
+| ltx | `c30e9070` (unchanged) |
+
+The package is `app/kria-pynq/overlay-3x24` (manifest `solver: {particles: 3, iterations: 24}`); on the board it is `~/nmpc_fsmfix/overlay-3x24`.
+
+**Scripted validation** (`step5_validate.sh overlay-3x24`, two runs at 17:32 and 17:38 UTC):
+
+- 24 iterations; 38.0–38.2 ms per solve.
+- `validate_hw_run.py`: **VALIDATION PASS**.
+  - Hardware vs its C model: 0.0003–0.0013 %.
+  - Gap to the double-precision reference: 0.00–0.09 %.
+  - True ±π/4 tilt limit holds (peak 0.746 rad).
+  - Control constraints OK.
+- The two runs are bit-identical, because the hardware RNG restarts on programming.
+
+**Closed loop** (notebook `kv260_nmpc_demo_3x24_rk4_100x5_2026-10-25.ipynb`, run `validation_logs/20261025T173937Z_rk4_100x5`; RK4 software plant, 5 × 100 steps):
+
+| Metric | Board 3×24 | PC 3×24 (10 seeds) | Requirement |
+| --- | --- | --- | --- |
+| Mean RMSE | 0.4235 ± 0.020 m | 0.421 ± 0.019 m | ≤ 0.425 m |
+| Trial RMSE range | 0.404–0.457 m | 0.393–0.445 m | — |
+| Worst max error | 0.696 m | 0.719 m | ≤ 0.75 m |
+| Worst tilt | 0.160 rad | 0.154 rad | ≤ 0.2 rad |
+| Violations, timeouts | 0, 0 (du_max reached 1–5 times per trial) | 0 | 0 on every seed |
+
+The board sample passed the agreed criteria. The RMSE margin is very small, and five trials do not establish distributional equivalence with the PC screen.
+
+**Timing.** The values below are computed row by row from the raw `solver_timing.csv` (500 solves); the separate solver and overhead maxima are not added together.
+
+| Quantity | Median | p95 | p99 | Max |
+| --- | --- | --- | --- | --- |
+| Solver (`ap_start`→`ap_done`) | 38.03 ms | — | — | 38.16 ms |
+| PS overhead | 1.30 ms | 1.44 ms | — | 2.35 ms |
+| **Solver + overhead** | **39.34 ms** | 39.53 ms | 39.78 ms | **40.40 ms** |
+
+- No step exceeded 50 ms; 3 steps exceeded the 40 ms target. The worst step leaves 19.2 % margin to the 50 ms deadline.
+- The earlier run `20261025T173547Z` gave the same picture (max 40.42 ms, 3 steps over 40 ms).
+- This is measured HIL evidence over 500 solves, not a worst-case timing guarantee.
+
 ### Next steps (priority order)
 
-1. **Done (see above):** 3×24 over 10 seeds passes (mean RMSE 0.421 m against 0.425 m). The command, for reference (seeds 6–10 reused the saved 1–5):
+1. **Done:** the 10-seed 3×24 screen, the rebuild and the board validation (sections above). The screen command, for reference (seeds 6–10 reused the saved 1–5):
 
    ```bash
    cd app/kria-pynq
@@ -120,7 +172,7 @@ Notes:
    ```
 
    Run it as a session background task. **Lingering is disabled on the PC and must stay disabled; ask the user before changing it.** The user keeps the session open for long runs.
-2. **Decide, then rebuild once with 3×24 (`_n_S 3`, `_maxiter 24`):**
+2. **Done (record of the procedure): rebuild once with 3×24 (`_n_S 3`, `_maxiter 24`):**
    - set `_n_S 3`, `_maxiter 24` in `hw/hls/source/include/config.hpp` (CRLF; `_slope` follows `_maxiter` automatically);
    - check every HLS pragma depth and the BRAM layout that depends on `_n_S`/`_maxiter` (`pso_maxiter` depths; `bestfitness` region size in `nmpc_overlay.py` `MAX_ITERATIONS`, `HORIZON`, and the notebook);
    - rerun the three worker co-simulations;
@@ -129,48 +181,66 @@ Notes:
    - measure the real latency, then the closed loop with the notebook.
 
    `nmpc_overlay.py` and the notebook hard-code `MAX_ITERATIONS = 100` and "10 particles, 100 iterations": parameterize them before the board run.
-3. Keep fix6 as the promoted overlay until the new build is validated; promote only with a rollback copy.
-4. **Separate experiments afterwards** (do not mix them into the configuration choice):
+3. **Keep fix6 promoted.** Promoting 3×24 is a separate decision for the user and reviewer, given the narrow quality and 40 ms margins. If it is promoted, `step6_promote.sh` first needs the overlay argument the other step scripts now take, and it must keep a rollback copy.
+4. **Angle-wrap fix, as a separate change** (reviewer's order). The cost's `controlled_state == 2` branch in `hls_system.hpp` is not a general wrapped residual: for x̂ > π, ref < π it uses (2π − x̂) − ref instead of (x̂ − 2π) − ref, and it ignores angles below −π. It is latent for the 5 s quadrotor runs (the yaw reference stays below about 0.8π) but would matter beyond about 8.75 s and for any heading-tracking model.
+   - Add a cost regression test with non-zero references, both signs, both sides of ±π, and the crossings x̂ > π, ref < π and x̂ < −π, ref > −π.
+   - Apply the smallest generic fix: subtract, then one conditional ±2π.
+   - Rebuild the evaluator, run C simulation, co-simulation and a board re-validation.
+5. **`fastcos`:** `local_cos` scales the angle and `fastcos` scales it again and truncates the index. The quadrotor avoids it with `local_sin(x + π/2)`. Add a test and fix it only before code starts using `local_cos`.
+6. **Ackermann track** (proposal branch `ackermann-mpc-design` in `.claude/worktrees/agent-a3984fccbf29de483`, from `8caa65c`; uncommitted, isolated; reviews `2026-10-25-ackermann-mpc-pso-model-review.md` and `2026-10-25-claude-feedback-ackermann-review.md`):
+   - The vehicle target, interface and parameters are needed from the user.
+   - Then build one isolated HLS prototype of a chosen step variant: plain chord, nearest-entry fixed-point index, or interpolated chord. Its cycle estimates differ (10×100 is about 39.4 ms for the plain chord but about 43.3 ms interpolated), so quote no estimate without its variant.
+   - Then run C simulation against the reference model, co-simulation, synthesis and timing before choosing a PSO size.
+7. **Separate experiments afterwards** (do not mix them into the configuration choice):
    - control-weight sensitivity (MATLAB uses 0.02·u² vs R = 0.0005 here);
    - horizon length;
    - plant-mismatch and disturbance tests;
    - two-evaluator feasibility (HLS/Vivado, memory ports, timing) if more evaluations are needed.
-5. Physical-actuator tests stay gated until real-time feasibility and the mismatch/safety tests are done.
+8. Physical-actuator tests stay gated until real-time feasibility and the mismatch/safety tests are done.
+9. The old Create 3 worktree (`.claude/worktrees/agent-a030184b931670f3b`, partial, based on an old commit) stays until the user confirms it can be removed.
 
 ### Board state (`ubuntu@10.42.0.29`; the user runs all sudo steps)
 
-- **Boot:** booted 2026-10-25 (boot ID `8c89b500-4bdb-4c05-8624-38105689d692`). The PL holds fix6, programmed by `step_prep.sh` at 15:24:16Z; the marker is present.
+- **Boot:** booted 2026-10-25 (boot ID `8c89b500-4bdb-4c05-8624-38105689d692`). After the 3×24 validation the PL holds **overlay-3x24** (bit `f2cb0f319348`, programmed 17:38:37Z); the marker is present. `sudo bash ~/nmpc_fsmfix/step_prep.sh` (default `overlay-fix6`) restores fix6.
 - **The power-cycle procedure is now mandatory, not optional:** power cycle → `sudo bash ~/nmpc_fsmfix/step_prep.sh` → notebook. Without `step_prep.sh` the guard refuses with a clear error instead of freezing the board.
 - **Installed in the notebook tree** (`/root/jupyter_notebooks/nmpc_hls/app/kria-pynq/`, via `sudo bash ~/nmpc_fsmfix/hil_trials/archive_and_install.sh`):
 
   | File | SHA-256 prefix |
   | --- | --- |
-  | `kv260_nmpc_demo.ipynb` | `49c4ba5ae7b0` |
-  | `kv260_nmpc_demo.py` | `be665c3c6c07` |
+  | `kv260_nmpc_demo.ipynb` | `e3c4c5cd3819` |
+  | `kv260_nmpc_demo.py` | `0ffc6b53441a` |
   | `quadrotor.py` | `b2ea56acd503` |
-  | `nmpc_overlay.py` (guard) | `07d3b76f684b` |
+  | `nmpc_overlay.py` (guard, manifest PSO size, safe buffer) | `6b49a985468b` |
 
   The script also packs run folders into `~/nmpc_fsmfix/runs/` for copying without sudo.
 - **`~/nmpc_fsmfix/`:**
-  - `nmpc_overlay.py` is the guarded version (`07d3b76f684b`), used by `step_prep.sh`, `step4_run.sh` and `step5_validate.sh`.
-  - `step_prep.sh` now logs the marker after programming (or `MISSING`).
-  - Backups: `*.bak_premarker`.
+  - `nmpc_overlay.py` (`6b49a985468b`, as committed in `494e033`) is used by `step_prep.sh`, `step4_run.sh` and `step5_validate.sh`.
+  - `step_prep.sh` logs the marker after programming (or `MISSING`).
+  - `step_prep.sh [overlay_dir]` and `step5_validate.sh [overlay_dir]` take the overlay directory (default `overlay-fix6`); `step4_run.sh` and `step6_promote.sh` are still fix6-only.
+  - `step5_validate.sh` saves only the fitness words actually written.
+  - Staged overlays: `overlay-fix6` (promoted) and `overlay-3x24` (validated, not promoted).
+  - Backups: `*.bak_premarker`, `*.bak_pre3x24`, `*.bak_maxbuf`.
   - These board-only scripts are not in the repo.
 - **SSH from the PC:** the key has a passphrase. Use the agent the user starts at `SSH_AUTH_SOCK=/run/user/1000/ssh-agent.socket`; it does not survive a logout.
 
 ### Repository state
 
-- **Committed:** everything up to `6b12d8b` (HIL baseline, first and second PC screens, tolerance; all on `origin/build`, not pushed).
-- **Uncommitted, waiting for the user's go-ahead:**
-  - `app/kria-pynq/nmpc_overlay.py` (overlay-load guard);
-  - `app/kria-pynq/kv260_nmpc_demo.ipynb` and `.py` (PS-overhead timing: `solve_call_seconds`, `ps_overhead_seconds`, per-trial median/max, run-level `ps_overhead_s`);
-  - the pointer line in the 2026-10-23 handoff, this file, and the chats README;
-  - board downloads `app/kria-pynq/kv260_nmpc_demo_kv260.ipynb` (100-step overhead run) and `kv260_nmpc_demo_kv260_10_steps.ipynb` (smoke test), to be kept as dated records.
-- **Not to be committed:** `graphs/nmpc_pso_system_overview.svg` (unrelated user change) and `hw/hls/ip_backup_2026-10-23_*`.
-- **Run data (gitignored):** `app/kria-pynq/validation_logs/` holds the board runs (`20261023T…`, `20261025T143336Z_rk4_100x1`) and `pc_screen/` (every `half`/`float` trial as JSON and NPZ, logs `screen_half*.log`).
+- **Committed** on `origin/build`, not pushed: everything through the 3×24 commits `c00ff1c` (HLS), `494e033` (host) and the following docs/run-record commit. **`config.hpp` is now 3×24**; a fix6 rebuild needs `_n_S 10`, `_maxiter 100`.
+- **Not to be committed:**
+  - `graphs/nmpc_pso_system_overview.svg` (unrelated user change);
+  - `hw/hls/ip_backup_2026-10-2*`;
+  - the Vitis HLS and Vivado logs (`hw/hls/logs/`, build folders);
+  - raw board downloads `app/kria-pynq/kv260_nmpc_demo_kv260*.ipynb` and `kv260_nmpc_demo_overlay_3x24.ipynb` (their content is in the dated copies);
+  - the `.claude/` worktrees.
+- **Run data (gitignored):** `app/kria-pynq/validation_logs/` holds:
+  - the board runs: `20261023T…`, `20261025T143336Z_rk4_100x1`, and the 3×24 runs `20261025T173547Z_rk4_100x5` and `20261025T173937Z_rk4_100x5`;
+  - the 3×24 validation dumps and prep logs in `3x24_validate/`;
+  - `pc_screen/`: every `half`/`float` trial as JSON and NPZ, logs `screen_half*.log`.
 
 ### Hazards added since the last handoff
 
 - **Never touch PL registers unless the PL holds the matching design in this boot.** The access hangs the whole SoC: no network, no serial; only a power cycle recovers it. The guard enforces this for `NmpcOverlay`; any other tool that maps `0xA000_0000` needs the same check.
 - **The hardware RNG restarts from the same state when the PL is programmed:** the first solve after `step_prep.sh` was identical in two runs. Keep this in mind when comparing runs; PC and board still compare as distributions.
 - **Under 12 parallel jobs a `half` solve takes about 2.5× its single-process time** (10×100: 144 s). Size long screens accordingly.
+- **The overlay manifest's `solver` entry describes the bitstream, but the XSA does not record it:** pass the build's `_n_S`/`_maxiter` to `package_overlay.py` exactly. `NmpcOverlay` refuses out-of-range metadata and any `ap_return` mismatch, and its output buffer always holds 128 iterations.
+- **The Vivado build is memory-hungry:** the user runs it in a separate terminal (3 jobs). The wrapper refuses an existing project folder; delete a partial one first.
