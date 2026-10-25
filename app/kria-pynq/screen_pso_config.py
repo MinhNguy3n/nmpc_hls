@@ -136,9 +136,13 @@ def board_summary(run_dir: Path) -> dict | None:
     report = run_dir / "validation_report.json"
     if not report.is_file():
         return None
-    metrics = json.loads(report.read_text())["closed_loop_metrics"]
+    report_data = json.loads(report.read_text())
+    metrics = report_data["closed_loop_metrics"]
     per_trial = metrics.get("per_trial", [metrics])  # single-run exports store the metrics flat
-    row = {"mode": "board", "config": "10x100", "evaluations": 1000, "seeds": len(per_trial)}
+    solver = report_data.get("run_config", {}).get("solver_config", {})  # absent in early exports
+    particles, iterations = solver.get("particles", 10), solver.get("iterations", 100)
+    row = {"mode": "board", "config": f"{particles}x{iterations}", "evaluations": particles * iterations,
+           "seeds": len(per_trial)}
     for name in SUMMARY_KEYS:
         if name == "final_error_m":
             values = np.asarray([np.linalg.norm(t["final_position_error_m"]) for t in per_trial])

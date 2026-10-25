@@ -15,7 +15,14 @@ DESIGN_REVISION = 4
 NX = 12
 NU = 4
 HORIZON = 25
-MAX_ITERATIONS = 100
+# PSO size of overlays whose manifest predates the "solver" entry (fix6 and earlier).
+DEFAULT_SOLVER = {"particles": 10, "iterations": 100}
+# Largest PSO size this block design's local BRAM layout holds: in pso_mem the per-iteration fitness
+# history (offset 0) must end before find_local (0x200), and each 8 KiB x/y/v_mem holds
+# particles x HORIZON x NU words. The output buffer is allocated for MAX_ITERATIONS, so it is never
+# smaller than what a bitstream of this design writes, whatever its manifest says.
+MAX_ITERATIONS = 0x200 // 4
+MAX_PARTICLES = 8192 // (HORIZON * NU * 4)
 FRACTIONAL_BITS = 15
 FIXED_SCALE = 1 << FRACTIONAL_BITS
 
@@ -83,6 +90,7 @@ class NmpcOverlay:
         overlay_path = Path(overlay_dir).expanduser().resolve()
         print("Overlay path: " + str(overlay_path))
         manifest = self._verify_manifest(overlay_path)
+        solver = self._solver_size(manifest)  # validated before programming or allocating anything
         bitstream = overlay_path / "design_nmpc_solver.bit"
         hwh = overlay_path / "design_nmpc_solver.hwh"
 
@@ -102,6 +110,7 @@ class NmpcOverlay:
 
         self.overlay = Overlay(str(bitstream), download=download)
         self.register_map = manifest["platform"][FSM_INSTANCE]
+        self.solver = solver
         control_map = self.register_map["s_axi_control"]
         argument_map = self.register_map["s_axi_control_r"]
         self.control = MMIO(control_map["base"], control_map["range"])
@@ -145,6 +154,20 @@ class NmpcOverlay:
             f"this boot ({LOADED_MARKER}: {loaded}). Touching its registers now could freeze the "
             "board. Program it first: sudo bash ~/nmpc_fsmfix/step_prep.sh, or use download=True."
         )
+
+    @staticmethod
+    def _solver_size(manifest: dict[str, Any]) -> dict[str, int]:
+        """PSO size from the manifest (DEFAULT_SOLVER if absent), checked against this design's limits."""
+        solver = {**DEFAULT_SOLVER, **manifest.get("solver", {})}
+        limits = {"particles": (2, MAX_PARTICLES), "iterations": (1, MAX_ITERATIONS)}
+        for name, (low, high) in limits.items():
+            value = solver.get(name)
+            if type(value) is not int or not low <= value <= high:
+                raise RuntimeError(
+                    f"Overlay manifest solver.{name} = {value!r} is not an integer in [{low}, {high}], "
+                    "the range this block design's local memories hold. Repackage the XSA."
+                )
+        return {name: solver[name] for name in limits}
 
     @staticmethod
     def _verify_manifest(overlay_path: Path) -> dict[str, Any]:
@@ -245,10 +268,16 @@ class NmpcOverlay:
         elapsed = time.monotonic() - started_at
         self._buffers["new_best"].invalidate()
         self._buffers["bestfitness"].invalidate()
+        iterations = int(self.control.read(AP_RETURN))
+        if iterations != self.solver["iterations"]:
+            raise RuntimeError(
+                f"The solver ran {iterations} iterations but the overlay manifest says "
+                f"{self.solver['iterations']}: the manifest does not describe this bitstream."
+            )
         return NmpcResult(
             control_sequence=decode_fixed(self._buffers["new_best"]).copy(),
-            best_fitness=decode_fixed(self._buffers["bestfitness"]).copy(),
-            iterations=int(self.control.read(AP_RETURN)),
+            best_fitness=decode_fixed(self._buffers["bestfitness"][:iterations]).copy(),
+            iterations=iterations,
             elapsed_seconds=elapsed,
         )
 

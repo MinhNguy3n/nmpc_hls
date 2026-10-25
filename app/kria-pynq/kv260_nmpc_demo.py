@@ -48,11 +48,15 @@ if not (notebook_dir / "nmpc_overlay.py").is_file():
         notebook_dir = matches[0].parent
 sys.path.insert(0, str(notebook_dir))
 
-from nmpc_overlay import DESIGN_REVISION, NmpcOverlay
+from nmpc_overlay import DEFAULT_SOLVER, DESIGN_REVISION, NmpcOverlay
 from quadrotor import quadrotor_step, reference_horizon, spiral_reference, tracking_metrics
 from package_overlay import pso_fsm_register_map
 
 repo_root = notebook_dir.parents[1] if notebook_dir.name == "kria-pynq" else notebook_dir
+# The overlay under test. Default: the promoted overlay. To test a staged build without promoting
+# it, point this at its directory, e.g. Path("/home/ubuntu/nmpc_fsmfix/overlay-3x24"), after
+# programming it with: sudo bash ~/nmpc_fsmfix/step_prep.sh overlay-3x24
+overlay_dir = repo_root / "app/kria-pynq/overlay"
 paths = {
     "address_csv": repo_root / "hw/exported_platform/nmpc_solver_v2_debug/AddressSegments.csv",
     "vivado_tcl": repo_root / "hw/hdl/nmpc_solver_v2_debug.tcl",
@@ -62,10 +66,10 @@ paths = {
     "xsa": repo_root / "hw/exported_platform/nmpc_solver_v2.xsa",
     "xsa_files": repo_root / "hw/exported_platform/",
     # The deployed overlay is the authoritative hardware description on the board.
-    "handoff_hwh": repo_root / "app/kria-pynq/overlay/design_nmpc_solver.hwh",
-    "handoff_bda": repo_root / "app/kria-pynq/overlay/design_nmpc_solver.bda",
+    "handoff_hwh": overlay_dir / "design_nmpc_solver.hwh",
+    "handoff_bda": overlay_dir / "design_nmpc_solver.bda",
     "bitstream": repo_root / "hw/exported_platform/nmpc_solver_v2_debug/nmpc_solver_v2.bit",
-    "overlay": repo_root / "app/kria-pynq/overlay",
+    "overlay": overlay_dir,
     "logs": repo_root / "app/kria-pynq/validation_logs",
 }
 path_status = pd.DataFrame(
@@ -322,6 +326,14 @@ def check_layout(name, regions, capacity=8192):
         })
     return rows
 
+# PSO size of this overlay (particles, iterations), recorded by package_overlay.py; manifests that
+# predate it (fix6) are 10 x 100.
+overlay_manifest_path = paths["overlay"] / "manifest.json"
+overlay_manifest = json.loads(overlay_manifest_path.read_text()) if overlay_manifest_path.is_file() else {}
+solver_config = {**DEFAULT_SOLVER, **overlay_manifest.get("solver", {})}
+print("PSO size:", solver_config)
+particles, iterations = solver_config["particles"], solver_config["iterations"]
+
 # Region offsets come from the deployed overlay's HWH (mem_bank constants), not from assumptions.
 hwh_constants = {}
 for module in re.finditer(
@@ -333,7 +345,7 @@ for module in re.finditer(
 memory_regions = {
     "current_mem": [("u_curr", "u_curr_local_addr", 4 * 4), ("x_curr", "x_curr_local_addr", 12 * 4),
                     ("xref", "xref_local_addr", 25 * 12 * 4), ("last_best", "last_best", 25 * 4 * 4)],
-    "pso_mem": [("bestfitness", "bestfitness", 100 * 4), ("find_local", "find_local_addr", 10 * 4),
+    "pso_mem": [("bestfitness", "bestfitness", iterations * 4), ("find_local", "find_local_addr", particles * 4),
                 ("global_min", "global_best_local", 25 * 4 * 4)],
     "constraints_mem": [(name, f"local_{name}_addr", 4 * 4) for name in ("du_max", "du_min", "u_max", "u_min", "uss")],
 }
@@ -346,7 +358,7 @@ else:
     for memory, regions in memory_regions.items():
         layout_rows += check_layout(memory, [(name, hwh_constants[constant], size) for name, constant, size in regions])
 for particle_memory in ("x_mem", "y_mem", "v_mem"):
-    layout_rows += check_layout(particle_memory, [("particles", 0, 10 * 25 * 4 * 4)])
+    layout_rows += check_layout(particle_memory, [("particles", 0, particles * 25 * 4 * 4)])
 layout_table = pd.DataFrame(layout_rows)
 display(layout_table)
 
@@ -490,7 +502,7 @@ display(runtime_ps_map)
 #
 #
 #
-# The hardware configuration is `Ts=0.05`, `Nx=12`, `n_U=4`, `Nu=25`, 10 particles, 100 iterations, normalized input bounds `[-100,100]`, and delta bound 20.
+# The hardware configuration is `Ts=0.05`, `Nx=12`, `n_U=4`, `Nu=25`, the PSO size in the overlay manifest (`solver_config`; fix6: 10 particles, 100 iterations), normalized input bounds `[-100,100]`, and delta bound 20.
 #
 #
 #
@@ -506,7 +518,7 @@ display(runtime_ps_map)
 #
 #
 #
-# Invalidate output caches and validate the 25-by-4 sequence and 100-value fitness history. The existing PL interface returns controls, not a state.
+# Invalidate output caches and validate the 25-by-4 sequence and the fitness history (one value per iteration). The existing PL interface returns controls, not a state.
 #
 #
 #
@@ -538,7 +550,7 @@ config_contract = pd.Series({
 
     "Ts": sample_time, "Nx": 12, "n_U": 4, "Nu": 25,
 
-    "particles": 10, "iterations": 100, "u_min": -100,
+    "particles": solver_config["particles"], "iterations": solver_config["iterations"], "u_min": -100,
 
     "u_max": 100, "du_max": 20, "Q": [1, 1, 1, 3, 3, 3] + [0] * 6,
 
@@ -610,9 +622,9 @@ if solver is not None:
 
         })
 
-        if one_step_result.iterations != 100 or not fitness_has_signal:
+        if not fitness_has_signal:
 
-            print("Diagnostic: expected 100 completed iterations and a nonzero fitness signal for this nonzero reference. Verify that the board overlay manifest is revision 4 and was packaged from the timing-clean nmpc_solver_v2 XSA.")
+            print("Diagnostic: expected a nonzero fitness signal for this nonzero reference. Verify that the board overlay manifest is revision 4 and was packaged from the timing-clean nmpc_solver_v2 XSA.")
 
 
 
@@ -643,13 +655,13 @@ else:
 #
 # The bounded loop sends state to PL, waits for the optimized trajectory, applies its first control to the software plant, shifts the trajectory for warm start, and advances the spiral reference. It records state, control, fitness, latency, timeout, and constraint status. `latency_seconds` covers `ap_start` to `ap_done`; `ps_overhead_seconds` is the rest of each `solve()` call (input encoding, cache flush and invalidate, launch, polling exit, output decoding), which a real-time control period must also include.
 #
-# `closed_loop_steps` sets the run length (10 is the smoke test; 100 steps take about 52 s of board time) and `closed_loop_trials` repeats the run from the same initial state and zero warm start (5 x 100 steps take about 4.4 min). The free-running hardware RNG is not reset, so the trials share one continuing random stream and sample the PSO's run-to-run spread. The software plant uses the same equations as the hardware prediction model: this is a perfect-model, offline HIL test, not real-time control (one solve takes about 0.52 s against Ts = 0.05 s).
+# `closed_loop_steps` sets the run length (10 is the smoke test; 100 steps take about 52 s of board time with fix6) and `closed_loop_trials` repeats the run from the same initial state and zero warm start (5 x 100 steps take about 4.4 min). The free-running hardware RNG is not reset, so the trials share one continuing random stream and sample the PSO's run-to-run spread. The software plant uses the same equations as the hardware prediction model: this is a perfect-model, offline HIL test, not real-time control (one solve takes about 0.52 s against Ts = 0.05 s).
 #
 
 # In[9]:
 
 
-closed_loop_steps = 10  # 10 = smoke test; about 0.52 s of board time per step (100 steps take about 52 s)
+closed_loop_steps = 10  # 10 = smoke test; about 0.52 s of board time per step with fix6 (100 steps take about 52 s)
 closed_loop_trials = 1  # repeats from the same initial state and zero warm start (5 x 100 steps take about 4.4 min)
 
 
@@ -794,7 +806,7 @@ matlab_comparison = {
     "file": str(matlab_file),
     "notes": [
         "Descriptive comparison, not an apples-to-apples benchmark.",
-        "Optimizer: MATLAB fmincon (QuadrotorNMPC.m) vs HLS PSO, 10 particles x 100 iterations.",
+        f"Optimizer: MATLAB fmincon (QuadrotorNMPC.m) vs HLS PSO, {particles} particles x {iterations} iterations.",
         "Horizon: MATLAB round(3/0.05) = 60 steps vs 25 steps (SNIFFBOT_CONFIG).",
         "Weights: MATLAB weight 1 on x,y,z,phi,theta,psi errors, 0.02 u^2, no terminal cost, no du bound; "
         "HLS Q=[1,1,1,3,3,3], Qf=[10,10,10,30,30,30], R=0.0005, du_max=20.",

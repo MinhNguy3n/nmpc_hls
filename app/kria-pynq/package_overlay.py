@@ -103,9 +103,13 @@ def pso_fsm_register_map(bda_data: bytes) -> dict[str, dict[str, int]]:
     return interfaces
 
 
-def package_overlay(xsa_path: Path, output_dir: Path) -> None:
+def package_overlay(xsa_path: Path, output_dir: Path, particles: int, iterations: int) -> None:
     if not xsa_path.is_file():
         raise FileNotFoundError(xsa_path)
+    # The local BRAM layout's limits, as enforced by nmpc_overlay (MAX_PARTICLES, MAX_ITERATIONS):
+    # 25 x 4 words per particle in the 8 KiB x/y/v_mem, the fitness history below 0x200 in pso_mem.
+    if not 2 <= particles <= 8192 // (25 * 4 * 4) or not 1 <= iterations <= 0x200 // 4:
+        raise ValueError(f"PSO size {particles} x {iterations} does not fit this block design's memories")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(xsa_path) as archive:
@@ -146,6 +150,7 @@ def package_overlay(xsa_path: Path, output_dir: Path) -> None:
             "bda_member": bda_member,
             "pso_fsm_1": register_map,
         },
+        "solver": {"particles": particles, "iterations": iterations},
         "files": {
             bit_path.name: {"sha256": sha256(bit_path)},
             hwh_path.name: {"sha256": sha256(hwh_path)},
@@ -163,8 +168,11 @@ def main() -> None:
     )
     parser.add_argument("--xsa", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    # The XSA does not record the PSO size; state the _n_S/_maxiter the IPs were built with.
+    parser.add_argument("--particles", required=True, type=int, help="config.hpp _n_S of the build")
+    parser.add_argument("--iterations", required=True, type=int, help="config.hpp _maxiter of the build")
     arguments = parser.parse_args()
-    package_overlay(arguments.xsa, arguments.output)
+    package_overlay(arguments.xsa, arguments.output, arguments.particles, arguments.iterations)
 
 
 if __name__ == "__main__":

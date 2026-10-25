@@ -21,7 +21,12 @@ Element-wise equality with a software solve is not expected: the hardware random
 the workers through AXIS register slices and the any-ready fan-out, so its sequence differs from
 the software RNG. Component-level bit-exactness is covered by the HLS cosim testbenches.
 
-Usage: python3 validate_hw_run.py <validate.json> [--seeds N] [--xilinx /tools/Xilinx/2025.2]
+The C tools are built for --particles/--iterations (default: config.hpp _n_S/_maxiter), and every
+run in the dump must report that iteration count, so a dump is never checked against another
+PSO size (e.g. fix6 is --particles 10 --iterations 100).
+
+Usage: python3 validate_hw_run.py <validate.json> [--seeds N] [--particles P --iterations K]
+           [--xilinx /tools/Xilinx/2025.2]
 """
 from __future__ import annotations
 
@@ -51,6 +56,13 @@ def angle_margin() -> float:
     text = (HLS_SOURCE / "include/config.hpp").read_text()
     match = re.search(r"_angle_limit_margin\s*=\s*([0-9.eE+-]+)", text)
     return float(match.group(1)) if match else 0.0
+
+
+def config_define(name: str) -> int:
+    match = re.search(r"#define %s[ \t]+(\d+)" % name, (HLS_SOURCE / "include/config.hpp").read_text())
+    if not match:
+        raise ValueError(f"config.hpp has no numeric #define {name}")
+    return int(match.group(1))
 
 
 def build(mode: str, xilinx: Path, overrides: dict[str, int] | None = None) -> Path:
@@ -135,6 +147,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("dump", type=Path)
     parser.add_argument("--seeds", type=int, default=0, help="software PSO solves to compare against")
+    parser.add_argument("--particles", type=int, default=config_define("_n_S"))
+    parser.add_argument("--iterations", type=int, default=config_define("_maxiter"))
     parser.add_argument("--xilinx", type=Path, default=Path("/tools/Xilinx/2025.2"))
     args = parser.parse_args()
 
@@ -145,10 +159,19 @@ def main() -> int:
     u_curr = np.asarray(inputs["u_curr"])
     last_best = np.asarray(inputs["last_best"]).reshape(-1)
     base = [*x_curr, *xref]
-    tools = {mode: build(mode, args.xilinx) for mode in ("float", "hw", "half")}
+    mismatched = [run["run"] for run in record["runs"] if run["iterations"] != args.iterations]
+    if mismatched:
+        print(f"Runs {mismatched} report a different iteration count than --iterations {args.iterations}; "
+              "pass the PSO size of the overlay that produced this dump.")
+        return 2
+    overrides = {"_n_S": args.particles, "_maxiter": args.iterations}
+    if overrides == {"_n_S": config_define("_n_S"), "_maxiter": config_define("_maxiter")}:
+        overrides = {}  # the source configuration: reuse the plain builds
+    tools = {mode: build(mode, args.xilinx, overrides) for mode in ("float", "hw", "half")}
     cost_limit = PLANT_ANGLE_LIMIT - angle_margin()
 
-    print(f"Overlay: {record.get('overlay')}   runs: {len(record['runs'])}")
+    print(f"Overlay: {record.get('overlay')}   runs: {len(record['runs'])}   "
+          f"PSO {args.particles} particles x {args.iterations} iterations")
     print(f"Limits: plant |roll|,|pitch| <= {PLANT_ANGLE_LIMIT:.5f}; cost function <= {cost_limit:.5f}")
     software = {}
     for mode in ("float", "hw") if args.seeds else ():
