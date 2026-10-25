@@ -195,7 +195,7 @@ The board sample passed the agreed criteria. The RMSE margin is very small, and 
     The solver median is 38.05 ms; the differences are run-to-run PS overhead.
   - The two Tcl-based checks are **skipped** (the repository Tcl is not on the board), not passed. All other checks pass.
 - **What it shows:** the 5 s quadrotor runs never put the yaw difference across ±π, so the fix changes nothing there. On the PC, the 10×100 `float` trials are bit-identical too. The fix's effect is shown by the unit test and the co-simulation; a closed-loop demonstration would need a run beyond about 8.75 s.
-- A 10-seed `half` 3×24 regression with the fixed code (`validation_logs/pc_screen_wrap/`) was still running when this was written. Add its result when it finishes.
+- **PC regression:** the 10-seed `half` 3×24 screen with the fixed code (`validation_logs/pc_screen_wrap/`) is **bit-identical** to the earlier 10-seed screen on all 10 seeds (states and controls; mean RMSE 0.4211 m both ways).
 
 ### Next steps (priority order)
 
