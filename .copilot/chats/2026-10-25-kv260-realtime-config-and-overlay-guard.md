@@ -24,6 +24,7 @@ It met both only narrowly on the PC, and the board confirmed it:
 - **3×24 is rebuilt, staged as `overlay-3x24` and board-validated (2026-10-25)**, but **not promoted**. Five 100-step board trials passed the agreed quality criteria, with a very small RMSE margin (mean 0.4235 m against 0.425 m).
 - Solver plus PS overhead per step: median 39.34 ms, max 40.40 ms. **No step exceeded the 50 ms deadline**, but **3 of 500 steps exceeded the stricter 40 ms target**: the margin is narrow, not a full pass. See "3×24 rebuild and board results".
 - fix6 stays the promoted overlay. Physical-actuator tests stay gated.
+- **The cost's angle-wrap bug is fixed** (commit `8c61f1b`) and rebuilt as `overlay-3x24-wrap`. On the board its 5 × 100 trials are bit-identical to the 3×24 run before the fix, so this is the build to use if 3×24 is ever promoted. See "Angle-wrap fix".
 
 ### What happened since the last handoff
 
@@ -161,6 +162,41 @@ The board sample passed the agreed criteria. The RMSE margin is very small, and 
 - The earlier run `20261025T173547Z` gave the same picture (max 40.42 ms, 3 steps over 40 ms).
 - This is measured HIL evidence over 500 solves, not a worst-case timing guarantee.
 
+### Angle-wrap fix (2026-10-25, commit `8c61f1b`)
+
+- **The defect:** for angle states (`controlled_state == 2`), `one_step_error` used (2π − x̂) − ref when x̂ > π and ref < π. The wrapped residual is (x̂ − 2π) − ref; the two agree in the squared cost only for ref = 0. Angles below −π were not wrapped, and π was the half-precision model value (2π about 1.9 mrad off).
+- **The fix:** compute x̂ − ref, then apply one conditional ∓2π into (−π, π]. π and 2π are now constants in the fixed-point top type. This is exact for |x̂ − ref| < 3π.
+- **Tests:**
+  - `main_hls_model_unit_test.cpp` has 12 regression cases: non-zero references of both signs, both sides of ±π, both crossings, unwrapped vs wrapped angles, and a 2.9π difference. 9 fail on the old code; all pass with the fix (`UNIT_PASS`).
+  - The evaluator testbench (`main_hls_evaluate.cpp`) now compares each particle's RTL cost with the C cost function for yaw 3.0 against a −3.0 reference. C/RTL co-simulation passes: 8.179291 in both; the old residual would give about 3,700. The testbench never compared costs with C before, which is why the bug passed co-simulation.
+- **Rebuild:**
+  - Only the evaluator's RTL changed; the FSM, `init_s`, update and detect IPs are byte-identical to the 3×24 build. Evaluator latency is unchanged at 147,914 cycles. The IPs from before the fix are in `hw/hls/ip_backup_2026-10-25_pre_anglewrap/` (not in git).
+  - Vivado project `nmpc_solver_v2_3x24_wrap`: WNS +0.330 ns, WHS +0.010 ns, no critical warnings; LUT 40.6 %, BRAM 23.6 %, DSP 6.2 %. The project's evaluator RTL matches the rebuilt IP.
+
+  | Artifact | SHA-256 prefix |
+  | --- | --- |
+  | XSA `hw/exported_platform/nmpc_solver_v2_3x24_wrap/nmpc_solver_v2.xsa` | `cb5af291500e` |
+  | bit | `ac0c8c37c3ca` |
+  | hwh | `c8c77b56f7e2` |
+  | bda | `323c0c1fe873` (unchanged) |
+  | ltx | `c30e9070` (unchanged) |
+
+  Packaged as `app/kria-pynq/overlay-3x24-wrap` (manifest 3×24, register map identical to 3×24); on the board it is `~/nmpc_fsmfix/overlay-3x24-wrap`.
+- **Board re-validation** (programmed 19:14:48Z):
+  - `step5_validate.sh overlay-3x24-wrap`: **VALIDATION PASS**, with dumps bit-identical to the 3×24 dumps before the fix.
+  - Notebook run `validation_logs/20261025T191910Z_rk4_100x5`, 5 × 100 steps: every trial's states and controls are **bit-identical** to `20261025T173937Z`. Mean RMSE 0.4235 ± 0.0198 m (worst trial 0.457), worst max error 0.696 m, worst tilt 0.160 rad, no violations or timeouts. Same narrow pass of the 0.425 m criterion.
+  - Timing, solver + PS overhead row by row over 500 solves:
+
+    | Run | Median | p95 | p99 | Max | Steps > 40 ms | Steps > 50 ms |
+    | --- | --- | --- | --- | --- | --- | --- |
+    | 3×24 with the fix | 39.40 ms | 39.53 ms | 39.92 ms | 40.29 ms | 2 | 0 |
+    | 3×24 before the fix | 39.34 ms | 39.53 ms | 39.78 ms | 40.40 ms | 3 | 0 |
+
+    The solver median is 38.05 ms; the differences are run-to-run PS overhead.
+  - The two Tcl-based checks are **skipped** (the repository Tcl is not on the board), not passed. All other checks pass.
+- **What it shows:** the 5 s quadrotor runs never put the yaw difference across ±π, so the fix changes nothing there. On the PC, the 10×100 `float` trials are bit-identical too. The fix's effect is shown by the unit test and the co-simulation; a closed-loop demonstration would need a run beyond about 8.75 s.
+- A 10-seed `half` 3×24 regression with the fixed code (`validation_logs/pc_screen_wrap/`) was still running when this was written. Add its result when it finishes.
+
 ### Next steps (priority order)
 
 1. **Done:** the 10-seed 3×24 screen, the rebuild and the board validation (sections above). The screen command, for reference (seeds 6–10 reused the saved 1–5):
@@ -181,8 +217,8 @@ The board sample passed the agreed criteria. The RMSE margin is very small, and 
    - measure the real latency, then the closed loop with the notebook.
 
    `nmpc_overlay.py` and the notebook hard-code `MAX_ITERATIONS = 100` and "10 particles, 100 iterations": parameterize them before the board run.
-3. **Keep fix6 promoted.** Promoting 3×24 is a separate decision for the user and reviewer, given the narrow quality and 40 ms margins. If it is promoted, `step6_promote.sh` first needs the overlay argument the other step scripts now take, and it must keep a rollback copy.
-4. **Angle-wrap fix, as a separate change** (reviewer's order). The cost's `controlled_state == 2` branch in `hls_system.hpp` is not a general wrapped residual: for x̂ > π, ref < π it uses (2π − x̂) − ref instead of (x̂ − 2π) − ref, and it ignores angles below −π. It is latent for the 5 s quadrotor runs (the yaw reference stays below about 0.8π) but would matter beyond about 8.75 s and for any heading-tracking model.
+3. **Keep fix6 promoted.** Promoting 3×24 is a separate decision for the user and reviewer, given the narrow quality and 40 ms margins. If it is promoted, use `overlay-3x24-wrap`: it has the angle-wrap fix. If it is promoted, `step6_promote.sh` first needs the overlay argument the other step scripts now take, and it must keep a rollback copy.
+4. **Done (commit `8c61f1b`, see "Angle-wrap fix"): the angle-wrap fix, as a separate change** (reviewer's order). The cost's `controlled_state == 2` branch in `hls_system.hpp` is not a general wrapped residual: for x̂ > π, ref < π it uses (2π − x̂) − ref instead of (x̂ − 2π) − ref, and it ignores angles below −π. It is latent for the 5 s quadrotor runs (the yaw reference stays below about 0.8π) but would matter beyond about 8.75 s and for any heading-tracking model.
    - Add a cost regression test with non-zero references, both signs, both sides of ±π, and the crossings x̂ > π, ref < π and x̂ < −π, ref > −π.
    - Apply the smallest generic fix: subtract, then one conditional ±2π.
    - Rebuild the evaluator, run C simulation, co-simulation and a board re-validation.
@@ -201,7 +237,7 @@ The board sample passed the agreed criteria. The RMSE margin is very small, and 
 
 ### Board state (`ubuntu@10.42.0.29`; the user runs all sudo steps)
 
-- **Boot:** booted 2026-10-25 (boot ID `8c89b500-4bdb-4c05-8624-38105689d692`). After the 3×24 validation the PL holds **overlay-3x24** (bit `f2cb0f319348`, programmed 17:38:37Z); the marker is present. `sudo bash ~/nmpc_fsmfix/step_prep.sh` (default `overlay-fix6`) restores fix6.
+- **Boot:** booted 2026-10-25 (boot ID `8c89b500-4bdb-4c05-8624-38105689d692`). The user restored fix6 at 18:35Z; after the angle-wrap re-validation the PL holds **overlay-3x24-wrap** (bit `ac0c8c37c3ca`, programmed 19:14:48Z); the marker is present. `sudo bash ~/nmpc_fsmfix/step_prep.sh` (default `overlay-fix6`) restores fix6.
 - **The power-cycle procedure is now mandatory, not optional:** power cycle → `sudo bash ~/nmpc_fsmfix/step_prep.sh` → notebook. Without `step_prep.sh` the guard refuses with a clear error instead of freezing the board.
 - **Installed in the notebook tree** (`/root/jupyter_notebooks/nmpc_hls/app/kria-pynq/`, via `sudo bash ~/nmpc_fsmfix/hil_trials/archive_and_install.sh`):
 
@@ -218,7 +254,8 @@ The board sample passed the agreed criteria. The RMSE margin is very small, and 
   - `step_prep.sh` logs the marker after programming (or `MISSING`).
   - `step_prep.sh [overlay_dir]` and `step5_validate.sh [overlay_dir]` take the overlay directory (default `overlay-fix6`); `step4_run.sh` and `step6_promote.sh` are still fix6-only.
   - `step5_validate.sh` saves only the fitness words actually written.
-  - Staged overlays: `overlay-fix6` (promoted) and `overlay-3x24` (validated, not promoted).
+  - Staged overlays: `overlay-fix6` (promoted), and `overlay-3x24` and `overlay-3x24-wrap` (validated, not promoted).
+  - `archive_and_install.sh` reinstalls the notebook when the board copy was edited (for example `overlay_dir`), keeping the edited copy as `kv260_nmpc_demo.ipynb.bak_<time>`.
   - Backups: `*.bak_premarker`, `*.bak_pre3x24`, `*.bak_maxbuf`.
   - These board-only scripts are not in the repo.
 - **SSH from the PC:** the key has a passphrase. Use the agent the user starts at `SSH_AUTH_SOCK=/run/user/1000/ssh-agent.socket`; it does not survive a logout.
