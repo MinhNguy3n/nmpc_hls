@@ -94,3 +94,66 @@ def test_record_refuses_without_ground_truth_frame():
     with pytest.raises(SystemExit):
         ide.main(["record", "--sim"])
     assert "rclpy" not in sys.modules  # the analysis module does not import ROS
+
+
+GZ_POSE_V_TEXT = """\
+header {
+  stamp {
+    sec: 671
+    nsec: 1000000
+  }
+  data {
+    key: "frame_id"
+    value: "warehouse"
+  }
+}
+pose {
+  name: "chair_0"
+  id: 9
+  position {
+    x: 4.5
+  }
+}
+pose {
+  name: "a300_00000/robot"
+  id: 12
+  position {
+    x: 1.25
+    y: -0.5
+    z: 0.1
+  }
+  orientation {
+    z: 0.38268343236508978
+    w: 0.92387953251128674
+  }
+}
+
+header {
+  stamp {
+    sec: 672
+  }
+}
+pose {
+  name: "a300_00000/robot"
+  id: 12
+  position {
+    y: 2
+  }
+  orientation {
+    w: 1
+  }
+}
+"""
+
+
+def test_parse_gz_pose_v_text():
+    """`gz topic -e` Pose_V text: names, stamps, omitted zero fields and yaw from the quaternion."""
+    messages = list(ide.parse_pose_v_text(GZ_POSE_V_TEXT.splitlines()))
+    assert len(messages) == 2
+    (t0, poses0), (t1, poses1) = messages
+    assert t0 == pytest.approx(671.001) and t1 == pytest.approx(672.0)
+    assert set(poses0) == {"chair_0", "a300_00000/robot"}
+    x, y, yaw = poses0["a300_00000/robot"]
+    assert (x, y) == (1.25, -0.5) and yaw == pytest.approx(math.pi / 4)
+    assert poses0["chair_0"][:2] == (4.5, 0.0)           # omitted y is 0
+    assert poses1["a300_00000/robot"] == pytest.approx((0.0, 2.0, 0.0))

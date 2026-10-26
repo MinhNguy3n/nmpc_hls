@@ -13,12 +13,14 @@ Sub-commands
     analyze         offline: effective track and its uncertainty from a `record` CSV
     freshness-report offline: rates, stamp jitter and age statistics from a `freshness` CSV
 
-Ground truth (Gazebo pose) needs a bridge in another terminal (the world name must match the
-running world; check with `gz topic -l | grep dynamic_pose`):
-
-    ros2 run ros_gz_bridge parameter_bridge \
-        "/world/warehouse/dynamic_pose/info@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V" \
-        --ros-args -p use_sim_time:=true -r /world/warehouse/dynamic_pose/info:=/gt/dynamic_poses
+Ground truth (Gazebo pose), --gt-source:
+    gz   (default) read `gz topic -e -t /world/<world>/dynamic_pose/info` in a background process
+         and select the pose by its Gazebo name (--gt-frame, in simulation a300_00000/robot; list the
+         names with list-gt-frames). Needs no bridge and no Gazebo Python bindings.
+    ros  a ros_gz_bridge Pose_V -> tf2_msgs/TFMessage topic. On Jazzy/Harmonic (2026-10-26) that
+         bridge leaves frame_id and child_frame_id empty for dynamic_pose/info, so the robot cannot be
+         selected by name; kept for setups where the poses carry names.
+The world name must match the running world (`gz topic -l | grep dynamic_pose`).
 
 The analysis functions are plain numpy and are tested offline (test_identify_effective_track.py);
 rclpy and the ROS messages are imported only inside the ROS sub-commands.
@@ -203,6 +205,56 @@ def freshness_stats(stamps: Iterable[float], received: Iterable[float]) -> Fresh
                           int(np.sum(dt <= 0)))
 
 
+def parse_pose_v_text(lines: Iterable[str]) -> Iterable[tuple[float, dict[str, tuple[float, float, float]]]]:
+    """Parse `gz topic -e` text output of gz.msgs.Pose_V into (stamp s, {name: (x, y, yaw)}) per message.
+
+    Protobuf text omits zero-valued fields, so a missing coordinate is 0. A message starts at each
+    top-level `header {` block; poses are the top-level `pose {` blocks that follow it.
+    """
+    stack: list[str] = []
+    stamp = {"sec": 0, "nsec": 0}
+    poses: dict[str, tuple[float, float, float]] = {}
+    pose: dict[str, Any] = {}
+    started = False
+
+    def finish_pose() -> None:
+        if pose.get("name") is not None:
+            q = pose.get("orientation", {})
+            p = pose.get("position", {})
+            poses[pose["name"]] = (p.get("x", 0.0), p.get("y", 0.0),
+                                   yaw_from_quaternion(q.get("x", 0.0), q.get("y", 0.0), q.get("z", 0.0), q.get("w", 0.0)))
+
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            continue
+        if line.endswith("{"):
+            block = line[:-1].strip()
+            if not stack and block == "header":
+                if started:
+                    yield stamp["sec"] + stamp["nsec"] * 1e-9, poses
+                stamp, poses, started = {"sec": 0, "nsec": 0}, {}, True
+            if not stack and block == "pose":
+                pose = {}
+            stack.append(block)
+            continue
+        if line == "}":
+            closed = stack.pop() if stack else ""
+            if not stack and closed == "pose":
+                finish_pose()
+            continue
+        key, _, value = line.partition(":")
+        key, value = key.strip(), value.strip()
+        if stack == ["header", "stamp"] and key in ("sec", "nsec"):
+            stamp[key] = int(value)
+        elif stack == ["pose"] and key == "name":
+            pose["name"] = value.strip('"')
+        elif len(stack) == 2 and stack[0] == "pose" and stack[1] in ("position", "orientation"):
+            pose.setdefault(stack[1], {})[key] = float(value)
+    if started:
+        yield stamp["sec"] + stamp["nsec"] * 1e-9, poses
+
+
 def freshness_report(rows: list[dict[str, Any]]) -> dict[str, FreshnessStats]:
     report = {}
     for source in sorted({r["source"] for r in rows}):
@@ -272,7 +324,24 @@ def _ros_main(args: argparse.Namespace, ros_args: list[str]) -> int:  # pragma: 
                          "v": msg.twist.linear.x, "omega": msg.twist.angular.z})
         return callback
 
-    node.create_subscription(TFMessage, args.gt_topic, on_gt, qos_profile_sensor_data)
+    gz_process = None
+    if args.gt_source == "ros":
+        node.create_subscription(TFMessage, args.gt_topic, on_gt, qos_profile_sensor_data)
+    else:
+        import subprocess
+        import threading
+
+        gz_process = subprocess.Popen(["gz", "topic", "-e", "-t", args.gz_topic], stdout=subprocess.PIPE,
+                                      stderr=subprocess.DEVNULL, text=True, bufsize=1)
+
+        def read_gz() -> None:
+            for t_gz, poses in parse_pose_v_text(gz_process.stdout):
+                frames.update(poses)
+                if args.gt_frame in poses:
+                    x, y, yaw = poses[args.gt_frame]
+                    rows.append({"source": "gt", "t": t_gz, "t_recv": now(), "x": x, "y": y, "yaw": yaw})
+
+        threading.Thread(target=read_gz, daemon=True).start()
     if args.command != "list-gt-frames":
         node.create_subscription(Odometry, f"{ns}/platform/odom", on_odom, qos_profile_sensor_data)
         node.create_subscription(JointState, args.joint_topic, on_joints, qos_profile_sensor_data)
@@ -328,8 +397,10 @@ def _ros_main(args: argparse.Namespace, ros_args: list[str]) -> int:  # pragma: 
             for _ in range(20):  # best effort only: the real stop is the controller timeout / lock
                 send(0.0, 0.0)
                 rclpy.spin_once(node, timeout_sec=0.05)
+    if gz_process is not None:
+        gz_process.terminate()
     if args.command == "list-gt-frames":
-        print("\n".join(sorted(frames)) or "no ground-truth messages: check the bridge")
+        print("\n".join(sorted(frames)) or "no ground-truth messages: check the world name / bridge")
     else:
         write_csv(args.out, rows)
         print(f"wrote {len(rows)} rows to {args.out}")
@@ -349,8 +420,12 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("list-gt-frames", "record", "freshness"):
         p = sub.add_parser(name)
         p.add_argument("--namespace", default=NAMESPACE)
-        p.add_argument("--gt-topic", default="/gt/dynamic_poses")
-        p.add_argument("--gt-frame", default="", help="child_frame_id of the robot in the ground truth")
+        p.add_argument("--gt-source", choices=("gz", "ros"), default="gz",
+                       help="gz: read `gz topic -e` (default); ros: a ros_gz_bridge TFMessage topic")
+        p.add_argument("--gz-topic", default="/world/warehouse/dynamic_pose/info")
+        p.add_argument("--gt-topic", default="/gt/dynamic_poses", help="ROS topic for --gt-source ros")
+        p.add_argument("--gt-frame", default="",
+                       help=f"the robot's Gazebo pose name (gz; in simulation {NAMESPACE}/robot) or child_frame_id (ros)")
         p.add_argument("--joint-topic", default=f"/{NAMESPACE}/platform/joint_states")
         p.add_argument("--wheel-radius", type=float, default=WHEEL_RADIUS)
         p.add_argument("--out", default="track_id.csv")

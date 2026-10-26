@@ -243,7 +243,9 @@ before any MPC work. Each check has a pass criterion:
 | V9 | Pass. `twist.angular.z` ramps to +0.500 rad/s (CCW) and the robot turns on the spot (observed). The largest step is 0.084 rad/s per period (about 4.0 rad/s², equal to `angular.z.max_acceleration: 4.0`). |
 | V10 | **Pass.** `twist_mux` passes `header.stamp` through unchanged: publishing `{header: {stamp: {sec: 12345, nanosec: 678}}}` on `cmd_vel` gave `sec: 12345, nanosec: 678` on `platform/cmd_vel` (the mux output). An earlier test with a zero stamp was inconclusive, and `stamp: now` cannot distinguish pass-through from re-stamping. `cmd_vel` topics present: `/a300_00000/cmd_vel`, `joy_teleop/cmd_vel`, `rc_teleop/cmd_vel`, `twist_marker_server/cmd_vel`, `platform/cmd_vel`, and `platform_velocity_controller/cmd_vel_out` (type `geometry_msgs/msg/TwistStamped`, one publisher). **`cmd_vel_out` is re-stamped by the controller** with its own (simulation) time about every 21 ms. Consequences for the node: ownership is checked by stamp on `platform/cmd_vel`; `u_prev` is the latest `cmd_vel_out` sample (the applied, limited command), aligned by its own stamp, not matched by stamp. The node runs with `use_sim_time:=true` in simulation so that both share one clock. |
 | V11 | Safety lock: **pass.** `ros2 topic pub --once /a300_00000/platform/safety_stop std_msgs/msg/Bool "{data: true}"` stopped the robot and keeps it stopped (latched) until `{data: false}` is published. The MPC node must treat an engaged lock as "not in control". Teleop takeover: **pass, with one leak.** While `cmd_vel` published `sec: 12345` and `joy_teleop/cmd_vel` published `sec: 999` (both 10 Hz), the mux output switched to `sec: 999`, then back to `sec: 12345` after teleop stopped. **One `sec: 12345` message got through in the middle of the teleop period.** Cause unknown: V12 shows the `joy` timeout is 0.5 s, so 10 Hz publish jitter does not explain it (an age judgement under simulated time is a guess). Consequences: the ownership gate needs hysteresis (one matching stamp during an override must not re-arm the MPC; require an explicit re-arm or N consecutive owned cycles), and the MPC publishes nothing while it does not own the channel, so a mux leak cannot apply an MPC command. |
-| V12 | **No selected-source signal.** `twist_mux` (`ros2 node info`, `ros2 param dump`) publishes only `/a300_00000/platform/cmd_vel` and `/a300_00000/diagnostics` (namespaced; `diagnostic_updater.period: 1.0`, i.e. 1 Hz, so at most a slow cross-check, not a 50 ms ownership signal; its content is still to be read with `ros2 topic echo /a300_00000/diagnostics`). Inputs: `cmd_vel` (external, priority 1), `twist_marker_server/cmd_vel` (8), `joy_teleop/cmd_vel` (10), `rc_teleop/cmd_vel` (12), all with timeout 0.5 s. Locks, all latched (timeout 0.0): `platform/emergency_stop` (255), `platform/safety_stop` (254), `joy_teleop/bt_quality_stop` (253). `use_stamped: true`, `use_sim_time: true`. **Ownership therefore relies on the stamp match plus all three lock topics.** |
+| V12 | **No selected-source signal.** `twist_mux` (`ros2 node info`, `ros2 param dump`) publishes only `/a300_00000/platform/cmd_vel` and `/a300_00000/diagnostics` (namespaced; `diagnostic_updater.period: 1.0`, i.e. 1 Hz, so at most a slow cross-check, not a 50 ms ownership signal). The 'twist_mux: Twist mux status' entry reports each input as `masked`/active, each lock as `free`/engaged, and **`current priority`** (the selected input's priority: 0 idle, 1 = `cmd_vel`, 10/12 teleop), plus `data age`. Use it as a 1 Hz cross-check: `current priority` ≠ 1 while the node believes it is owned means foreign. Inputs: `cmd_vel` (external, priority 1), `twist_marker_server/cmd_vel` (8), `joy_teleop/cmd_vel` (10), `rc_teleop/cmd_vel` (12), all with timeout 0.5 s. Locks, all latched (timeout 0.0): `platform/emergency_stop` (255), `platform/safety_stop` (254), `joy_teleop/bt_quality_stop` (253). `use_stamped: true`, `use_sim_time: true`. **Ownership therefore relies on the stamp match plus all three lock topics.** |
+| V13 (idle) | 30 s capture with `identify_effective_track.py freshness`, robot idle. `cmd_vel_out`, `joint_states` and `platform/odom`: 47.62 Hz, gap std 0.6 ms, max gap 24 ms, age ≤ 3 ms, no non-monotonic stamps. The state machine's placeholder bounds (`cmd_vel_out` age 0.06 s, mux stale 0.12 s) have ample margin. Mux output: 15 samples, all one stamp, age about 920 s in simulated time, i.e. a zero-stamped publisher (a leftover `ros2 topic pub` or a teleop node publishing unstamped). Correctly classified as foreign by the stamp match; other sources can publish zero stamps. **Pending:** the capture while a 20 Hz `stamp: now` publisher runs (mux-output latency and jitter; `ros2 topic pub` stamps wall-clock time, so only the jitter is comparable). |
+| Effective track (simulation) | `identify_effective_track.py record --sim --gt-frame a300_00000/robot` with ground truth from `gz topic -e` (2026-10-26): in-place turns at ±0.3 and ±0.6 rad/s give ω_gt/ω_cmd = **0.952**, W_eff = 1.034 m (multiplier 1.84 on 0.562 m); 1 m arcs at 0.3 m/s, ±0.3 rad/s give ω_gt/ω_cmd = **0.825**, W_eff = 1.19 m (multiplier 2.12). Left/right symmetric; the wheel-speed difference matches the controller's 0.9835 m mapping exactly. The pooled 1.054 ± 0.024 m mixes the two regimes; use per-regime values. Wheel odometry reports ω = ω_cmd (same multiplier), so it **overstates yaw rate by 5–17 %** in simulation. Consequences: (1) check `platform/odom/filtered` (EKF with IMU) against ground truth before choosing the state-estimate source; (2) treat ω_body ≠ ω_cmd as a model mismatch to screen in SIL (closed-loop feedback vs a speed-dependent yaw-rate gain). These are simulator physics, not the real robot's slip (model note §4.4). |
 | Notes | The odometry twist has periodic 1–3 % blips (for example 0.31/0.2925 m/s, 0.517/0.4875 rad/s); `ros2 topic echo` reports "A message was lost" (best-effort odometry). Odometry yaw rate equals the command because it uses the same 1.75 multiplier; the simulated body's actual yaw rate needs Gazebo ground truth (the identification step below). |
 
 **If V3–V5 fail:** build `clearpath_simulator` from source on the `jazzy` branch, as the install
@@ -281,19 +283,28 @@ ros2 topic hz /a300_00000/platform/odom/filtered --window 500
 It drives a short script of in-place turns (±0.3, ±0.6 rad/s) and arcs (0.3 m/s, ±0.3 rad/s,
 radius 1 m), capped at 0.3 m/s and 0.6 rad/s; start in an open area of the world.
 
+Ground truth is read from Gazebo directly (`--gt-source gz`, the default): the tool runs
+`gz topic -e -t /world/<world>/dynamic_pose/info` in the background and selects the robot's pose by
+its Gazebo name. The `ros_gz_bridge` route (`Pose_V` → `tf2_msgs/TFMessage`) is not usable here:
+on 2026-10-26 it delivered every transform with empty `frame_id` and `child_frame_id`, so the robot
+could not be selected. The Gazebo Python bindings (`gz.transport13`, `gz.msgs10`) are not in the
+image, and `GZ_IP=127.0.0.1` must be set for `gz topic` too (it is, through `docker run -e`).
+
 ```bash
 # terminal A: the simulation (§2.1 bring-up)
-# terminal B: Gazebo ground truth -> ROS (check the world name first)
-gz topic -l | grep dynamic_pose
-ros2 run ros_gz_bridge parameter_bridge     "/world/warehouse/dynamic_pose/info@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V"     --ros-args -p use_sim_time:=true -r /world/warehouse/dynamic_pose/info:=/gt/dynamic_poses
-# terminal C:
+# terminal B (in the container):
+gz topic -l | grep dynamic_pose            # world name; here /world/warehouse/dynamic_pose/info
+gz model --list                            # the A300 model is "a300_00000/robot"
 ros2 topic list | grep joint_states        # default --joint-topic /a300_00000/platform/joint_states
 ros2 param get /a300_00000/platform_velocity_controller wheel_radius   # pass as --wheel-radius if not 0.1625
-cd ~/nmpc_hls/app/husky
-python3 identify_effective_track.py list-gt-frames --ros-args -p use_sim_time:=true
-python3 identify_effective_track.py record --sim --gt-frame <robot frame from the list>     --out ~/logs/track_id.csv --ros-args -p use_sim_time:=true
+cd ~/nmpc_hls/.claude/worktrees/agent-a7f53c7be12d59b73/app/husky      # or the branch checkout once merged
+python3 identify_effective_track.py list-gt-frames --ros-args -p use_sim_time:=true   # prints the pose names
+python3 identify_effective_track.py record --sim --gt-frame a300_00000/robot \
+    --out ~/logs/track_id.csv --ros-args -p use_sim_time:=true
 python3 identify_effective_track.py analyze ~/logs/track_id.csv
 ```
+
+For another world, add `--gz-topic /world/<world>/dynamic_pose/info`.
 
 The analysis reports, per segment:
 
