@@ -391,28 +391,37 @@ def test_yaw_from_quaternion():
 
 
 # ----------------------------------------------------------------------------------------------
-# Command ownership
+# State estimate (measured twist to the tick, applied command to actuation)
 # ----------------------------------------------------------------------------------------------
 
 
-def test_command_ownership_uses_the_applied_command():
-    own = {10.00: (0.5, 0.2), 10.05: (0.6, 0.2)}
-    now, max_age = 10.08, 0.1
-    mux = um.CommandSample(stamp=10.05, received=10.06, v=0.6, omega=0.2)
-    limited = um.CommandSample(stamp=10.07, received=10.07, v=0.55, omega=0.2)  # limiter clipped v
-    status, u_prev, source = um.assess_command_ownership(mux, limited, own, now, max_age)
-    assert status == "owned" and source == "limited" and np.allclose(u_prev, [0.55, 0.2])
-    assert not np.allclose(u_prev, own[10.05])  # not the MPC's own publication
-    status, u_prev, source = um.assess_command_ownership(mux, None, own, now, max_age)
-    assert status == "owned" and source == "mux" and np.allclose(u_prev, [0.6, 0.2])
-    stale_limited = um.CommandSample(10.0, 9.9, 0.1, 0.0)
-    assert um.assess_command_ownership(mux, stale_limited, own, now, max_age)[2] == "mux"
-    # Teleop (higher twist_mux priority) selected: foreign stamp, or same stamp with another twist.
-    teleop = um.CommandSample(stamp=10.07, received=10.07, v=0.0, omega=0.0)
-    assert um.assess_command_ownership(teleop, limited, own, now, max_age)[:2] == ("foreign", None)
-    forged = um.CommandSample(stamp=10.05, received=10.06, v=0.0, omega=0.0)
-    assert um.assess_command_ownership(forged, limited, own, now, max_age)[0] == "foreign"
-    # Missing or stale mux output: unknown -> safe stop and idle, never a cached plan.
-    assert um.assess_command_ownership(None, limited, own, now, max_age)[0] == "unknown"
-    old = um.CommandSample(stamp=10.05, received=9.9, v=0.6, omega=0.2)
-    assert um.assess_command_ownership(old, limited, own, now, max_age)[0] == "unknown"
+def test_propagate_matches_chord_rollout_and_handles_segments():
+    start = np.array([1.0, 2.0, 3.0])
+    one = um.propagate_twist_segments(start, [[0.0, 0.4, 0.8]], 0.0, 0.05)
+    assert np.allclose(one, um.step_chord(start, [0.4, 0.8], 0.05), atol=1e-15)
+    controls = [[0.3, 0.5], [0.2, -0.4], [0.0, 1.0]]
+    segments = [[0.05 * k, v, w] for k, (v, w) in enumerate(controls)]
+    pieced = um.propagate_twist_segments(start, segments, 0.0, 0.15)
+    assert np.allclose(pieced, um.rollout(start, controls, 0.05)[-1], atol=1e-12)
+    # Splitting a constant twist at arbitrary times is exact (chord steps compose).
+    split = um.propagate_twist_segments(start, [[0.0, 0.4, 0.8], [0.013, 0.4, 0.8], [0.031, 0.4, 0.8]], 0.0, 0.05)
+    assert np.allclose(split, one, atol=1e-14)
+    assert np.array_equal(um.propagate_twist_segments(start, [[0.0, 1.0, 1.0]], 0.2, 0.2), start)  # zero length
+    with pytest.raises(ValueError):
+        um.propagate_twist_segments(start, [[0.1, 0, 0], [0.0, 0, 0]], 0.0, 0.2)
+
+
+def test_state_estimate_uses_measured_twist_then_applied_command():
+    pose, stamp, tick = np.array([0.0, 0.0, 0.0]), 10.000, 10.020
+    measured = [0.25, 0.1]  # odometry twist (realized), differs from the command below
+    applied = [[10.020, 0.30, 0.0]]  # cmd_vel_out (applied) from the tick on
+    at_tick, at_act = um.estimate_state_at_actuation(pose, measured, stamp, tick, tick + 0.05, applied, 0.06)
+    assert np.allclose(at_tick, um.step_chord(pose, measured, 0.020))
+    assert np.allclose(at_act, um.step_chord(at_tick, [0.30, 0.0], 0.05))
+    with pytest.raises(ValueError, match="stale"):
+        um.estimate_state_at_actuation(pose, measured, 9.90, tick, tick + 0.05, applied, 0.06)
+    with pytest.raises(ValueError, match="future"):
+        um.estimate_state_at_actuation(pose, measured, 10.03, tick, tick + 0.05, applied, 0.06)
+    # Zero age: the tick estimate is the odometry pose itself.
+    same, _ = um.estimate_state_at_actuation(pose, measured, tick, tick, tick + 0.05, applied, 0.06)
+    assert np.array_equal(same, pose)

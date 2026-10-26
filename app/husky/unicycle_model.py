@@ -691,50 +691,64 @@ def project_controls(raw_controls: Any, u_prev: Any, limits: UnicycleLimits, ts:
 
 
 # ----------------------------------------------------------------------------------------------
-# Command ownership: tie u_prev to the command actually applied, not to the MPC's last publication
+# State estimate at the control tick and at actuation (command ownership: command_ownership.py)
 # ----------------------------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
-class CommandSample:
-    """A velocity command observed on the robot side.
+def propagate_twist_segments(state: Any, segments: Any, t_start: float, t_end: float,
+                             wrap: bool = True) -> np.ndarray:
+    """Integrate a piecewise-constant twist from t_start to t_end with exact chord steps.
 
-    stamp: header.stamp of the message (s); received: host receive time (s); v, omega: the twist.
+    segments: rows (t_begin, v, omega), sorted by t_begin; each row holds until the next one. The
+    twist in force at t_start is the last row with t_begin <= t_start (the first row if none).
     """
+    if not (math.isfinite(t_start) and math.isfinite(t_end)) or t_end < t_start:
+        raise ValueError("need finite t_start <= t_end")
+    rows = np.asarray(segments, dtype=np.float64).reshape(-1, 3)
+    if len(rows) == 0 or np.any(np.diff(rows[:, 0]) < 0):
+        raise ValueError("segments must be non-empty and sorted by start time")
+    current = np.asarray(state, dtype=np.float64).reshape(NX)
+    t = t_start
+    while t < t_end:
+        index = max(int(np.searchsorted(rows[:, 0], t, side="right")) - 1, 0)
+        boundary = rows[index + 1, 0] if index + 1 < len(rows) else math.inf
+        t_next = min(t_end, boundary)
+        if t_next <= t:  # zero-length step on a boundary
+            t = math.nextafter(t, math.inf)
+            continue
+        current = step_chord(current, rows[index, 1:], t_next - t, wrap=wrap)
+        t = t_next
+    return current
 
-    stamp: float
-    received: float
-    v: float
-    omega: float
 
+def estimate_state_at_actuation(odom_pose: Any, odom_twist: Any, odom_stamp: float, t_tick: float,
+                                t_actuation: float, applied_segments: Any, max_odom_age: float,
+                                wrap: bool = True) -> tuple[np.ndarray, np.ndarray]:
+    """State estimate for the one-period scheme (design note 7.7).
 
-def assess_command_ownership(mux_output: CommandSample | None, limited_output: CommandSample | None,
-                             own_commands: dict[float, tuple[float, float]], now: float, max_age: float,
-                             tol: float = 1e-9) -> tuple[str, np.ndarray | None, str]:
-    """Decide whether the robot is executing the MPC's command and which command was applied.
+    1. From the odometry stamp to the control tick: integrate the MEASURED odometry twist
+       (nav_msgs/Odometry twist, base_link frame: v = linear.x, omega = angular.z), held constant.
+    2. From the tick to the actuation time (next tick): predict with the APPLIED commands
+       (piecewise-constant rows (t_begin, v, omega), e.g. the latest fresh cmd_vel_out and then the
+       command to be published), not with the MPC's intended plan.
 
-    mux_output: latest twist_mux output (A300: /<ns>/platform/cmd_vel). The MPC owns the robot only
-        if that output carries the stamp of one of the MPC's own recent commands (own_commands:
-        stamp -> (v, omega)) with the same twist. twist_mux passing the stamp through unchanged must
-        be verified in simulation (plan check V10); if it does not, this test must be redesigned.
-    limited_output: latest command after the controller's limiter (diff_drive_controller with
-        publish_limited_velocity: true), if observable. It is the best u_prev: it is what the
-        controller's slew limiter continues from.
-
-    Returns (status, u_prev, source):
-      ("owned", u_prev, "limited" | "mux")  -> solve from u_prev (never from the MPC's own publication);
-      ("foreign", None, "mux")              -> another source (teleop, RC, markers) is selected: idle,
-                                               stop publishing, reset the warm start, require re-arm;
-      ("unknown", None, reason)             -> no fresh mux output: safe stop, then idle.
+    Returns (state at t_tick, state at t_actuation). Raises if the odometry is stale (older than
+    max_odom_age at t_tick) or stamped in the future: the caller then idles instead of solving.
+    Assumption: the measured twist is the realized body twist and the applied command is realized
+    over the short actuation interval; both fail under skid-steer slip and actuator lag (wheel
+    odometry measures wheel motion, the controller ramps commands): see the design note.
     """
-    if mux_output is None or now - mux_output.received > max_age:
-        return "unknown", None, "mux output missing or stale"
-    own = own_commands.get(mux_output.stamp)
-    if own is None or abs(own[0] - mux_output.v) > tol or abs(own[1] - mux_output.omega) > tol:
-        return "foreign", None, "mux"
-    if limited_output is not None and now - limited_output.received <= max_age:
-        return "owned", np.array([limited_output.v, limited_output.omega]), "limited"
-    return "owned", np.array([mux_output.v, mux_output.omega]), "mux"
+    age = t_tick - odom_stamp
+    if not math.isfinite(age) or age < 0.0:
+        raise ValueError("odometry stamp is in the future of the tick (clock mismatch?)")
+    if age > max_odom_age:
+        raise ValueError(f"odometry is stale: age {age:.3f} s > {max_odom_age:.3f} s")
+    if t_actuation < t_tick:
+        raise ValueError("actuation time precedes the tick")
+    twist = np.asarray(odom_twist, dtype=np.float64).reshape(NU)
+    at_tick = propagate_twist_segments(odom_pose, [[odom_stamp, twist[0], twist[1]]], odom_stamp, t_tick, wrap)
+    at_actuation = propagate_twist_segments(at_tick, applied_segments, t_tick, t_actuation, wrap)
+    return at_tick, at_actuation
 
 
 # ----------------------------------------------------------------------------------------------

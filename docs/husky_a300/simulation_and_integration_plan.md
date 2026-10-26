@@ -3,14 +3,19 @@
 Status: plan only (2026-10-25), revised after the GPT-6 review (same day). Companion to
 `unicycle_mpc_pso_model.md` (the "model note").
 
-**Scope and order.**
+**Scope and order** (revised after the second GPT-6 review, 2026-10-26):
 
-1. Husky A300 in simulation first: validate the reference model and the controller behaviour (§2.1, stage 2).
-2. Software closed-loop screen, then the **RK4 model swap (variant A)** as the first HLS prototype (stage 3).
-3. HIL with the KV260 against the A300 simulation (stage 4).
-4. A300 physical tests at slow mode, only after gates G0 and G1 and the user's safety plan (stage 5).
-5. The interpolated chord (B3) only if measured timing or tracking justifies it.
-6. **The TurtleBot 4 port is a separate, later scope (§6).** Its material is kept there, marked deferred.
+1. Finish the A300 simulation checks V1–V13 (§2.1), including the freshness and stamp quality of `cmd_vel_out` and odometry, and the effective-track identification against Gazebo ground truth. The simulated track validates the measurement pipeline only, not the real robot.
+2. The command-ownership / safety state machine, tested independently of the optimizer (`app/husky/command_ownership.py`; model note §7.2).
+3. The Python-backend A300 SIL screen (stage 3): quality and constraint violations recorded separately.
+4. The PC C-model backend on the same scenarios, compared with the Python reference.
+5. Only then the isolated RK4 HLS prototype at the screened configuration: C-sim, C/RTL co-sim, synthesis and timing, KV260 HIL (stage 4).
+6. A300 physical tests at slow mode, only after gates G0 and G1 and the user's safety plan (stage 5).
+7. The interpolated chord (B3) only if measured timing or tracking justifies it.
+8. **The TurtleBot 4 port is a separate, later scope (§6).**
+
+The branch `husky-unicycle-mpc` stays isolated until the SIL results and the model/command-interface
+decisions are reviewed.
 
 **Every command below is TO BE RUN BY THE USER.** The agent that wrote this plan did not:
 
@@ -221,6 +226,8 @@ before any MPC work. Each check has a pass criterion:
 | V8 | `ros2 topic pub -r 10 -t 30 /a300_00000/cmd_vel geometry_msgs/msg/TwistStamped "{twist: {linear: {x: 0.3}}}"` | The robot moves +x in odom. Stops ≤ 0.5 s after the publisher ends. |
 | V9 | Same with `"{twist: {angular: {z: 0.5}}}"` | Yaw increases (CCW). The robot stays in place. |
 | V10 | `ros2 topic list \| grep cmd_vel`; `ros2 topic echo /a300_00000/platform/cmd_vel --field header.stamp` while V8 publishes with a known stamp | **Command-ownership prerequisites:** the `twist_mux` output passes the input's `header.stamp` and twist through unchanged; the controller's limited command topic (`publish_limited_velocity: true`, for example `.../platform_velocity_controller/cmd_vel_out`) exists and its name and type are recorded. If the stamp is not passed through, the ownership test of model note §7.2 is redesigned before the node leaves stage 2. |
+| V12 | See "V12 commands" below | Find whether `twist_mux` exposes its **selected source** (diagnostics, a topic, or a parameter). If it does, record the topic, type, rate and the value for each input; the ownership state machine then monitors it directly (`use_source_signal`). If not, record that ownership relies on the stamp match and the lock topics alone. |
+| V13 | See "V13 commands" below | **Freshness and stamp quality** of `platform_velocity_controller/cmd_vel_out`, `platform/odom`, `platform/odom/filtered` and `platform/cmd_vel`: rate, stamp-interval jitter, age (receive time − stamp) median/p95/max, non-monotonic stamps. Pass if the ages stay well inside the state machine's bounds (`cmd_vel_out` 0.06 s, mux 0.12 s, odometry 3 periods) with no non-monotonic stamps; otherwise the bounds are re-derived from the measurements. |
 | V11 | Publish on `/a300_00000/joy_teleop/cmd_vel` (priority 10) while V8 runs on `cmd_vel` (priority 1); then `ros2 topic pub --once /a300_00000/platform/safety_stop std_msgs/msg/Bool "{data: true}"` (if the topic exists) | The mux output switches to the teleop command (the MPC must then report "foreign"); the `safety_stop` lock blocks all commands. Record the lock topic types. |
 
 **Results in simulation (user, 2026-10-26; image built from the Dockerfile above before `ros2controlcli` was added):**
@@ -235,20 +242,69 @@ before any MPC work. Each check has a pass criterion:
 | V8 | Pass (sign and limits). `platform/odom` `twist.linear.x` ramps 0 → 0.300 m/s in about 0.25 s and back to 0 in about 0.17 s after the publisher stops. The ramps are jerk-limited: the largest step is 0.042 m/s per 20 ms control period (about 2.1 m/s², matching `linear.x.max_acceleration: 2.0`), and braking peaks at about 3.0 m/s² (below `max_deceleration` 4.0). The log does not show when the publisher ended, so the 0.5 s `cmd_vel_timeout` itself is not confirmed. `pose.position.x` fell from 1.944 to 1.814 m because the robot's heading was about 97° after earlier turns. Confirm the odom-frame direction from the full pose (x, y, yaw), or from a reset world. |
 | V9 | Pass. `twist.angular.z` ramps to +0.500 rad/s (CCW) and the robot turns on the spot (observed). The largest step is 0.084 rad/s per period (about 4.0 rad/s², equal to `angular.z.max_acceleration: 4.0`). |
 | V10 | **Pass.** `twist_mux` passes `header.stamp` through unchanged: publishing `{header: {stamp: {sec: 12345, nanosec: 678}}}` on `cmd_vel` gave `sec: 12345, nanosec: 678` on `platform/cmd_vel` (the mux output). An earlier test with a zero stamp was inconclusive, and `stamp: now` cannot distinguish pass-through from re-stamping. `cmd_vel` topics present: `/a300_00000/cmd_vel`, `joy_teleop/cmd_vel`, `rc_teleop/cmd_vel`, `twist_marker_server/cmd_vel`, `platform/cmd_vel`, and `platform_velocity_controller/cmd_vel_out` (type `geometry_msgs/msg/TwistStamped`, one publisher). **`cmd_vel_out` is re-stamped by the controller** with its own (simulation) time about every 21 ms. Consequences for the node: ownership is checked by stamp on `platform/cmd_vel`; `u_prev` is the latest `cmd_vel_out` sample (the applied, limited command), aligned by its own stamp, not matched by stamp. The node runs with `use_sim_time:=true` in simulation so that both share one clock. |
-| V11 | Safety lock: **pass.** `ros2 topic pub --once /a300_00000/platform/safety_stop std_msgs/msg/Bool "{data: true}"` stopped the robot and keeps it stopped (latched) until `{data: false}` is published. The MPC node must treat an engaged lock as "not in control". Teleop takeover: **pass, with one leak.** While `cmd_vel` published `sec: 12345` and `joy_teleop/cmd_vel` published `sec: 999` (both 10 Hz), the mux output switched to `sec: 999`, then back to `sec: 12345` after teleop stopped. **One `sec: 12345` message got through in the middle of the teleop period.** Likely cause (unverified): a `joy_teleop` timeout close to the publisher's 10 Hz jitter; check with `ros2 param list /a300_00000/twist_mux` and `ros2 topic hz`. Consequences: the ownership gate needs hysteresis (one matching stamp during an override must not re-arm the MPC; require an explicit re-arm or N consecutive owned cycles), and the MPC publishes nothing while it does not own the channel, so a mux leak cannot apply an MPC command. |
+| V11 | Safety lock: **pass.** `ros2 topic pub --once /a300_00000/platform/safety_stop std_msgs/msg/Bool "{data: true}"` stopped the robot and keeps it stopped (latched) until `{data: false}` is published. The MPC node must treat an engaged lock as "not in control". Teleop takeover: **pass, with one leak.** While `cmd_vel` published `sec: 12345` and `joy_teleop/cmd_vel` published `sec: 999` (both 10 Hz), the mux output switched to `sec: 999`, then back to `sec: 12345` after teleop stopped. **One `sec: 12345` message got through in the middle of the teleop period.** Cause unknown: V12 shows the `joy` timeout is 0.5 s, so 10 Hz publish jitter does not explain it (an age judgement under simulated time is a guess). Consequences: the ownership gate needs hysteresis (one matching stamp during an override must not re-arm the MPC; require an explicit re-arm or N consecutive owned cycles), and the MPC publishes nothing while it does not own the channel, so a mux leak cannot apply an MPC command. |
+| V12 | **No selected-source signal.** `twist_mux` (`ros2 node info`, `ros2 param dump`) publishes only `/a300_00000/platform/cmd_vel` and `/a300_00000/diagnostics` (namespaced; `diagnostic_updater.period: 1.0`, i.e. 1 Hz, so at most a slow cross-check, not a 50 ms ownership signal; its content is still to be read with `ros2 topic echo /a300_00000/diagnostics`). Inputs: `cmd_vel` (external, priority 1), `twist_marker_server/cmd_vel` (8), `joy_teleop/cmd_vel` (10), `rc_teleop/cmd_vel` (12), all with timeout 0.5 s. Locks, all latched (timeout 0.0): `platform/emergency_stop` (255), `platform/safety_stop` (254), `joy_teleop/bt_quality_stop` (253). `use_stamped: true`, `use_sim_time: true`. **Ownership therefore relies on the stamp match plus all three lock topics.** |
 | Notes | The odometry twist has periodic 1–3 % blips (for example 0.31/0.2925 m/s, 0.517/0.4875 rad/s); `ros2 topic echo` reports "A message was lost" (best-effort odometry). Odometry yaw rate equals the command because it uses the same 1.75 multiplier; the simulated body's actual yaw rate needs Gazebo ground truth (the identification step below). |
 
 **If V3–V5 fail:** build `clearpath_simulator` from source on the `jazzy` branch, as the install
 page documents (vcs import of `dependencies.repos`, then `rosdep` and `colcon build`). Report the
 issue to Clearpath. Do **not** substitute an A200: its geometry and controller differ.
 
-**Effective-track identification in simulation** (model note §4.4):
+**V12 commands** (container, simulation running):
 
-1. Command in-place turns and arcs at a few `omega` values.
-2. Record the Gazebo ground-truth pose (bridge the model pose with `ros_gz_bridge`), `/a300_00000/platform/joint_states` and `platform/odom`.
-3. Compare `omega_gt` against `omega_cmd` and against `(v_r − v_l)/0.562` from the wheel speeds.
+```bash
+ros2 node info /a300_00000/twist_mux                      # publishers: any status/selected topic?
+ros2 topic list | grep -i -E "twist_mux|diagnostic|select|active"
+ros2 param list /a300_00000/twist_mux
+ros2 param dump /a300_00000/twist_mux
+ros2 topic echo --once /diagnostics                        # look for a twist_mux status entry
+ros2 topic echo /diagnostics | grep -i -B2 -A25 "twist"    # while V11 switches cmd_vel <-> joy_teleop
+ros2 topic list | grep -i diagnostic | xargs -r -n1 ros2 topic info -v   # namespaced diagnostics?
+```
 
-Simulated friction is not the real surface: these numbers validate the pipeline, not the robot.
+Record whatever reports the selected input (or the masked/locked state) and how fast it updates
+when V11 switches sources.
+
+**V13 commands** (passive, the tool publishes nothing):
+
+```bash
+cd ~/nmpc_hls/app/husky
+python3 identify_effective_track.py freshness --duration 30 --out ~/logs/freshness.csv     --ros-args -p use_sim_time:=true          # run once idle, once while V8 publishes
+python3 identify_effective_track.py freshness-report ~/logs/freshness.csv
+ros2 topic hz /a300_00000/platform_velocity_controller/cmd_vel_out --window 500
+ros2 topic hz /a300_00000/platform/odom --window 500
+ros2 topic hz /a300_00000/platform/odom/filtered --window 500
+```
+
+**Effective-track identification in simulation** (model note §4.4; `app/husky/identify_effective_track.py`).
+**Simulation only:** the `record` command refuses to run without `--sim` and `use_sim_time:=true`.
+It drives a short script of in-place turns (±0.3, ±0.6 rad/s) and arcs (0.3 m/s, ±0.3 rad/s,
+radius 1 m), capped at 0.3 m/s and 0.6 rad/s; start in an open area of the world.
+
+```bash
+# terminal A: the simulation (§2.1 bring-up)
+# terminal B: Gazebo ground truth -> ROS (check the world name first)
+gz topic -l | grep dynamic_pose
+ros2 run ros_gz_bridge parameter_bridge     "/world/warehouse/dynamic_pose/info@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V"     --ros-args -p use_sim_time:=true -r /world/warehouse/dynamic_pose/info:=/gt/dynamic_poses
+# terminal C:
+ros2 topic list | grep joint_states        # default --joint-topic /a300_00000/platform/joint_states
+ros2 param get /a300_00000/platform_velocity_controller wheel_radius   # pass as --wheel-radius if not 0.1625
+cd ~/nmpc_hls/app/husky
+python3 identify_effective_track.py list-gt-frames --ros-args -p use_sim_time:=true
+python3 identify_effective_track.py record --sim --gt-frame <robot frame from the list>     --out ~/logs/track_id.csv --ros-args -p use_sim_time:=true
+python3 identify_effective_track.py analyze ~/logs/track_id.csv
+```
+
+The analysis reports, per segment:
+
+- `ω_gt` (line fit of the ground-truth yaw) with its standard error;
+- `ω_odom` and `ω_cmd`;
+- the mean wheel-speed difference `(v_r − v_l)` from `joint_states`;
+- `W_eff = (v_r − v_l)/ω_gt`.
+
+It then gives a pooled `W_eff` with its uncertainty, the implied multiplier on 0.562 m, and
+`ω_gt/ω_cmd`. Simulated friction is not the real surface: these numbers validate the pipeline, not
+the robot.
 
 ### 2.2 What simulation does and does not validate
 
@@ -269,7 +325,7 @@ directory. It is not in `app/kria-pynq/`. **It is not written yet; this is its d
                                                  |  local frame, warm start   |
                                                  |  Backend.solve(deadline)   |
                                                  |  check_controls + rollout  |
-                                                 |  safe stop / idle          |
+                                                 |  idle (stop publishing)    |
                                                  +-------------+--------------+
                                          +---------------------+--------------------+
                                   (a) Python ref.     (b) C PSO subprocess    (c) KV260 over TCP
@@ -290,24 +346,40 @@ chain), and the E-stop is hardware. Neither depends on the MPC node being alive 
 (`platform/cmd_vel`), latest controller limited command, E-stop and lock status.
 
 **1. Safety-data gate (no solve, no cached plan).** If the odometry is older than `T_odom_stale`
-(PLACEHOLDER_ policy: 3 odometry periods, 60 ms at 50 Hz), or the E-stop status is missing or
-stale: **immediate safe stop**. Publish `(0, 0)` every tick for the controller's stop time (0.5 s
-from 2 m/s at the 4 m/s² default deceleration, plus margin), then stop publishing and go *idle*.
-**A cached plan is never replayed in this case.**
+(PLACEHOLDER_ policy: 3 odometry periods, 60 ms at 50 Hz), the applied command (`cmd_vel_out`) is
+stale, or the E-stop/lock status is missing: **no solve and no publication**. The node goes to
+`disarmed` and needs an explicit re-arm. A cached plan is never replayed in this case.
 
-**2. Ownership gate** (`unicycle_model.assess_command_ownership`; model note §7.2):
+**What that does and does not do.** Stopping publication is not a stop command: the mux forwards
+nothing after its 0.5 s timeout and the controller brakes after its own 0.5 s `cmd_vel_timeout`,
+so the last command can persist for up to about 1 s. A low-priority `(0, 0)` `cmd_vel` would only
+be best effort, because it is not selected during a takeover or under a lock. **Actual safety
+stops are the job of the independent, verified path:** the E-stop chain, the `safety_stop` lock,
+and an obstacle monitor with its own authority.
 
-- **owned:** the mux output carries the stamp and twist of one of the node's own recent commands. Continue.
-- **foreign:** another input (joystick 10, RC 12, interactive markers 8) is selected. Go *idle*: publish nothing, reset the warm start, require an explicit re-arm.
-- **unknown** (no fresh mux output): safe stop as in step 1, then idle.
-- **E-stop or `safety_stop` asserted:** idle at once.
+**2. Ownership state machine** (`app/husky/command_ownership.py`; model note §7.2; tested offline).
+Feed it every event:
 
-**3. `u_prev` = the command actually applied:** the controller's limited command if fresh,
-otherwise the mux output. Never the node's own last publication.
+- own publications (stamp, twist, send time);
+- `platform/cmd_vel` samples;
+- the mux-selected source, if V12 finds one;
+- lock status (`platform/emergency_stop`, `platform/safety_stop`, `joy_teleop/bt_quality_stop`: all three `twist_mux` locks, latched, priorities 255/254/253, from V12);
+- the tick.
+
+Then act on its state:
+
+- **`owned`:** solve and publish.
+- **`arming`:** publish only the hold probe (the applied command); no solve.
+- **`unknown`, `foreign`, `disarmed`:** no solve, no publication. The warm start is reset when the machine flags it. Re-arm is only by the operator service, and only accepted with no lock, no foreign selection and a fresh `cmd_vel_out` inside the MPC envelope.
+- **A single MPC-stamped sample leaking through the mux during a takeover (V11) can never re-arm the node.**
+
+**3. `u_prev` = the applied command:** the latest `cmd_vel_out` sample within 0.06 s by its own
+stamp (`AppliedCommandTracker`). It is re-stamped by the controller (V10), so it is never matched
+to mux stamps. Never the node's own last publication.
 
 **4. Delay compensation, one-period scheme.**
 
-- Predict the state from the odometry stamp to `t_tick + Ts`, with the chord step and the applied commands over that interval.
+- Estimate the state at `t_tick` by integrating the **measured** odometry twist from the odometry stamp, then predict to `t_tick + Ts` with the **applied** command (`unicycle_model.estimate_state_at_actuation`; assumptions and limits under slip and lag in model note §7.7).
 - Solve for the plan that starts at `t_tick + Ts`.
 - Publish its first element **at** that tick, so actuation timing is deterministic. The odometry age is absorbed here and does not consume compute budget (§3.5).
 
@@ -327,17 +399,17 @@ otherwise the mux output. Never the node's own last publication.
 - `check_controls(plan, u_prev, limits)` gives the violations, each reported separately.
 - `rollout` checks finiteness and an optional geofence in odom.
 - On pass, the plan is accepted.
-- On fail or deadline miss, **with fresh odometry, safety data and ownership**: apply the next element of the last accepted plan, re-checked from the current `u_prev`, at most 3 times (PLACEHOLDER_), then the stop candidate.
+- On fail or deadline miss, **while `owned` with fresh odometry and `u_prev`**: apply the next element of the last accepted plan, re-checked from the current `u_prev`, at most 3 times (PLACEHOLDER_), then the stop candidate (a best-effort deceleration, not a safety stop).
 
 **8. Publish at `t_tick + Ts`.**
 
 - `TwistStamped` with `header.stamp` = that tick time and `frame_id = base_link`.
-- The stamp and twist are stored in the node's own-command history for the ownership gate.
-- Publish every tick while owned and armed, so the robot's 0.5 s timeouts never trigger by accident.
+- The stamp (strictly increasing) and twist go to the state machine's own-command history (`on_published`).
+- Publish every tick while `owned`, so the robot's 0.5 s timeouts do not trigger by accident.
 
-**9. Re-arm.** Only by an explicit operator service call, and only when the applied command is
-inside the MPC envelope (in practice: the robot is stopped), so the projection starts from a
-feasible `u_prev`. The A300 acts on the latest command after an E-stop release, so the node must
+**9. Re-arm.** Only by an explicit operator service call (`request_arm`), and only when the
+fresh applied command is inside the MPC envelope (in practice: the robot is stopped), so the
+projection starts from a feasible `u_prev`. The A300 acts on the latest command after an E-stop release, so the node must
 be idle (not publishing) during any E-stop reset.
 
 **Lifecycle.** The node is a lifecycle node; `deactivate` immediately stops publishing.
@@ -437,7 +509,7 @@ the moment the checked command is ready. The command is published at the next ti
 **Reconciliation.** The first draft summed 38 + 2.35 + 2 + 1 + 2 = 45.35 ms against a 45 ms reply
 target, and its solver estimates also contained the PS overhead. **What must shrink is the PSO size:**
 
-- Fitting candidates (upper estimate; model note §9.5):
+- **Screening candidates** (upper estimate; model note §9.5), not a selected configuration; the screen in stage 3 selects one:
   - variant A (RK4): 4×50 (C 31.5–36.7 ms), 7×30 (32.5–38.0), 9×24 (33.2–38.8);
   - B3 (only if justified): 7×100 (32.4–37.1), 15×50 (33.9–38.9).
 - **No longer fitting:** 10×100 for any variant, A at 5×50 and 9×30.
@@ -474,15 +546,15 @@ note §6.1).
 
 | Stage | Content | Entry criteria | Exit / stop criteria |
 | --- | --- | --- | --- |
-| **1. Reference model** | `/usr/bin/python3 -m pytest app/husky -q -p no:cacheprovider` (44 tests); `python3 -B app/husky/hw_estimates.py` | – | All pass (done, model note §11) |
-| **2. A300 in Gazebo: model and controller validation, then SIL** | V1–V11. Check the reference model against the simulated controller: step and ramp responses against the limits, `preserve_turning_radius`, timeout, the limited-command output, and the ownership switch to teleop and back. Effective-track identification in simulation. Then the node with backend (a), and later (b), on straight lines, arcs, in-place turns, a figure-eight and a path with a ±π heading crossing. | Stage 1; container verified | Tracking RMSE and max error, **violations (must be 0)**, deadline misses, fallback and ownership events, each reported separately. Commands never trigger the controller's own limiter (compare `cmd_vel` with the limited output). Stop the run on any violation or NaN. |
-| **3. Software screen, then the first HLS prototype (variant A)** | Closed-loop screen with backend (a) in the A300 simulation (and the software plant): `Nu`, `n_S`×`maxiter` within model note §9.4, weights, `_max_v`, and the increment-penalty comparison of model note §7.3. Then a separate, reviewed HLS change: the RK4 model swap. C-sim against `unicycle_model.py`, C/RTL co-sim, synthesis and timing at 100 MHz, then backend (b). | Stage 2 passing | Screen: quality vs size, 0 violations. HLS: C-sim matches the reference within the §5.4 emulation bounds; timing closed. **B3 is prototyped only if A's measured timing or tracking falls short.** |
-| **4. HIL: KV260 against the A300 simulation** | Backend (c) with the variant-A overlay (board steps run by the user) | Stage 3 passing; manifest matches; `PING` p99 measured | Board results vs backend (b) in `half` mode for the same seeds; every `C` component of §3.5 measured; 0 violations; no deadline miss beyond the agreed count. Stop on any manifest mismatch, CRC error or repeated deadline miss. |
+| **1. Reference model** | `/usr/bin/python3 -m pytest app/husky -q -p no:cacheprovider` (62 tests); `python3 -B app/husky/hw_estimates.py` | – | All pass (done, model note §11) |
+| **2. A300 in Gazebo: model, controller and interface validation** | V1–V13 (§2.1): controller limits and ramps, `preserve_turning_radius`, timeout, stamp pass-through, the mux-selected source (V12), freshness and stamp quality of `cmd_vel_out` and odometry (V13), and the effective-track identification against Gazebo ground truth. The ownership state machine is complete and passes its offline tests (done: `test_command_ownership.py`). | Stage 1; container verified | All checks recorded; the state machine's age bounds re-derived from V13; `W_eff` with its uncertainty (simulation pipeline only). |
+| **3. SIL screen: Python backend, then the PC C-model backend** | The node (state machine + Python backend (a)) in the A300 closed loop on straight lines, arcs, in-place turns, a figure-eight and a ±π heading crossing, plus teleop takeovers and lock tests. Screen `Nu`, `n_S`×`maxiter` (screening candidates, model note §9.5), weights, `_max_v`, and the increment-penalty comparison (model note §7.3). Then backend (b), the PC C model with a unicycle configuration, on the same scenarios and seeds, compared with Python. | Stage 2 passing | Tracking RMSE and max error, **violations (must be 0)**, deadline misses, ownership and fallback events, each reported separately. Commands never trigger the controller's own limiter. A screened configuration is selected; the C model agrees with Python within the agreed tolerance. **Review of the SIL results before stage 4.** |
+| **4. RK4 HLS prototype, then HIL** | A separate, reviewed HLS change: the isolated RK4 model swap at the screened configuration; C-sim against `unicycle_model.py`, C/RTL co-sim, synthesis and timing at 100 MHz. Then backend (c), the KV260, against the A300 simulation (board steps by the user). | Stage 3 reviewed | C-sim within the §5.4 emulation bounds; timing closed; board results vs backend (b) in `half` mode for the same seeds; every `C` component measured; 0 violations. Stop on manifest mismatch, CRC error or repeated deadline misses. **B3 only if A's measured timing or tracking falls short.** |
 | **5. A300 physical, slow mode** | See §4.2 | **G0 and G1 done**; the user's written safety plan approved; stages 2–4 passed; the independent obstacle monitor in place | §4.2 |
 
 ### 4.2 Stage 5: Husky A300 at slow mode (physical, gated)
 
-Entry: gates G0 and G1 (§4.0), the user's safety plan, stages 2–4 passed.
+Entry: gates G0 and G1 (§4.0), the user's safety plan, stages 2–4 passed and reviewed.
 
 **Setup:**
 
@@ -510,7 +582,7 @@ Entry: gates G0 and G1 (§4.0), the user's safety plan, stages 2–4 passed.
 
 - any constraint violation reported by the host check;
 - tracking error above a user threshold (PLACEHOLDER_ 0.3 m);
-- odometry or E-stop status stale (the node then stops by itself, §3.1 step 1);
+- odometry or E-stop status stale (the node then stops publishing and disarms, §3.1 step 1; the stop itself comes from the independent path);
 - an ownership change the operator did not intend;
 - more than N consecutive deadline misses (PLACEHOLDER_ N = 3);
 - leaving the geofence;
@@ -527,13 +599,14 @@ stages.
 
 ## 5. Order of work (proposal)
 
-1. User: run §1 (Docker), then the A300 verifications V1–V11 in §2.1. Record the results.
-2. Write the node with backend (a), including the ownership gate and the safe-stop logic. Run stage 2.
-3. Stage 3: software screen, increment-penalty comparison, then the variant-A HLS prototype (a separate, reviewed change), then backend (b).
-4. Board steps (user): overlay, server script, stage 4 HIL. Measure every `C` component.
-5. Gates G0 and G1; the user's safety plan; then stage 5.
-6. Only if justified by measurements: a B3 (interpolated chord) prototype.
-7. Later, separate scope: the TurtleBot 4 port (§6).
+1. User: §1 (Docker), then V1–V13 and the effective-track identification in §2.1. Record the results.
+2. Ownership/safety state machine: done offline (`command_ownership.py`); wire it into the node first, before any optimizer.
+3. Stage 3a: Python-backend SIL screen in the A300 simulation.
+4. Stage 3b: PC C-model backend on the same scenarios, compared with Python. Review of the SIL results; the branch stays isolated until then.
+5. Stage 4: the isolated RK4 HLS prototype at the screened configuration, then KV260 HIL (board steps by the user).
+6. Gates G0 and G1, the user's safety plan, then stage 5.
+7. Only if justified by measurements: a B3 (interpolated chord) prototype.
+8. Later, separate scope: the TurtleBot 4 port (§6).
 
 ## 6. Deferred scope: TurtleBot 4 / Create 3 port
 
