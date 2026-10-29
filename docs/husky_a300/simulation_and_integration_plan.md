@@ -212,10 +212,18 @@ ros2 launch clearpath_gz simulation.launch.py setup_path:=$HOME/clearpath/ world
 
 # Required workaround (2026-10-28): the generator writes sensors/config/imu_0.yaml as an empty
 # bridge list ([]), so the IMU never reaches ROS and the EKF fuses wheel odometry only.
-# Bridge it yourself in a second shell for as long as the simulation runs:
-ros2 run ros_gz_bridge parameter_bridge "/a300_00000/sensors/imu_0/data@sensor_msgs/msg/Imu[gz.msgs.IMU" \
-    --ros-args -p use_sim_time:=true
+# Second shell, after the robot has spawned (the generator has then written its files), for as long
+# as the simulation runs: the version-controlled bridge launch (app/husky/launch/). It runs the
+# generator check first and starts the bridge only while the generated list is empty.
+H=~/nmpc_hls/.claude/worktrees/agent-a7f53c7be12d59b73/app/husky
+python3 $H/imu_checks.py check-generated --setup-path ~/clearpath   # exit 1 + "EMPTY" = defect present (expected)
+ros2 launch $H/launch/a300_sim_imu_bridge.launch.py               # setup_path:=~/clearpath check:=true by default
 ```
+
+The check fails loudly in both directions: exit 1 while the generated list is empty (the bridge is
+needed), exit 3 once the generator bridges the IMU itself (then the launch file does **not** start
+the extra bridge, to avoid duplicate publishers, and this plan must be updated). The upstream report
+is drafted in `docs/husky_a300/upstream_issue_empty_imu_bridge.md` (not filed; the user decides).
 
 **A300 support verification.** A300 simulation is likely but not explicitly documented. Run it
 before any MPC work. Each check has a pass criterion:
@@ -277,12 +285,91 @@ when V11 switches sources.
 **V13 commands** (passive, the tool publishes nothing):
 
 ```bash
-cd ~/nmpc_hls/app/husky
+cd ~/nmpc_hls/.claude/worktrees/agent-a7f53c7be12d59b73/app/husky   # the branch worktree, read-only
 python3 identify_effective_track.py freshness --duration 30 --out ~/logs/freshness.csv     --ros-args -p use_sim_time:=true          # run once idle, once while V8 publishes
 python3 identify_effective_track.py freshness-report ~/logs/freshness.csv
 ros2 topic hz /a300_00000/platform_velocity_controller/cmd_vel_out --window 500
 ros2 topic hz /a300_00000/platform/odom --window 500
 ros2 topic hz /a300_00000/platform/odom/filtered --window 500
+```
+
+**V13-active and the V11 leak investigation** (`app/husky/mux_timing.py`; simulation only).
+Four shells in the container, all with `H=~/nmpc_hls/.claude/worktrees/agent-a7f53c7be12d59b73/app/husky`: A the simulation, B the IMU bridge launch, C the
+passive capture, D the scripted publisher. Start C first, then D. The scenarios publish zero twists
+(the robot does not move), tag their source in `twist.linear.y` (ignored by the diff-drive
+controller), stamp with simulation time, and never touch `platform/emergency_stop`.
+
+```bash
+cd $H
+# Run 1: active publishing (V13-active): cmd_vel at 20 Hz for 30 s
+python3 mux_timing.py capture --duration 40 --out ~/logs/v13_active.csv --ros-args -p use_sim_time:=true            # C
+python3 mux_timing.py scenario active --sim --out ~/logs/v13_active_sent.csv --ros-args -p use_sim_time:=true      # D
+python3 mux_timing.py report ~/logs/v13_active.csv --out ~/logs/v13_active_report.json
+# Run 2: teleop takeover (V11): cmd_vel at 20 Hz; joy_teleop at 10 Hz from 10-20 s and 25-30 s
+python3 mux_timing.py capture --duration 50 --out ~/logs/v11_takeover.csv --ros-args -p use_sim_time:=true          # C
+python3 mux_timing.py scenario takeover --sim --out ~/logs/v11_takeover_sent.csv --ros-args -p use_sim_time:=true  # D
+python3 mux_timing.py report ~/logs/v11_takeover.csv --out ~/logs/v11_takeover_report.json
+# Run 3: locks: safety_stop engaged 10-15 s, bt_quality_stop 20-25 s (released at the end in any case)
+python3 mux_timing.py capture --duration 40 --out ~/logs/v11_lock.csv --ros-args -p use_sim_time:=true              # C
+python3 mux_timing.py scenario lock --sim --out ~/logs/v11_lock_sent.csv --ros-args -p use_sim_time:=true          # D
+python3 mux_timing.py report ~/logs/v11_lock.csv --out ~/logs/v11_lock_report.json
+# Run 4 (reproduces the original V11 conditions): the scenario `active` on cmd_vel in D, plus in a
+# fifth shell for about 10 s, then Ctrl-C (wall-clock stamps, as in the original V11 run):
+ros2 topic pub -r 10 /a300_00000/joy_teleop/cmd_vel geometry_msgs/msg/TwistStamped \
+    "{header: {stamp: {sec: 999}}, twist: {linear: {y: 0.002}}}"
+```
+
+The report gives:
+
+- echo delay (input receive → mux-output receive, matched by exact stamp): median, p95, max, std;
+- lost cmd_vel samples, split into unexpected and suppressed (a higher-priority source within its 0.5 s timeout, or a lock);
+- reordered and duplicated mux outputs;
+- per takeover: takeover latency and hand-back delay after the last joy sample (expected about the 0.5 s timeout);
+- **leak events:** cmd_vel samples forwarded although joy was active within 0.5 s, or a lock was engaged, when the input arrived. Each comes with the last joy age, the time to the next joy sample, the input age at forwarding, and the neighbouring outputs;
+- per lock: mux outputs while engaged (expected 0) and the first output after release;
+- per-topic freshness, and the 1 Hz `current priority` samples as a slow cross-check.
+
+**These measurements set the ownership thresholds.** `max_mux_age`, `max_match_age`, `unknown_grace`,
+`confirmations`, `max_applied_age`, `max_odom_age` and the deadline are all **provisional** until
+then (§3.1). Re-derive each from the measured p99.9 gaps and delays with margin, and record them.
+
+**IMU stream and EKF checks (V14)** (`app/husky/imu_checks.py`; shells as above):
+
+```bash
+ros2 topic info -v /a300_00000/sensors/imu_0/data            # 1 publisher (a300_imu_0_bridge_workaround); ekf_node subscribed
+ros2 topic hz /a300_00000/sensors/imu_0/data                 # rate
+ros2 topic echo --once /a300_00000/sensors/imu_0/data --field header                      # frame_id (Gazebo: imu_0_link), stamp
+ros2 topic echo --once /clock                                                              # compare: the stamp must be simulation time
+ros2 topic echo --once /a300_00000/sensors/imu_0/data --field orientation_covariance      # -1 in [0] = no orientation
+ros2 topic echo --once /a300_00000/sensors/imu_0/data --field angular_velocity_covariance
+ros2 topic echo --once /a300_00000/sensors/imu_0/data --field linear_acceleration_covariance
+ros2 run tf2_ros tf2_echo base_link imu_0_link               # the frame exists in TF (Ctrl-C after one print)
+ros2 param get /a300_00000/ekf_node imu0                     # the topic the EKF reads
+# IMU loss and filtered-state latency: capture (C) during the turn scenario (D); in shell B stop the
+# bridge launch (Ctrl-C) at about 6 s into the scenario, and start it again at about 19 s.
+python3 imu_checks.py capture --duration 32 --out ~/logs/imu_check.csv --ros-args -p use_sim_time:=true             # C
+python3 mux_timing.py scenario turn --sim --out ~/logs/imu_turn_sent.csv --ros-args -p use_sim_time:=true          # D (the robot turns in place)
+python3 imu_checks.py report ~/logs/imu_check.csv --out ~/logs/imu_check_report.json
+```
+
+**Record:**
+
+- the IMU frame id, stamp clock, covariance fields and rate;
+- for the IMU gap: whether `odom/filtered` kept publishing and moved to the wheel-odometry yaw rate (`silent_fallback_to_wheel_odometry`), and its error against ground truth before and during the gap;
+- the filtered yaw-rate latency against ground truth (best-fit lag and 50 % step delays; about 0.15 s settling was seen).
+
+**If the EKF falls back silently:** the SIL node must treat a missing IMU stream as missing safety
+data, a deliberate later addition. Until then the run is invalid for scoring.
+
+**Real-time factor for Python SIL** (V15; verify the service on this Gazebo version first):
+
+```bash
+gz service -l | grep -E "set_physics|/control"
+grep -n -E "max_step_size|real_time_factor|real_time_update_rate" \
+    $(ros2 pkg prefix clearpath_gz)/share/clearpath_gz/worlds/warehouse.sdf
+gz service -s /world/warehouse/set_physics --reqtype gz.msgs.Physics --reptype gz.msgs.Boolean --timeout 3000 \
+    --req "max_step_size: <the SDF value>, real_time_factor: 0.25"
+gz topic -e -t /world/warehouse/stats -n 3 | grep real_time_factor     # confirm about 0.25
 ```
 
 **Effective-track identification in simulation** (model note §4.4; `app/husky/identify_effective_track.py`).
@@ -393,7 +480,10 @@ Then act on its state:
 
 **3. `u_prev` = the applied command:** the latest `cmd_vel_out` sample within 0.06 s by its own
 stamp (`AppliedCommandTracker`). It is re-stamped by the controller (V10), so it is never matched
-to mux stamps. Never the node's own last publication.
+to mux stamps. Never the node's own last publication. With the one-period scheme, the command published AT this tick is used as the slew base of the plan computed now (which starts
+one period later), but only if it is reachable in one step from the applied `cmd_vel_out`;
+otherwise (limiter active, lag, mismatch) the applied command is the base and the tick is noted
+(`MpcCore.finish_tick`, tested in `sil/test_sil_core.py`).
 
 **4. Delay compensation, one-period scheme.**
 
@@ -440,6 +530,23 @@ be idle (not publishing) during any E-stop reset.
 - the backend, each `C` component of §3.5, deadline misses and fallback state;
 - the odometry age.
 
+**Thresholds are provisional.** Every age bound and timeout in this loop is a placeholder until
+V13-active and the V11 investigation are measured (§2.1). That covers the ownership bounds, the
+odometry and applied-command ages, and C ≤ 40 ms. No active-publisher SIL result is reviewed before
+then.
+
+**Signals are kept distinct:**
+
+| Role | Signal | Use |
+| --- | --- | --- |
+| Feedback | `platform/odom/filtered` (EKF with the IMU bridge), with its stamp, age and covariance | The only state input of the controller. Its message stamp and the delay compensation are used; it is not treated as instantaneous truth (it settles in about 0.15 s). |
+| Applied command | `platform_velocity_controller/cmd_vel_out` | `u_prev`, the re-arm check and the slew base |
+| Ownership | `platform/cmd_vel` stamp match and the three locks; the 1 Hz `current priority` as a cross-check only | The state machine |
+| Scoring | Gazebo ground truth (`gz topic -e`, `a300_00000/robot`) | Logged and scored offline only; **never fed back** |
+| Diagnostic | Wheel odometry `platform/odom` | Logged and compared with feedback and truth; never used for control |
+
+This is a simulation choice. It is not evidence about the real robot's EKF configuration (gate G0).
+
 ### 3.2 Backend (a): Python reference
 
 - A Python PSO with the same update rules as `hls_pso.cpp`:
@@ -449,9 +556,15 @@ be idle (not publishing) during any E-stop reset.
   - particle 0 = warm start, particle 1 = stable zero;
   - per-dimension `du` box projection;
   - normalized ±100.
-- It uses `unicycle_model.rollout` (`method="chord"` or `"rk4"`) and `mpc_cost(..., hls_residual=True)`.
-- **Uses:** first closed loop in Gazebo, and the software screen of `Nu`, `n_S`×`maxiter`, weights and `_max_v`.
-- **Not real time** in pure Python at 10×100. That is acceptable in simulation with `use_sim_time` and a slowed real-time factor (`gz` world `real_time_factor`), or with fewer evaluations.
+- **Implemented** in `app/husky/sil/` (2026-10-29):
+  - `pso.py`: the hardware structure, vectorized over particles. The cost is the hardware's (`Q`/`Qf` on the states with the `8c61f1b` angle residual, `R (z − uss)²`). Prediction is RK4 (variant A), with the predictor-gain option.
+  - `controller.py`: ownership, applied command, state estimate, fallbacks, checks and C, without ROS.
+  - `sil_node.py`: the thin rclpy node.
+  - `metrics.py`: offline scoring.
+  - `gz_truth.py`: the ground-truth reader.
+  - Tests: `app/husky/sil/test_sil_core.py`.
+- **Python solve time** on this PC (Python 3.10, numpy 2.2.6; the container runs Python 3.12, so measure there) at `Nu = 25`: 4×50 51 ms, 7×30 31 ms, 9×24 25 ms median wall clock; at `Nu = 10`: 45, 28 and 22 ms. 4×50 exceeds the 40 ms budget in wall time.
+- **Real-time factor:** the SIL deadline is therefore checked in **simulation time**, with Gazebo slowed to a real-time factor of 0.25 for every configuration (`rtf_for_deadline`: the largest real-time factor with 20 % margin is about 0.58 for 4×50). Wall-clock C is reported separately. **The Python timing is not a hardware claim.**
 
 ### 3.3 Backend (b): the PC C model of the solver (software in the loop)
 
@@ -564,9 +677,9 @@ note §6.1).
 
 | Stage | Content | Entry criteria | Exit / stop criteria |
 | --- | --- | --- | --- |
-| **1. Reference model** | `/usr/bin/python3 -m pytest app/husky -q -p no:cacheprovider` (62 tests); `python3 -B app/husky/hw_estimates.py` | – | All pass (done, model note §11) |
+| **1. Reference model** | `/usr/bin/python3 -m pytest app/husky -q -p no:cacheprovider` (84 tests on 2026-10-29); `python3 -B app/husky/hw_estimates.py` | – | All pass (done, model note §11) |
 | **2. A300 in Gazebo: model, controller and interface validation** | V1–V13 (§2.1): controller limits and ramps, `preserve_turning_radius`, timeout, stamp pass-through, the mux-selected source (V12), freshness and stamp quality of `cmd_vel_out` and odometry (V13), and the effective-track identification against Gazebo ground truth. The ownership state machine is complete and passes its offline tests (done: `test_command_ownership.py`). | Stage 1; container verified | All checks recorded; the state machine's age bounds re-derived from V13; `W_eff` with its uncertainty (simulation pipeline only). |
-| **3. SIL screen: Python backend, then the PC C-model backend** | The node (state machine + Python backend (a)) in the A300 closed loop on straight lines, arcs, in-place turns, a figure-eight and a ±π heading crossing, plus teleop takeovers and lock tests. Screen `Nu`, `n_S`×`maxiter` (screening candidates, model note §9.5), weights, `_max_v`, and the increment-penalty comparison (model note §7.3). Then backend (b), the PC C model with a unicycle configuration, on the same scenarios and seeds, compared with Python. | Stage 2 passing | Tracking RMSE and max error, **violations (must be 0)**, deadline misses, ownership and fallback events, each reported separately. Commands never trigger the controller's own limiter. A screened configuration is selected; the C model agrees with Python within the agreed tolerance. **Review of the SIL results before stage 4.** |
+| **3. SIL screen: Python backend, then the PC C-model backend** | §4.3: the node (`app/husky/sil/`) in the A300 closed loop, with feedback from `odom/filtered` and scoring from Gazebo ground truth. Configurations 4×50, 7×30, 9×24 (RK4); predictor plain vs `sim-derived` yaw gains; the same paths and seeds; plus teleop takeover and lock runs during SIL. Then backend (b), the PC C model with a unicycle configuration, on the same scenarios and seeds, compared with Python. | Stage 2 passing, **including V13-active, the V11 investigation and V14** | Tracking RMSE and max error, **violations (must be 0)**, deadline misses, ownership and fallback events, each reported separately. Commands never trigger the controller's own limiter. A screened configuration is selected; the C model agrees with Python within the agreed tolerance. **Review of the SIL results before stage 4.** |
 | **4. RK4 HLS prototype, then HIL** | A separate, reviewed HLS change: the isolated RK4 model swap at the screened configuration; C-sim against `unicycle_model.py`, C/RTL co-sim, synthesis and timing at 100 MHz. Then backend (c), the KV260, against the A300 simulation (board steps by the user). | Stage 3 reviewed | C-sim within the §5.4 emulation bounds; timing closed; board results vs backend (b) in `half` mode for the same seeds; every `C` component measured; 0 violations. Stop on manifest mismatch, CRC error or repeated deadline misses. **B3 only if A's measured timing or tracking falls short.** |
 | **5. A300 physical, slow mode** | See §4.2 | **G0 and G1 done**; the user's written safety plan approved; stages 2–4 passed; the independent obstacle monitor in place | §4.2 |
 
@@ -615,11 +728,71 @@ Entry: gates G0 and G1 (§4.0), the user's safety plan, stages 2–4 passed and 
 user has a written, robot-specific safety and E-stop plan. Agents never command a robot or run these
 stages.
 
+### 4.3 Stage 3a: Python SIL in the A300 simulation (definition, runs, pass criteria)
+
+**Setup:**
+
+- shells A (simulation) and B (IMU bridge launch) as in §2.1;
+- the real-time factor set to 0.25 (V15);
+- the robot at rest in an open area of the warehouse. The paths are relative to the pose where the MPC takes ownership: a line of 3 m ahead, a 1 m-radius circle to the left, and a figure-eight of two 1 m-radius lobes (2 m × 4 m footprint centred on the start). Check clearance in Gazebo first. The circle and the figure-eight end at their start, so runs can follow each other without a reset; run the line last or alone.
+
+**Runs** (same paths and seeds for every configuration and gain):
+
+```bash
+H=~/nmpc_hls/.claude/worktrees/agent-a7f53c7be12d59b73/app/husky
+cd $H
+for path in circle figure8; do for cfg in 4x50 7x30 9x24; do for gain in plain sim-derived; do for seed in 1 2 3; do
+  python3 -m sil.sil_node --sim --path $path --pso $cfg --gain $gain --seed $seed --auto-arm --rtf 0.25 \
+      --ros-args -p use_sim_time:=true
+done; done; done; done
+for run in ~/logs/sil/*/; do python3 -m sil.metrics "$run" --out "$run/report.json" > /dev/null; done
+# one run by hand, with a takeover and a lock while owned (shell D):
+python3 -m sil.sil_node --sim --path figure8 --pso 7x30 --gain plain --seed 1 --auto-arm --rtf 0.25 \
+    --ros-args -p use_sim_time:=true
+ros2 topic pub -r 10 -t 20 /a300_00000/joy_teleop/cmd_vel geometry_msgs/msg/TwistStamped "{}"   # takeover -> foreign, idle
+ros2 service call /sil_mpc/arm std_srvs/srv/Trigger "{}"                                         # explicit re-arm afterwards
+ros2 topic pub --once /a300_00000/platform/safety_stop std_msgs/msg/Bool "{data: true}"          # lock -> disarmed
+ros2 topic pub --once /a300_00000/platform/safety_stop std_msgs/msg/Bool "{data: false}"
+```
+
+Each run writes `~/logs/sil/<path>_<cfg>_nu25_<gain>_seed<k>_<time>/`:
+
+- `meta.json`, `ticks.csv`, `transitions.csv`, `episodes.csv`;
+- `feedback.csv`, `wheel_odom.csv`, `truth.csv`, `applied.csv`, `diagnostics.csv`;
+- `report.json` after scoring.
+
+**`--gain sim-derived`** applies the simulator-identified yaw-rate gains in the **predictor** only, by
+motion class: 0.952 for in-place motion (`abs(v)` < 0.05 m/s) and 0.825 otherwise. It is labelled
+`sim-derived` in the logs. It is a diagnostic sensitivity run against the plain model, which stays
+the baseline. It is never a robot parameter, and no pooled gain is selected.
+
+**Reported separately for every run** (`sil.metrics`):
+
+1. tracking against ground truth: position RMSE and max, heading RMSE and max, cross-track RMSE and max, per episode;
+2. constraint violations: of the solutions (rejected ones counted) and of the published commands;
+3. deadline C: simulation time (the SIL deadline) and wall clock (Python only), with the misses;
+4. fallback events by kind;
+5. ownership transitions;
+6. diagnostics: feedback vs truth and wheel odometry vs truth.
+
+**Pass criteria (provisional; to be agreed at the SIL review):**
+
+- published-command violations = 0 in every run;
+- no MPC publication outside `arming`/`owned` (by construction; cross-checked with a `mux_timing.py capture` during the takeover run);
+- ownership: one arming → owned per run, `foreign` and `disarmed` exactly when a takeover or lock is applied, and no automatic re-arm;
+- deadline: C_sim ≤ 40 ms with misses ≤ 1 % of solved ticks at the chosen real-time factor;
+- tracking: PLACEHOLDER_ cross-track RMSE ≤ 0.10 m and max ≤ 0.25 m on circle and figure-eight at 0.3 m/s;
+- no `stop` fallbacks in nominal runs;
+- ground truth never in the feedback path (code review: `controller.py` has no truth input).
+
+The screened configuration (size, `Nu`, weights) is chosen from these results at the review, before
+stage 3b (C model) and the RK4 HLS prototype.
+
 ## 5. Order of work (proposal)
 
-1. User: §1 (Docker), then V1–V13 and the effective-track identification in §2.1. Record the results.
+1. User: §1 (Docker), V1–V13 and the effective-track identification (done for idle V13), then V13-active, the V11 investigation, V14 (IMU and EKF) and V15 (real-time factor) in §2.1, with the IMU bridge launch in every run.
 2. Ownership/safety state machine: done offline (`command_ownership.py`); wire it into the node first, before any optimizer.
-3. Stage 3a: Python-backend SIL screen in the A300 simulation.
+3. Stage 3a: Python-backend SIL screen in the A300 simulation (§4.3); thresholds re-derived from V13-active first.
 4. Stage 3b: PC C-model backend on the same scenarios, compared with Python. Review of the SIL results; the branch stays isolated until then.
 5. Stage 4: the isolated RK4 HLS prototype at the screened configuration, then KV260 HIL (board steps by the user).
 6. Gates G0 and G1, the user's safety plan, then stage 5.

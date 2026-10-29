@@ -15,6 +15,11 @@ synthesis or board results.**
 | `app/husky/test_command_ownership.py` | Its tests |
 | `app/husky/identify_effective_track.py` | Simulation-only effective-track identification and topic-freshness tool (rclpy inside the container; offline analysis testable) |
 | `app/husky/test_identify_effective_track.py` | Offline tests of its analysis |
+| `app/husky/mux_timing.py`, `test_mux_timing.py` | V13-active / V11 tool: scripted sim-time publishers, passive capture, offline mux report |
+| `app/husky/imu_checks.py`, `test_imu_checks.py` | Generated-bridge check, IMU/EKF capture and report (V14) |
+| `app/husky/launch/a300_sim_imu_bridge.launch.py`, `a300_imu_bridge.yaml` | Version-controlled IMU bridge workaround |
+| `app/husky/sil/` | Python SIL: PSO with the hardware structure, ROS-free controller core, rclpy node, scoring; tests in `sil/test_sil_core.py` |
+| `docs/husky_a300/upstream_issue_empty_imu_bridge.md` | Draft upstream issue (not filed) |
 | `app/husky/hw_estimates.py` | Bit-level emulation of the hardware arithmetic and the cycle-budget model behind §§5.4 and 9 |
 
 **Reuse.** These parts are adapted, with attribution in the code, from the Ackermann proposal
@@ -221,6 +226,16 @@ effective-track correction in the controller. It is not a validated model for ev
 - Only if the fitted factors are stable within a surface class does the model gain them, as constant gains on `v` and `omega`: 2 multiplies, no structural change.
 - A dynamic or force model (tyre forces, motor current limits) is out of scope. It would be a separately validated step.
 
+**Simulation result and the SIL sensitivity option.**
+
+- **Measured in simulation (plan §2.1):** ω_gt/ω_cmd = 0.952 for in-place turns and 0.825 on 1 m arcs at 0.3 m/s.
+- **This is regime-dependent,** so no single pooled gain is selected.
+- **Baseline:** the SIL keeps the plain predictor and treats the mismatch as a robustness test.
+- **Diagnostic sensitivity run** (`--gain sim-derived`, `app/husky/sil/pso.py`): the predictor applies 0.952 to in-place motion (`abs(v)` < 0.05 m/s) and 0.825 otherwise.
+  - It is labelled `sim-derived` and runs on identical paths and seeds as the plain predictor.
+  - It is never a robot parameter.
+- **A runtime gain,** if ever wanted, would have to be estimated causally from feedback and validated across speed, curvature, surface and direction.
+
 ## 5. Hardware arithmetic accuracy (per variant)
 
 ### 5.1 Emulated arithmetic
@@ -388,8 +403,11 @@ low-priority `cmd_vel` is the one the mux forwards. Evidence from simulation (pl
 | `unknown` | no | no | no fresh matching mux sample within 0.12 s (or the source signal is stale, if used) | `owned` on a fresh own sample within 0.25 s; else `disarmed` |
 | `foreign` | no | no | **at once** on a mux sample that is not an exact (stamp, twist) match of a recent own command, or on a foreign source selection | `disarmed` when the foreign evidence ends (never directly to `owned`) |
 
-The timing values are PLACEHOLDER_ policy defaults for `Ts = 0.05 s`, to be tuned from the V13
-freshness measurements.
+The timing values are PLACEHOLDER_ policy defaults for `Ts = 0.05 s`. They are **provisional**
+until V13-active and the V11 investigation (plan §2.1, `app/husky/mux_timing.py`) measure the mux
+echo delay, jitter, losses, takeovers and locks under active publishing; then they are re-derived.
+Idle V13 showed ample margin, but that does not establish ownership under publishing. The cause
+of the V11 one-message leak is still unknown and is investigated rather than assumed away.
 
 - **Matching** is exact on the integer-nanosecond stamp and the twist, against a bounded history of own commands (20 entries) that were published after the current arming and are at most 0.15 s old. Own stamps must strictly increase (duplicates are rejected).
 - **The V11 leak cannot re-arm the MPC.** In `foreign` and `disarmed` an own sample is ignored, and arming clears the history, so an old MPC message arriving after a takeover never counts as evidence.
@@ -416,6 +434,10 @@ Tests:
 - It is the latest `cmd_vel_out` sample, ordered and aged by **its own stamp** (it is re-stamped, so it is never aligned to mux stamps).
 - It is rejected when older than 0.06 s (3 controller periods; PLACEHOLDER_), when stamped in the future (clock mismatch), or when non-finite.
 - No fresh `cmd_vel_out` means no re-arm, and in operation no solve.
+- **Slew base of the next plan:** the command published AT this tick is used as the slew base of the plan computed now (which starts
+one period later), but only if it is reachable in one step from the applied `cmd_vel_out`;
+otherwise (limiter active, lag, mismatch) the applied command is the base and the tick is noted
+(`MpcCore.finish_tick`, tested in `sil/test_sil_core.py`).
 
 **What happens on each cause:**
 
@@ -531,6 +553,15 @@ Violations, cost terms, solve times and fallback events are logged as separate c
 
 ### 7.7 State estimate at the control tick (measured twist, then applied command)
 
+**State source in simulation (decided after the 2026-10-28 review):** `platform/odom/filtered`,
+the EKF with the version-controlled IMU bridge (plan §2.1). With the IMU it matched ground truth
+(0.2855 rad/s at 0.3 rad/s commanded); wheel odometry overstated the yaw rate by 5–17 %.
+
+- The estimator's message **stamp** and the delay compensation below are used; the filtered output is not treated as instantaneous truth (it settles in about 0.15 s, measured in plan V14).
+- Gazebo ground truth is used for **scoring only**. Wheel odometry is a **diagnostic** only.
+- This is a simulation choice, not evidence about the real robot's EKF (gate G0).
+- A silently missing IMU (plan V14) invalidates a run.
+
 `unicycle_model.estimate_state_at_actuation` (tests
 `test_state_estimate_uses_measured_twist_then_applied_command`,
 `test_propagate_matches_chord_rollout_and_handles_segments`):
@@ -540,7 +571,7 @@ Violations, cost terms, solve times and fallback events are logged as separate c
 
 **Assumptions and their limits:**
 
-- **Measured twist = realized body twist.** `platform/odom` is wheel odometry computed with the controller's `wheel_separation × multiplier`. Under skid-steer slip it reports the wheel-implied yaw rate, not the true one; in simulation it equals the command (plan §2.1 notes). The EKF output (`odom/filtered`) fuses the IMU yaw rate and is the better choice once its rate and stamps are checked (V13). The integration interval is short (≤ 1 odometry period plus transport, about 20–40 ms), so the error is the slip error over that interval only.
+- **Measured twist = realized body twist.** `platform/odom` is wheel odometry computed with the controller's `wheel_separation × multiplier`. Under skid-steer slip it reports the wheel-implied yaw rate, not the true one; in simulation it equals the command (plan §2.1 notes). The EKF output (`odom/filtered`) fuses the IMU yaw rate and is the SIL feedback (above); its rate, stamps and latency are checked in plan V13-active and V14. The integration interval is short (≤ 1 odometry period plus transport, about 20–40 ms), so the error is the slip error over that interval only.
 - **Applied command = realized twist over the actuation interval.** The controller ramps commands at its acceleration limits (V8: about 2.1 m/s² up, 3.0 m/s² braking; V9: 4.0 rad/s²) and the drive has lag. Over 50 ms this leaves up to about 0.1 m/s of speed and 0.2 rad/s of yaw rate mismatch at the limits. The model's actuator delay stays a PLACEHOLDER_ to identify.
 - **Not established by simulation:** both assumptions must be re-checked on the real robot (one-step prediction error from logs) before stage 5.
 
@@ -723,7 +754,10 @@ It degrades with the following:
 | Exact reference vs the hardware approximation `1 − a²/6` | `test_hardware_sinc_approximation_is_separate_and_bounded` |
 | Command ownership state machine; `u_prev` from the applied command | `test_command_ownership.py` (12 tests, §7.2) |
 | State estimate (measured twist to the tick, applied command to actuation) | `test_state_estimate_uses_measured_twist_then_applied_command`, `test_propagate_matches_chord_rollout_and_handles_segments` |
-| Effective-track and freshness analysis (offline, synthetic data) | `test_identify_effective_track.py` (5 tests) |
+| Effective-track and freshness analysis (offline, synthetic data) | `test_identify_effective_track.py` |
+| twist_mux timing: echo delay, losses, reordering, takeovers, leaks, locks (synthetic capture) | `test_mux_timing.py` |
+| Generated IMU bridge check (fails loudly), bridge config and launch file, IMU gap / silent fallback / latency report | `test_imu_checks.py` |
+| SIL core: PSO structure (warm start, stable zero, du projection, inertia schedule, RK4, gain option), reference paths, controller gating, stale-feedback disarm, deadline fallbacks, ground-truth pump, scoring | `sil/test_sil_core.py` (15 tests) |
 | Wheel-side mapping round trip; saturation preserving turn direction | `test_wheel_side_mapping_round_trip_and_manual_equations`, `test_saturation_preserves_turn_direction_and_curvature` |
 | Acceleration and slew bounds never exceeded by generated feasible controls | `test_projected_controls_never_exceed_bounds` (3 limit sets), `test_candidates_are_feasible`, `test_shifted_warm_start_is_feasible`, `test_stop_from_documented_a300_maximum_takes_decel_limited_time`, `test_in_place_turn_reaches_heading` |
 | Violations reported separately | `test_check_controls_reports_each_violation_separately` |
@@ -734,8 +768,9 @@ It degrades with the following:
 Output on this PC (pytest 6.2.5, Python 3.10.12, numpy 2.2.6):
 
 ```text
-..............................................................           [100%]
-62 passed in 6.95s
+........................................................................ [ 85%]
+............                                                             [100%]
+84 passed in 10.48s
 ```
 
 ## 12. Open questions

@@ -1,0 +1,12 @@
+# ros_gz_bridge configuration for the A300 IMU in simulation (version-controlled workaround).
+#
+# Why: clearpath_simulator generates ~/clearpath/sensors/config/imu_0.yaml as an EMPTY bridge list
+# ([]) (observed 2026-10-28, Jazzy, Gazebo Harmonic 8.11), so /a300_00000/sensors/imu_0/data never
+# reaches ROS and the EKF (platform/odom/filtered) fuses wheel odometry only.
+# Check with: python3 imu_checks.py check-generated --setup-path ~/clearpath
+# Remove this bridge if the generator starts bridging the IMU itself (duplicate publishers).
+- ros_topic_name: "/a300_00000/sensors/imu_0/data"
+  gz_topic_name: "/a300_00000/sensors/imu_0/data"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: GZ_TO_ROS
