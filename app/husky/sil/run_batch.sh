@@ -31,6 +31,7 @@ OUT=${OUT:-$HOME/logs/sil_batch_$(date +%Y%m%d_%H%M)}
 PATHS=${PATHS:-"circle figure8"}
 CFGS=${CFGS:-"4x50 7x30 9x24"}
 GAINS=${GAINS:-"plain sim-derived"}
+ROMEGAS=${ROMEGAS:-5e-5}  # yaw-rate effort weight(s) r_omega; 5e-5 = the CostConfig default
 SEEDS=${SEEDS:-"1 2 3"}
 WORLD=${WORLD:-warehouse}
 RTF=${RTF:-0.25}
@@ -72,10 +73,10 @@ python3 -c "import sys; sys.exit(0 if 0.10 < float(sys.argv[1]) < 0.20 else 1)" 
   || { echo "drop test failed (robot z = $z m after 8 s): gravity or physics wrong, see plan V15"; exit 3; }
 echo "physics: RTF $RTF, step $STEP s, gravity on (robot at rest, z = $z m)"
 mkdir -p "$OUT"
-echo "SIL batch: $PATHS x $CFGS x $GAINS x seeds $SEEDS -> $OUT"
-for path in $PATHS; do for cfg in $CFGS; do for gain in $GAINS; do for seed in $SEEDS; do
+echo "SIL batch: $PATHS x $CFGS x $GAINS x r_omega $ROMEGAS x seeds $SEEDS -> $OUT"
+for path in $PATHS; do for cfg in $CFGS; do for gain in $GAINS; do for romega in $ROMEGAS; do for seed in $SEEDS; do
   reset_pose || { echo "set_pose failed: batch stopped"; exit 3; }
-  python3 -m sil.sil_node --sim --path "$path" --size "$SIZE" --speed "$SPEED" --pso "$cfg" --gain "$gain" --seed "$seed" --auto-arm \
+  python3 -m sil.sil_node --sim --path "$path" --size "$SIZE" --speed "$SPEED" --pso "$cfg" --gain "$gain" --r-omega "$romega" --seed "$seed" --auto-arm \
       --rtf "$RTF" --max-wall "$MAX_WALL" --out-dir "$OUT" --feedback-topic "$FEEDBACK" --imu-topic "$IMU" \
       --estimator "$ESTIMATOR" --ros-args -p use_sim_time:=true > "$OUT/node.log" 2>&1
   run=$(ls -td "$OUT"/*/ | head -1)
@@ -87,5 +88,5 @@ for path in $PATHS; do for cfg in $CFGS; do for gain in $GAINS; do for seed in $
     *"never owned"*|*"ownership lost"*) echo "the node did not keep ownership: batch stopped"; exit 2 ;;
     *"robot tipped"*|*"validity unknown"*) echo "the robot tilted over (or no tilt data): batch stopped"; exit 2 ;;
   esac
-done; done; done; done
+done; done; done; done; done
 echo "done: $OUT"

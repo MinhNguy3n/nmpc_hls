@@ -341,6 +341,11 @@ def test_metrics_report_separates_result_families(tmp_path):
     assert batch_summary.main([str(run / "report.json"), str(tmp_path / "summary.csv")]) == 0
     row = next(iter(__import__("csv").DictReader(open(tmp_path / "summary.csv"))))
     assert row["verdict"] == "REJECT" and row["reasons"] == "never owned; validity unknown"
+    # the weight comes from the cost in meta.json when no r_omega key is present (older runs)
+    assert rep["config"]["r_omega"] is None or rep["config"]["r_omega"] == pytest.approx(5e-5)
+    sm = rep["smoothness"]
+    assert sm["domega"]["rms"] >= 0.0 and 0.0 <= sm["dv"]["at_upper_slew"] <= 1.0
+    assert float(row["domega_rms"]) == pytest.approx(sm["domega"]["rms"])
 
 
 def test_acceptance_rejects_each_hard_failure():
@@ -379,6 +384,27 @@ def test_compare_pairs_runs_by_path_and_seed(tmp_path):
     assert [p["seed"] for p in item["pairs"]] == ["1", "2"]
     assert all(p["cross_track_rmse"] == pytest.approx(-0.10) for p in item["pairs"])
     assert "| cross_track_rmse |" in compare.to_markdown(result, "plain", "sim-derived")
+
+
+def test_compare_pairs_runs_by_weight(tmp_path):
+    from sil import batch_summary, compare
+    path = tmp_path / "summary.csv"
+    with open(path, "w", newline="") as handle:
+        writer = __import__("csv").DictWriter(handle, fieldnames=batch_summary.FIELDS)
+        writer.writeheader()
+        for romega, xt in ((5e-05, 0.13), (5e-06, 0.03)):
+            for gain in ("plain", "sim-lowk"):
+                for seed in (1, 2):
+                    writer.writerow({"run": f"figure8_7x30_nu25_{gain}_romega{romega:g}_seed{seed}_t", "pso": "7x30",
+                                     "gain_mode": gain, "r_omega": romega, "seed": seed, "verdict": "REJECT",
+                                     "cross_track_rmse": xt + (0.01 if gain == "sim-lowk" else 0.0)})
+    rows = [r for r in compare.load(path) if r["gain_mode"] == "plain"]
+    result = compare.compare(rows, "5e-5", "5e-6", key="r_omega")["figure8"]
+    assert result["variants"]["5e-5"]["n"] == 2 and len(result["pairs"]) == 2
+    assert all(p["cross_track_rmse"] == pytest.approx(-0.10) for p in result["pairs"])
+    # with both gains present, a weight pair never mixes gains
+    both = compare.compare(compare.load(path), "5e-5", "5e-6", key="r_omega")["figure8"]
+    assert len(both["pairs"]) == 4 and all(p["cross_track_rmse"] == pytest.approx(-0.10) for p in both["pairs"])
 
 
 def test_rtf_from_history_ignores_tick_bursts():

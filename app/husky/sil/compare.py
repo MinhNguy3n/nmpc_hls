@@ -21,7 +21,10 @@ from typing import Any
 DECISION = ("cross_track_rmse", "cross_track_max", "pos_rmse", "heading_rmse", "published_violations")
 ATTRIBUTION = ("fb_cross_track_rmse", "fb_cross_track_max", "fb_pos_rmse", "feedback_drift_pos_max",
                "fallback_ticks", "stop_ticks", "misses_sim", "c_sim_max", "c_wall_median", "c_wall_p95",
-               "c_wall_max", "c_wall_over_budget", "c_wall_over_period")
+               "c_wall_max", "c_wall_over_budget", "c_wall_over_period",
+               # smoothness (design note 7.3): the tradeoff against tracking, diagnostics only
+               "domega_rms", "domega_p95", "domega_reversals_per_s", "domega_at_upper_slew", "domega_at_lower_slew",
+               "dv_rms", "dv_p95", "dv_reversals_per_s", "dv_at_upper_slew")
 
 
 def load(path: str | Path) -> list[dict[str, Any]]:
@@ -39,20 +42,29 @@ def load(path: str | Path) -> list[dict[str, Any]]:
     return rows
 
 
-def compare(rows: list[dict[str, Any]], a: str, b: str) -> dict[str, Any]:
+def _same(value: Any, variant: str) -> bool:
+    """Variant match; numeric columns (r_omega) compare as numbers, so 5e-5 matches 5e-05."""
+    try:
+        return float(value) == float(variant)
+    except (TypeError, ValueError):
+        return str(value) == variant
+
+
+def compare(rows: list[dict[str, Any]], a: str, b: str, key: str = "gain_mode") -> dict[str, Any]:
     out: dict[str, Any] = {}
     for path in sorted({r["path"] for r in rows}):
         sel = [r for r in rows if r["path"] == path]
         per_variant = {}
         for gain in (a, b):
-            runs = [r for r in sel if r["gain_mode"] == gain]
+            runs = [r for r in sel if _same(r.get(key), gain)]
             per_variant[gain] = {
                 "n": len(runs), "verdicts": [r["verdict"] for r in runs],
                 **{k: {"mean": statistics.fmean(r[k] for r in runs), "min": min(r[k] for r in runs),
                        "max": max(r[k] for r in runs)} for k in DECISION + ATTRIBUTION if runs}}
         pairs = []
-        for ra in (r for r in sel if r["gain_mode"] == a):
-            rb = next((r for r in sel if r["gain_mode"] == b and r["seed"] == ra["seed"] and r["pso"] == ra["pso"]),
+        for ra in (r for r in sel if _same(r.get(key), a)):
+            rb = next((r for r in sel if _same(r.get(key), b) and r["seed"] == ra["seed"] and r["pso"] == ra["pso"]
+                       and all(r.get(o) == ra.get(o) for o in ("gain_mode", "r_omega") if o != key)),
                       None)
             if rb is not None:
                 pairs.append({"seed": ra["seed"], "pso": ra["pso"],
@@ -84,9 +96,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("summary")
     parser.add_argument("--a", default="plain")
     parser.add_argument("--b", default="sim-derived")
+    parser.add_argument("--key", default="gain_mode", help="variant column: gain_mode or r_omega")
     parser.add_argument("--out", default=None)
     args = parser.parse_args(argv)
-    text = to_markdown(compare(load(args.summary), args.a, args.b), args.a, args.b)
+    text = to_markdown(compare(load(args.summary), args.a, args.b, args.key), args.a, args.b)
     print(text)
     if args.out:
         Path(args.out).write_text(text)

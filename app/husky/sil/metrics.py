@@ -160,6 +160,56 @@ def motion(ticks: list[dict[str, Any]], applied: list[dict[str, Any]], truth: li
     return out
 
 
+# deadbands for counting sign reversals of the per-tick increments (documented screening choice,
+# not a physical limit): 1 % of the one-tick acceleration bound of the A300 SIL envelope
+# (accel_max Ts = 0.1 m/s, alpha_accel_max Ts = 0.2 rad/s)
+DEADBAND_V = 1e-3  # m/s per tick
+DEADBAND_W = 2e-3  # rad/s per tick
+
+
+def increments(values: np.ndarray, deadband: float, lo_hi: list[tuple[float, float]], ts: float) -> dict[str, Any]:
+    """Per-tick increment statistics of one control channel: RMS, p95 and max of |delta|, sign
+    reversals per second among increments larger than the deadband, and the fraction of
+    increments that sit on the upper / lower slew bound (lo_hi: the slew window of each step)."""
+    d = np.diff(values)
+    if len(d) == 0:
+        return {}
+    a = np.abs(d)
+    s = np.sign(d[a > deadband])
+    reversals = int(np.sum(s[1:] != s[:-1])) if len(s) > 1 else 0
+    lo = np.array([w[0] for w in lo_hi])
+    hi = np.array([w[1] for w in lo_hi])
+    nxt = values[1:]
+    eps = 1e-6
+    return {"rms": float(np.sqrt(np.mean(d ** 2))), "p95": float(np.percentile(a, 95)), "max": float(a.max()),
+            "reversals_per_s": reversals / (len(d) * ts), "deadband": deadband,
+            "at_upper_slew": float(np.mean(nxt >= hi - eps)), "at_lower_slew": float(np.mean(nxt <= lo + eps))}
+
+
+def smoothness(commands: np.ndarray, limits: um.UnicycleLimits, ts: float) -> dict[str, Any]:
+    """Increment statistics (design note 7.3) of consecutive published commands [v, omega]:
+    diagnostics of the tracking / smoothness tradeoff, not an accept/reject limit."""
+    commands = np.asarray(commands, dtype=float).reshape(-1, 2)
+    if len(commands) < 2:
+        return {}
+    prev = commands[:-1]
+    win_v = [um.slew_window(p, limits.accel_max * ts, limits.decel_max * ts) for p in prev[:, 0]]
+    win_w = [um.slew_window(p, limits.alpha_accel_max * ts, limits.alpha_decel_max * ts) for p in prev[:, 1]]
+    return {"dv": increments(commands[:, 0], DEADBAND_V, win_v, ts),
+            "domega": increments(commands[:, 1], DEADBAND_W, win_w, ts)}
+
+
+def episode_smoothness(ticks: list[dict[str, Any]], episodes: list[dict[str, Any]], duration: float,
+                       limits: um.UnicycleLimits, ts: float) -> dict[str, Any]:
+    """smoothness() of the plan / fallback / stop commands published during the first episode."""
+    if not episodes:
+        return {}
+    a, b = episodes[0]["tau0"], episodes[0]["tau0"] + duration
+    pub = [(r["publish_v"], r["publish_w"]) for r in ticks if a - 1e-9 <= r["t"] <= b
+           and r.get("publish_v") is not None and r.get("publish_kind") != "probe"]
+    return smoothness(np.array(pub), limits, ts) if len(pub) > 1 else {}
+
+
 # PLACEHOLDER_ tracking thresholds of the plan (section 4.3), to be agreed at the SIL review
 CROSS_TRACK_RMSE_MAX, CROSS_TRACK_MAX = 0.10, 0.25
 END_REASONS = ("run finished", "shutdown")
@@ -247,7 +297,8 @@ def report(run: Path) -> dict[str, Any]:
     ticks = read_rows(run / "ticks.csv")
     truth = read_rows(run / "truth.csv")
     result = {
-        "run": meta.get("run_id"), "config": {k: meta.get(k) for k in ("pso", "gain_mode", "seed", "control_horizon")},
+        "run": meta.get("run_id"), "config": {**{k: meta.get(k) for k in ("pso", "gain_mode", "seed", "control_horizon")},
+                   "r_omega": meta.get("r_omega", (meta.get("cost") or {}).get("r", [None, None])[1])},
         "validity": validity(truth),
         "tracking_vs_ground_truth": tracking(spec, read_rows(run / "episodes.csv"), truth),
         # the controller's own tracking: the same metric on the feedback it closes the loop on; the
@@ -258,6 +309,7 @@ def report(run: Path) -> dict[str, Any]:
         "executor": executor(ticks, meta["ts"]),
         "motion": motion(ticks, read_rows(run / "applied.csv"), truth, read_rows(run / "episodes.csv"),
                          spec.duration, limits),
+        "smoothness": episode_smoothness(ticks, read_rows(run / "episodes.csv"), spec.duration, limits, meta["ts"]),
         "startup": json.loads((run / "startup.json").read_text()) if (run / "startup.json").exists() else None,
         "fallbacks": fallbacks(ticks),
         "ownership_transitions": read_rows(run / "transitions.csv"),

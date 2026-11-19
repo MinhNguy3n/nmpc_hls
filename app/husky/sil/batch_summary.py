@@ -15,7 +15,7 @@ from pathlib import Path
 import sys
 from typing import Any
 
-FIELDS = ("run", "pso", "gain_mode", "seed", "estimator", "verdict", "reasons", "owned", "valid", "tilt_max",
+FIELDS = ("run", "pso", "gain_mode", "r_omega", "seed", "estimator", "verdict", "reasons", "owned", "valid", "tilt_max",
           "pos_rmse", "pos_max", "cross_track_rmse", "cross_track_max", "heading_rmse",
           "fb_pos_rmse", "fb_cross_track_rmse", "fb_cross_track_max", "feedback_drift_pos_max", "feedback_drift_yaw_final",
           "published_violations", "solution_violation_ticks", "solved", "misses_sim",
@@ -23,6 +23,8 @@ FIELDS = ("run", "pso", "gain_mode", "seed", "estimator", "verdict", "reasons", 
           "c_wall_over_budget", "c_wall_over_period", "fallback_ticks", "stop_ticks", "probe_ticks",
           "late_ticks", "events_per_tick_max", "cmd_v_median", "cmd_kappa_median", "at_v_max", "at_omega_max",
           "applied_v_median", "truth_speed_median", "startup_armed_wall", "startup_settled_t",
+          "domega_rms", "domega_p95", "domega_max", "domega_reversals_per_s", "domega_at_upper_slew", "domega_at_lower_slew",
+          "dv_rms", "dv_p95", "dv_max", "dv_reversals_per_s", "dv_at_upper_slew", "dv_at_lower_slew",
           "ownership_transitions")
 
 
@@ -45,7 +47,7 @@ def summary_row(rep: dict[str, Any]) -> dict[str, Any]:
     acc = rep["acceptance"]
     nan = math.nan
     return {
-        "run": rep["run"], **{k: rep["config"].get(k) for k in ("pso", "gain_mode", "seed")},
+        "run": rep["run"], **{k: rep["config"].get(k) for k in ("pso", "gain_mode", "r_omega", "seed")},
         "estimator": (rep.get("feedback_source") or {}).get("feedback_topic"),
         "verdict": "ACCEPT" if acc["accepted"] else "REJECT", "reasons": "; ".join(acc["reasons"]),
         "owned": any(t.get("new") == "owned" for t in rep["ownership_transitions"]),
@@ -65,6 +67,8 @@ def summary_row(rep: dict[str, Any]) -> dict[str, Any]:
         "late_ticks": (rep.get("executor") or {}).get("late_ticks"),
         "events_per_tick_max": ((rep.get("executor") or {}).get("events_per_tick") or {}).get("max"),
         **_motion_and_startup(rep),
+        **{f"{ch}_{k}": ((rep.get("smoothness") or {}).get(ch) or {}).get(k, nan) for ch in ("domega", "dv")
+           for k in ("rms", "p95", "max", "reversals_per_s", "at_upper_slew", "at_lower_slew")},
         "ownership_transitions": " | ".join(f"{t.get('old')}->{t.get('new')} ({t.get('reason')})"
                                             for t in rep["ownership_transitions"]),
     }

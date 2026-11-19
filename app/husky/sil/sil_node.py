@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import argparse
 from collections import deque
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import datetime
 import json
 import math
@@ -67,6 +67,8 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     p.add_argument("--pso", default="4x50", help="particles x iterations, e.g. 4x50, 7x30, 9x24")
     p.add_argument("--nu", type=int, default=25)
     p.add_argument("--gain", choices=pso_mod.GAIN_MODES, default="plain")
+    p.add_argument("--r-omega", type=float, default=pso_mod.CostConfig().r[1],
+                   help="yaw-rate effort weight r_omega (normalized units; R_v stays 0)")
     p.add_argument("--seed", type=int, default=1)
     p.add_argument("--v-max", type=float, default=0.3, help="PLACEHOLDER_ SIL envelope (m/s)")
     p.add_argument("--omega-max", type=float, default=0.75, help="PLACEHOLDER_ SIL envelope (rad/s)")
@@ -160,10 +162,10 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
     limits = um.limits_from_parameter_set("husky_a300", v_min=0.0, v_max=args.v_max, omega_max=args.omega_max)
     spec = PathSpec(args.path, args.speed, args.size)
     cfg = CoreConfig(limits=limits, pso=pso_mod.PsoConfig.parse(args.pso), control_horizon=args.nu,
-                     gain_mode=args.gain, path=spec)
+                     gain_mode=args.gain, path=spec, cost=replace(pso_mod.CostConfig(), r=(0.0, args.r_omega)))
     core = MpcCore(cfg, seed=args.seed)
     ns = "/" + args.namespace
-    run_id = (f"{args.path}_{args.pso}_nu{args.nu}_{args.gain}_seed{args.seed}_"
+    run_id = (f"{args.path}_{args.pso}_nu{args.nu}_{args.gain}_romega{args.r_omega:g}_seed{args.seed}_"
               f"{datetime.datetime.now().strftime('%Y%m%dT%H%M%S')}")
     out = Path(args.out_dir).expanduser() / run_id
     out.mkdir(parents=True, exist_ok=False)
@@ -172,6 +174,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
         "control_horizon": cfg.control_horizon, "pso": args.pso, "gain_mode": args.gain,
         "gain_label": "plain" if args.gain == "plain" else f"{args.gain} (simulator physics, not robot values)",
         "seed": args.seed, "deadline": cfg.deadline, "limits": asdict(limits), "cost": asdict(cfg.cost),
+        "r_omega": cfg.cost.r[1],
         "path": {"kind": spec.kind, "speed": spec.speed, "size": spec.size, "duration": spec.duration},
         "ownership": asdict(cfg.ownership), "max_odom_age": cfg.max_odom_age, "max_imu_age": cfg.max_imu_age,
         "feedback_topic": args.feedback_topic, "imu_topic": args.imu_topic, "estimator": args.estimator,
