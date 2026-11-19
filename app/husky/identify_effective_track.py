@@ -205,8 +205,11 @@ def freshness_stats(stamps: Iterable[float], received: Iterable[float]) -> Fresh
                           int(np.sum(dt <= 0)))
 
 
-def parse_pose_v_text(lines: Iterable[str]) -> Iterable[tuple[float, dict[str, tuple[float, float, float]]]]:
+def parse_pose_v_text(lines: Iterable[str], full: bool = False) -> Iterable[tuple[float, dict[str, tuple[float, ...]]]]:
     """Parse `gz topic -e` text output of gz.msgs.Pose_V into (stamp s, {name: (x, y, yaw)}) per message.
+
+    With full=True the values are (x, y, yaw, z, tilt), tilt being the angle between the body z
+    axis and the vertical (rad): a tipped-over robot keeps moving its wheels and its odometry.
 
     Protobuf text omits zero-valued fields, so a missing coordinate is 0. A message starts at each
     top-level `header {` block; poses are the top-level `pose {` blocks that follow it.
@@ -221,8 +224,12 @@ def parse_pose_v_text(lines: Iterable[str]) -> Iterable[tuple[float, dict[str, t
         if pose.get("name") is not None:
             q = pose.get("orientation", {})
             p = pose.get("position", {})
-            poses[pose["name"]] = (p.get("x", 0.0), p.get("y", 0.0),
-                                   yaw_from_quaternion(q.get("x", 0.0), q.get("y", 0.0), q.get("z", 0.0), q.get("w", 0.0)))
+            qx, qy, qz, qw = (q.get(k, 0.0) for k in ("x", "y", "z", "w"))
+            value: tuple[float, ...] = (p.get("x", 0.0), p.get("y", 0.0), yaw_from_quaternion(qx, qy, qz, qw))
+            if full:
+                n2 = qx * qx + qy * qy + qz * qz + qw * qw or 1.0
+                value += (p.get("z", 0.0), math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * (qx * qx + qy * qy) / n2))))
+            poses[pose["name"]] = value
 
     for raw in lines:
         line = raw.strip()

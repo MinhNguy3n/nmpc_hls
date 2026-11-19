@@ -86,3 +86,26 @@ def test_imu_report_gap_fallback_and_latency(tmp_path):
     assert lat["best_lag"] == pytest.approx(0.1, abs=0.02)
     assert any(d == pytest.approx(0.1, abs=0.03) for d in lat["step_delays_50pct"])
     assert ic.main(["report", str(path)]) == 0
+
+
+def test_gap_spanning_turns_of_both_signs_is_detected_as_fallback():
+    # the 2026-11-19 V14 run: the IMU stopped during a +0.3 turn and resumed during a -0.3 turn; without
+    # the IMU the EKF followed wheel odometry (5 % high), with a small drift while standing still
+    def w_true(tt):
+        return 0.2855 if tt < 10 else (0.0 if tt < 14 else -0.2855)
+
+    rows = []
+    for tt in np.arange(0.0, 22.0, 0.01):
+        rows.append({"source": "truth", "stamp": tt, "received": tt,
+                     "yaw": float(sum(w_true(x) for x in np.arange(0, tt, 0.01)) * 0.01)})
+        if not 6.0 <= tt < 19.0:
+            rows.append({"source": "imu", "stamp": tt, "received": tt, "frame_id": "imu_0_link",
+                         "omega": w_true(tt), "ax": 0.0, "cov_orientation0": 0.0, "cov_gyro_z": 0.0, "cov_accel_x": 0.0})
+    for tt in np.arange(0.0, 22.0, 0.02):
+        wheel = w_true(tt) / 0.952
+        filt = wheel + (0.009 if 10 <= tt < 14 else 0.0) if 6.0 <= tt < 19.0 else w_true(tt)
+        rows.append({"source": "wheel", "stamp": tt, "received": tt, "omega": wheel, "v": 0.0})
+        rows.append({"source": "filtered", "stamp": tt, "received": tt, "omega": filt, "v": 0.0})
+    (gap,) = ic.imu_report(rows)["imu_gaps"]
+    assert gap["silent_fallback_to_wheel_odometry"]
+    assert gap["filtered_minus_truth_during"] > 0.01 > gap["filtered_minus_wheel_during"]

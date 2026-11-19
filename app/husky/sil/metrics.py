@@ -95,18 +95,74 @@ def violations(ticks: list[dict[str, Any]], limits: um.UnicycleLimits, ts: float
                     "after a gap or probe against the probe / cmd_vel_out)"}
 
 
-def deadline(ticks: list[dict[str, Any]], budget: float) -> dict[str, Any]:
+def _dist(a: np.ndarray) -> dict[str, float]:
+    return {"median": float(np.median(a)), "p95": float(np.percentile(a, 95)), "max": float(a.max())}
+
+
+def deadline(ticks: list[dict[str, Any]], budget: float, ts: float = 0.05) -> dict[str, Any]:
+    """Two separate results. Simulation time: C_sim (wall time since the tick start x the measured
+    RTF) against the budget: the SIL deadline at that RTF. Wall clock, NOT scaled: the Python
+    implementation's own cost against the same budget and the sample period, as a property of
+    this Python code only (not of the C model or the hardware)."""
     solved = [r for r in ticks if r.get("solved")]
     if not solved:
         return {"solved": 0}
     sim = np.array([r["c_sim_total"] for r in solved])
     wall = np.array([r["c_wall_total"] for r in solved])
     solve_wall = np.array([r["c_wall_solve"] for r in solved])
-    return {"solved": len(solved), "budget": budget, "misses_sim": int(np.sum(sim > budget)),
-            "c_sim": {"median": float(np.median(sim)), "p95": float(np.percentile(sim, 95)), "max": float(sim.max())},
-            "c_wall": {"median": float(np.median(wall)), "p95": float(np.percentile(wall, 95)), "max": float(wall.max())},
-            "solve_wall": {"median": float(np.median(solve_wall)), "max": float(solve_wall.max())},
-            "note": "simulation-time C is the SIL deadline; wall-clock C is Python timing, not a hardware claim"}
+    return {"solved": len(solved), "budget": budget, "period": ts,
+            "misses_sim": int(np.sum(sim > budget)), "c_sim": _dist(sim),
+            "c_wall": _dist(wall), "c_wall_over_budget": int(np.sum(wall > budget)),
+            "c_wall_over_period": int(np.sum(wall > ts)), "solve_wall": _dist(solve_wall),
+            "note": "C_sim is RTF-scaled (the SIL deadline); C_wall is unscaled Python timing, not a hardware claim"}
+
+
+def executor(ticks: list[dict[str, Any]], ts: float) -> dict[str, Any]:
+    """Callback backlog drained per tick and late timer ticks (simulation time)."""
+    events = np.array([r["events"] for r in ticks if r.get("events") is not None])
+    t = np.array([r["t"] for r in ticks])
+    gaps = np.diff(t) if len(t) > 1 else np.array([])
+    out: dict[str, Any] = {"ticks": len(ticks), "late_ticks": int(np.sum(gaps > 1.5 * ts)),
+                           "tick_interval_max": float(gaps.max()) if len(gaps) else None}
+    if len(events):
+        out["events_per_tick"] = _dist(events)
+    return out
+
+
+# PLACEHOLDER_ tracking thresholds of the plan (section 4.3), to be agreed at the SIL review
+CROSS_TRACK_RMSE_MAX, CROSS_TRACK_MAX = 0.10, 0.25
+END_REASONS = ("run finished", "shutdown")
+
+
+def acceptance(rep: dict[str, Any]) -> dict[str, Any]:
+    """Candidate acceptance for one run: every reason listed; an empty list means accepted.
+    Hard rejections: published-command constraint violations, loss of ownership, a tipped robot,
+    a stop fallback, simulation-time deadline misses above 1 %, tracking above the thresholds."""
+    reasons = []
+    transitions = rep["ownership_transitions"]
+    if not any(t.get("new") == "owned" for t in transitions):
+        reasons.append("never owned")
+    lost = [t for t in transitions if t.get("old") == "owned" and t.get("reason") not in END_REASONS]
+    if lost:
+        reasons.append(f"ownership lost: {lost[0].get('reason')}")
+    if rep["validity"]["valid"] is not True:
+        reasons.append("robot tipped" if rep["validity"]["valid"] is False else "validity unknown")
+    if rep["constraint_violations"]["published_ticks_violating"]:
+        reasons.append("published constraint violation")
+    d = rep["deadline"]
+    if d.get("solved", 0) == 0:
+        reasons.append("no solves")
+    elif d["misses_sim"] > 0.01 * d["solved"]:
+        reasons.append("C_sim misses > 1 %")
+    if rep["fallbacks"]["published_kinds"]["stop"]:
+        reasons.append("stop fallback")
+    tracks = rep["tracking_vs_ground_truth"]
+    if not tracks or "error" in tracks[0]:
+        reasons.append("no tracking result")
+    elif tracks[0]["cross_track_rmse"] > CROSS_TRACK_RMSE_MAX or tracks[0]["cross_track_max"] > CROSS_TRACK_MAX:
+        reasons.append("tracking above the provisional thresholds")
+    return {"accepted": not reasons, "reasons": reasons,
+            "note": "C_wall is reported, not judged: Python timing is not the implementation's latency"}
 
 
 def fallbacks(ticks: list[dict[str, Any]]) -> dict[str, int]:
@@ -138,22 +194,45 @@ def signal_vs_truth(signal: list[dict[str, Any]], truth: list[dict[str, Any]]) -
             "drift_yaw_final": float(dyaw[-1]), "age_median": float(np.median(ages)) if ages else math.nan}
 
 
+MAX_TILT = 0.35  # rad (20 deg): beyond this the robot has climbed something or tipped over
+
+
+def validity(truth: list[dict[str, Any]]) -> dict[str, Any]:
+    """Whether the robot stayed upright (ground truth). A tipped robot's wheels and odometry keep
+    turning, so feedback-based numbers look normal; such a run is not scored."""
+    tilts = [(r["stamp"], r["tilt"]) for r in truth if r.get("tilt") is not None]
+    if not tilts:
+        return {"valid": None, "reason": "no tilt in the ground truth (log written before 2026-11-19)"}
+    worst = max(tilts, key=lambda st: st[1])
+    first = next((st[0] for st in tilts if st[1] > MAX_TILT), None)
+    return {"valid": first is None, "tilt_max": worst[1], "tilt_max_at": worst[0], "max_tilt": MAX_TILT,
+            "tipped_at": first, "reason": "" if first is None else "robot tilted beyond max_tilt: run invalid"}
+
+
 def report(run: Path) -> dict[str, Any]:
     meta = json.loads((run / "meta.json").read_text())
     spec = PathSpec(meta["path"]["kind"], meta["path"]["speed"], meta["path"]["size"])
     limits = um.UnicycleLimits(**meta["limits"])
     ticks = read_rows(run / "ticks.csv")
     truth = read_rows(run / "truth.csv")
-    return {
+    result = {
         "run": meta.get("run_id"), "config": {k: meta.get(k) for k in ("pso", "gain_mode", "seed", "control_horizon")},
+        "validity": validity(truth),
         "tracking_vs_ground_truth": tracking(spec, read_rows(run / "episodes.csv"), truth),
+        # the controller's own tracking: the same metric on the feedback it closes the loop on; the
+        # difference to the ground-truth result is the estimator's share (diagnostic, not acceptance)
+        "tracking_vs_feedback": tracking(spec, read_rows(run / "episodes.csv"), read_rows(run / "feedback.csv")),
         "constraint_violations": violations(ticks, limits, meta["ts"]),
-        "deadline": deadline(ticks, meta["deadline"]),
+        "deadline": deadline(ticks, meta["deadline"], meta["ts"]),
+        "executor": executor(ticks, meta["ts"]),
         "fallbacks": fallbacks(ticks),
         "ownership_transitions": read_rows(run / "transitions.csv"),
         "diagnostic_feedback_vs_truth": signal_vs_truth(read_rows(run / "feedback.csv"), truth),
         "diagnostic_wheel_odom_vs_truth": signal_vs_truth(read_rows(run / "wheel_odom.csv"), truth),
+        "feedback_source": {k: meta.get(k) for k in ("feedback_topic", "imu_topic", "estimator")},
     }
+    result["acceptance"] = acceptance(result)
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:

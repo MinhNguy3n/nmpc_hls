@@ -4,15 +4,18 @@
 Sub-commands
     capture   passive: record receive time and stamp of /<ns>/cmd_vel (input),
               /<ns>/joy_teleop/cmd_vel, /<ns>/platform/cmd_vel (mux output), cmd_vel_out, the three
-              lock topics and the twist_mux `current priority` (diagnostics, 1 Hz) to a CSV
+              lock topics and the twist_mux diagnostics (about 2 Hz) to a CSV: the lock priority and
+              the unmasked velocity inputs (see parse_mux_status)
     scenario  SIMULATION ONLY (--sim and use_sim_time:=true): publish a scripted test pattern
                 active    cmd_vel at 20 Hz, stamp = sim now, zero twist
                 takeover  cmd_vel at 20 Hz + joy_teleop at 10 Hz during two windows (zero twist)
                 lock      cmd_vel at 20 Hz + safety_stop and bt_quality_stop engaged/released
                 turn      cmd_vel at 20 Hz with in-place turns (for the IMU checks; the robot turns)
+                estimator still, in-place turns both ways, 1 m arcs both ways at 0.3 m/s
+                          (ESTIMATOR_PROFILE; for estimator_checks.py; the robot drives about 3 m)
               Sources are tagged in twist.linear.y (cmd_vel 0.001, joy 0.002), which the
               diff-drive controller ignores, so a mux output sample can be attributed even
-              without a stamp match. The robot does not move except in `turn`.
+              without a stamp match. The robot does not move except in `turn` and `estimator`.
     report    offline: echo delay and jitter (input receive -> mux output receive, matched by exact
               stamp), lost and reordered messages, takeover and hand-back timing, leak events (an
               input forwarded while a higher-priority source was active within its 0.5 s timeout),
@@ -43,14 +46,30 @@ INPUT, JOY, MUX, APPLIED = "cmd_vel", "joy_teleop/cmd_vel", "platform/cmd_vel", 
 LOCKS = ("platform/emergency_stop", "platform/safety_stop", "joy_teleop/bt_quality_stop")
 TAGS = {INPUT: 0.001, JOY: 0.002}
 MUX_TIMEOUT = 0.5  # s, every twist_mux input (V12)
-FIELDS = ("topic", "stamp_ns", "received", "received_wall", "v", "omega", "tag", "data")
+FIELDS = ("topic", "stamp_ns", "received", "received_wall", "v", "omega", "tag", "data", "inputs")
 
 # scenario timings (s of simulation time from the scenario start); the robot stays still except `turn`
 TAKEOVER_WINDOWS = ((10.0, 20.0), (25.0, 30.0))
 LOCK_EVENTS = ((10.0, "platform/safety_stop", True), (15.0, "platform/safety_stop", False),
                (20.0, "joy_teleop/bt_quality_stop", True), (25.0, "joy_teleop/bt_quality_stop", False))
 TURN_PROFILE = ((3.0, 0.0), (8.0, 0.3), (4.0, 0.0), (8.0, -0.3), (3.0, 0.0))  # (duration, omega)
-DURATIONS = {"active": 30.0, "takeover": 40.0, "lock": 30.0, "turn": sum(d for d, _ in TURN_PROFILE)}
+# (duration, v, omega): still, in-place left and right, arcs of radius 1 m left and right, still
+ESTIMATOR_PROFILE = ((3.0, 0.0, 0.0), (6.0, 0.0, 0.3), (6.0, 0.0, -0.3), (8.0, 0.3, 0.3), (8.0, 0.3, -0.3),
+                     (3.0, 0.0, 0.0))
+DURATIONS = {"active": 30.0, "takeover": 40.0, "lock": 30.0, "turn": sum(d for d, _ in TURN_PROFILE),
+             "estimator": sum(d for d, _, _ in ESTIMATOR_PROFILE)}
+
+
+def profile_command(profile: str, elapsed: float) -> tuple[float, float]:
+    """(v, omega) of a scripted profile at `elapsed` s after its start; (0, 0) outside the motion."""
+    acc = 0.0
+    steps = [(d, 0.0, w) for d, w in TURN_PROFILE] if profile == "turn" else \
+        list(ESTIMATOR_PROFILE) if profile == "estimator" else []
+    for duration, v, w in steps:
+        if elapsed < acc + duration:
+            return v, w
+        acc += duration
+    return 0.0, 0.0
 
 
 # ----------------------------------------------------------------------------------------------
@@ -67,6 +86,7 @@ def read_capture(path: str | Path) -> list[dict[str, Any]]:
             for key in ("received", "received_wall", "v", "omega", "tag"):
                 row[key] = float(raw[key]) if raw.get(key) else None
             row["data"] = None if not raw.get("data") else raw["data"] in ("1", "True", "true")
+            row["inputs"] = raw.get("inputs") or None
             rows.append(row)
     return rows
 
@@ -77,6 +97,35 @@ def write_capture(path: str | Path, rows: Iterable[dict[str, Any]]) -> None:
         writer.writeheader()
         for row in rows:
             writer.writerow({k: ("" if row.get(k) is None else (int(row[k]) if k == "data" else row[k])) for k in FIELDS})
+
+
+def parse_mux_status(values: dict[str, str]) -> tuple[float, str] | None:
+    """(lock priority, ';'-joined unmasked velocity inputs) from a twist_mux status, else None.
+
+    `current priority` is the highest engaged LOCK priority (0 = no lock), not the selected input
+    (twist_mux 4.5.0, twist_mux_diagnostics_status.hpp). An input is reported `unmasked` while it is
+    fresh (within its timeout) and its priority is not below the lock priority (topic_handle.hpp
+    isMasked), so the selected source is the highest-priority unmasked input.
+    """
+    if "current priority" not in values:
+        return None
+    unmasked = sorted(k.split(".", 1)[1] for k, v in values.items()
+                      if k.startswith("velocity topics.") and v.strip().startswith("unmasked"))
+    return float(values["current priority"]), ";".join(unmasked)
+
+
+def mux_status_transitions(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The diagnostics samples at which the lock priority or the unmasked set changed."""
+    out: list[dict[str, Any]] = []
+    last = None
+    for r in rows:
+        if r["topic"] != "diag_mux":
+            continue
+        key = (r["v"], r.get("inputs") or "")
+        if key != last:
+            out.append({"received": r["received"], "lock_priority": key[0], "unmasked": key[1]})
+            last = key
+    return out
 
 
 def _stats(values: list[float]) -> dict[str, float]:
@@ -119,12 +168,13 @@ def mux_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
     t_end = max((r["received"] for r in rows), default=0.0)
 
     def source(r: dict[str, Any]) -> str:
+        # the tag first: the scenario sends cmd_vel and joy in the same tick with the same stamp
+        for topic, tag in TAGS.items():
+            if r["tag"] is not None and abs(r["tag"] - tag) < 1e-9:
+                return topic if r["stamp_ns"] in inputs[topic] else topic + " (tag only)"
         for topic in (INPUT, JOY):
             if r["stamp_ns"] in inputs[topic]:
                 return topic
-        for topic, tag in TAGS.items():
-            if r["tag"] is not None and abs(r["tag"] - tag) < 1e-9:
-                return topic + " (tag only)"
         return "unknown"
 
     labelled = [(r, source(r)) for r in mux]
@@ -149,15 +199,26 @@ def mux_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
         result["duplicates"][topic] = duplicates
     # what was active when each cmd_vel input arrived
     joy_times = [r["received"] for r in by.get(JOY, [])]
+    joy_walls = [r["received_wall"] for r in by.get(JOY, [])]
     locks = {name: _lock_intervals(rows, name, t_end) for name in LOCKS}
+    lock_walls = {r["received"]: r["received_wall"] for r in rows if r["topic"] in LOCKS and r["data"]}
 
-    def joy_active(t: float) -> float | None:
-        """Age of the last joy input at time t if within the mux timeout, else None."""
-        prior = [j for j in joy_times if j <= t]
+    def joy_active(t: float, wall: float | None = None) -> float | None:
+        """Age of the last joy input at time t if within the mux timeout, else None.
+
+        Simulation time has 1 ms steps, so an input and a joy message can share t; `wall` (the
+        input's wall-clock receive time) then decides which arrived first."""
+        prior = [j for j, w in zip(joy_times, joy_walls)
+                 if j < t or (j == t and (wall is None or w is None or w < wall))]
         return t - prior[-1] if prior and t - prior[-1] <= MUX_TIMEOUT else None
 
-    def locked(t: float) -> list[str]:
-        return [n for n, ivs in locks.items() if any(a <= t <= b for a, b in ivs)]
+    def locked(t: float, wall: float | None = None) -> list[str]:
+        """Locks engaged at t; on a tie with the engage time, `wall` decides as in joy_active."""
+        def engaged(a: float, b: float) -> bool:
+            if t == a and wall is not None and lock_walls.get(a) is not None:
+                return lock_walls[a] < wall
+            return a <= t <= b
+        return [n for n, ivs in locks.items() if any(engaged(a, b) for a, b in ivs)]
 
     unexpected, suppressed = [], 0
     for stamp, r in inputs[INPUT].items():
@@ -185,9 +246,10 @@ def mux_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
             continue
         # judged at the time the INPUT arrived (a sample already in flight when joy starts is a race,
         # not a leak); falls back to the forwarding time if the input was not captured
-        t_in = inputs[INPUT][r["stamp_ns"]]["received"] if r["stamp_ns"] in inputs[INPUT] else r["received"]
-        age = joy_active(t_in)
-        engaged = locked(t_in)
+        r_in = inputs[INPUT].get(r["stamp_ns"], r)
+        t_in = r_in["received"]
+        age = joy_active(t_in, r_in.get("received_wall"))
+        engaged = locked(t_in, r_in.get("received_wall"))
         if age is None and not engaged:
             continue
         nxt = [j for j in joy_times if j > r["received"]]
@@ -218,8 +280,8 @@ def mux_report(rows: list[dict[str, Any]]) -> dict[str, Any]:
                                 "age_median": st.age_median, "age_p95": st.age_p95, "age_max": st.age_max,
                                 "age_min": st.age_min, "non_monotonic": st.non_monotonic}
     result["freshness"] = freshness
-    prio = [r for r in by.get("diag_priority", [])]
-    result["diag_priority_samples"] = [(r["received"], r["v"]) for r in prio][:200]
+    result["diag_mux_samples"] = len(by.get("diag_mux", []))
+    result["diag_mux_transitions"] = mux_status_transitions(by.get("diag_mux", []))
     return result
 
 
@@ -268,10 +330,10 @@ def _ros(args: argparse.Namespace, ros_args: list[str]) -> int:  # pragma: no co
 
         def diag(m: Any) -> None:
             for st in m.status:
-                values = {kv.key: kv.value for kv in st.values}
-                if "current priority" in values:
-                    rows.append({"topic": "diag_priority", "received": now(), "received_wall": time.monotonic(),
-                                 "v": float(values["current priority"])})
+                status = parse_mux_status({kv.key: kv.value for kv in st.values})
+                if status is not None:
+                    rows.append({"topic": "diag_mux", "received": now(), "received_wall": time.monotonic(),
+                                 "v": status[0], "inputs": status[1]})
         node.create_subscription(DiagnosticArray, f"{ns}/diagnostics", diag, 10)
         end = time.monotonic() + args.duration * 4 + 10  # wall-clock guard
         start_sim = None
@@ -294,16 +356,18 @@ def _ros(args: argparse.Namespace, ros_args: list[str]) -> int:  # pragma: no co
         sent: list[dict[str, Any]] = []
         state = {"t0": None, "next_joy": 0.0, "events": list(LOCK_EVENTS), "done": False}
 
-        def send(topic: str, omega: float = 0.0) -> None:
+        def send(topic: str, omega: float = 0.0, v: float = 0.0) -> None:
             msg = TwistStamped()
             ns_now = clock.now().nanoseconds
             msg.header.stamp.sec, msg.header.stamp.nanosec = divmod(ns_now, 1_000_000_000)
             msg.header.frame_id = "base_link"
             msg.twist.linear.y = TAGS[topic]
-            msg.twist.angular.z = float(max(-0.3, min(0.3, omega)))  # hard cap
+            msg.twist.angular.z = float(max(-0.3, min(0.3, omega)))  # hard caps
+            msg.twist.linear.x = float(max(0.0, min(0.3, v)))
             pubs[topic].publish(msg)
             sent.append({"topic": "sent:" + topic, "stamp_ns": ns_now, "received": ns_now * 1e-9,
-                         "received_wall": time.monotonic(), "omega": msg.twist.angular.z, "tag": TAGS[topic]})
+                         "received_wall": time.monotonic(), "v": msg.twist.linear.x, "omega": msg.twist.angular.z,
+                         "tag": TAGS[topic]})
 
         def tick() -> None:
             t = now()
@@ -315,15 +379,8 @@ def _ros(args: argparse.Namespace, ros_args: list[str]) -> int:  # pragma: no co
             if el > DURATIONS[args.profile]:
                 state["done"] = True
                 return
-            omega = 0.0
-            if args.profile == "turn":
-                acc = 0.0
-                for duration, w in TURN_PROFILE:
-                    if el < acc + duration:
-                        omega = w
-                        break
-                    acc += duration
-            send(INPUT, omega)
+            v, omega = profile_command(args.profile, el)
+            send(INPUT, omega, v)
             if args.profile == "takeover" and any(a <= el < b for a, b in TAKEOVER_WINDOWS) and el >= state["next_joy"]:
                 send(JOY)
                 state["next_joy"] = el + 0.1  # 10 Hz

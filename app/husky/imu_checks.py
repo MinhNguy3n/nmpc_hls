@@ -171,16 +171,17 @@ def imu_report(rows: list[dict[str, Any]], gap: float = 0.2) -> dict[str, Any]:
         if during and len(t_gt) >= 3:
             w_f = np.array([r["omega"] for r in during])
             w_g = np.interp([r["stamp"] for r in during], t_gt, w_gt)
-            item["filtered_minus_truth_during"] = float(np.mean(w_f - w_g))
+            # mean ABSOLUTE differences: a gap can span turns of both signs, whose signed errors cancel
+            item["filtered_minus_truth_during"] = float(np.mean(np.abs(w_f - w_g)))
             if before:
                 wb = np.interp([r["stamp"] for r in before], t_gt, w_gt)
-                item["filtered_minus_truth_before"] = float(np.mean(np.array([r["omega"] for r in before]) - wb))
+                item["filtered_minus_truth_before"] = float(np.mean(np.abs(np.array([r["omega"] for r in before]) - wb)))
             if wheel:
                 w_w = np.interp([r["stamp"] for r in during], [r["stamp"] for r in wheel], [r["omega"] for r in wheel])
-                item["filtered_minus_wheel_during"] = float(np.mean(w_f - w_w))
+                item["filtered_minus_wheel_during"] = float(np.mean(np.abs(w_f - w_w)))
+                # still publishing, and following wheel odometry at least as closely as the truth
                 item["silent_fallback_to_wheel_odometry"] = bool(
-                    abs(item["filtered_minus_wheel_during"]) < 0.01 * max(1e-6, float(np.max(np.abs(w_w))))
-                    and len(during) > 0)
+                    item["filtered_minus_wheel_during"] <= item["filtered_minus_truth_during"])
         findings.append(item)
     out["imu_gaps"] = findings
     if filt and len(t_gt) >= 3:

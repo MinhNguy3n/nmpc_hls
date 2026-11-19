@@ -77,3 +77,71 @@ def test_report_cli(tmp_path, capsys):
     with pytest.raises(SystemExit):
         mt.main(["scenario", "active"])  # --out is required; ROS is never reached
     assert "rclpy" not in sys.modules
+
+
+def test_mux_status_is_lock_priority_and_unmasked_inputs(tmp_path):
+    # values as published by twist_mux 4.5.0 on the A300 while cmd_vel is fresh and no lock is engaged
+    values = {"velocity topics.external": " unmasked (listening to cmd_vel @ 0.500000s with priority #1)",
+              "velocity topics.joy": " masked (listening to joy_teleop/cmd_vel @ 0.500000s with priority #10)",
+              "lock locks.safety_stop": " free (listening to platform/safety_stop @ 0.000000s with priority #254)",
+              "current priority": "0"}
+    assert mt.parse_mux_status(values) == (0.0, "external")
+    assert mt.parse_mux_status({"velocity topics.joy": " unmasked"}) is None  # not the mux status
+    rows = [{"topic": "diag_mux", "received": t, "v": p, "inputs": i}
+            for t, p, i in ((1.0, 0.0, ""), (1.5, 0.0, ""), (2.0, 0.0, "external"), (2.5, 0.0, "external;joy"),
+                            (3.0, 254.0, ""), (3.5, 254.0, ""))]  # a lock masks both
+    path = tmp_path / "d.csv"
+    mt.write_capture(path, rows)
+    assert mt.mux_status_transitions(mt.read_capture(path)) == [
+        {"received": 1.0, "lock_priority": 0.0, "unmasked": ""},
+        {"received": 2.0, "lock_priority": 0.0, "unmasked": "external"},
+        {"received": 2.5, "lock_priority": 0.0, "unmasked": "external;joy"},
+        {"received": 3.0, "lock_priority": 254.0, "unmasked": ""}]
+
+
+def test_same_stamp_sources_are_told_apart_by_tag():
+    # the takeover scenario sends cmd_vel and joy in one timer tick, so both carry the same stamp
+    rows = []
+    for k in range(40):
+        t = 1.0 + 0.05 * k
+        rows.append({"topic": mt.INPUT, "stamp_ns": ns(t), "received": t, "tag": 0.001})
+        joy = 1.5 <= t < 1.8 and k % 2 == 0
+        if joy:
+            rows.append({"topic": mt.JOY, "stamp_ns": ns(t), "received": t, "tag": 0.002})
+        if t < 1.5 or t > 1.7 + mt.MUX_TIMEOUT + 1e-9:  # the last joy message is at 1.7 s
+            rows.append({"topic": mt.MUX, "stamp_ns": ns(t), "received": t + 1e-4, "tag": 0.001})
+        if joy:
+            rows.append({"topic": mt.MUX, "stamp_ns": ns(t), "received": t + 2e-4, "tag": 0.002})
+    for r in rows:  # wall clock: within a tick cmd_vel is sent first, then joy, then the mux outputs
+        r["received_wall"] = 100.0 + r["received"] + {mt.INPUT: 0.0, mt.JOY: 1e-5}.get(r["topic"], 2e-5)
+    rows.append({"topic": mt.MUX, "stamp_ns": ns(1.6), "received": 1.6, "received_wall": 101.6 + 3e-5,
+                 "tag": 0.001})  # a real leak: cmd_vel forwarded after joy took over
+    rep = mt.mux_report(rows)
+    (leak,) = rep["leaks"]
+    assert leak["input_received"] == pytest.approx(1.6) and leak["last_joy_age"] == pytest.approx(0.1)
+    rep = mt.mux_report(rows[:-1])
+    assert rep["echo_delay"][mt.JOY]["n"] == 3
+    assert rep["leaks"] == [] and rep["unattributed_mux_outputs"] == 0
+    (takeover,) = rep["takeovers"]
+    assert takeover["takeover_latency"] == pytest.approx(2e-4)
+
+
+def test_lock_engaged_in_the_same_tick_is_a_race_not_a_leak():
+    rows = [{"topic": mt.INPUT, "stamp_ns": ns(t), "received": t, "received_wall": 100 + t, "tag": 0.001}
+            for t in (1.0, 1.05)]
+    rows += [{"topic": mt.MUX, "stamp_ns": ns(t), "received": t, "received_wall": 100 + t + 2e-5, "tag": 0.001}
+             for t in (1.0, 1.05)]
+    rows.append({"topic": "platform/safety_stop", "received": 1.05, "received_wall": 101.05 + 1e-5, "data": True})
+    assert mt.mux_report(rows)["leaks"] == []  # the input was sent before the lock
+    rows[-1]["received_wall"] = 101.05 - 1e-5
+    (leak,) = mt.mux_report(rows)["leaks"]  # the lock came first: a real leak
+    assert leak["locks"] == ["platform/safety_stop"]
+
+
+def test_profile_commands():
+    assert mt.profile_command("turn", 4.0) == (0.0, 0.3) and mt.profile_command("active", 4.0) == (0.0, 0.0)
+    assert mt.profile_command("estimator", 1.0) == (0.0, 0.0)
+    assert mt.profile_command("estimator", 10.0) == (0.0, -0.3)
+    assert mt.profile_command("estimator", 30.0) == (0.3, -0.3)
+    assert mt.profile_command("estimator", 99.0) == (0.0, 0.0)
+    assert mt.DURATIONS["estimator"] == 34.0

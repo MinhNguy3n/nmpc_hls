@@ -9,11 +9,15 @@ source tree; writes only under --out-dir (default ~/logs/sil).
         --ros-args -p use_sim_time:=true
 
 Signals (kept distinct; plan section 3.6):
-    feedback   /<ns>/platform/odom/filtered   -> the controller's only state input
+    feedback   /<ns>/<--feedback-topic>        -> the controller's only state input (default
+               platform/odom/filtered, the generated EKF; for the screen sil/driver/odom/filtered,
+               the simulation-only velocity + IMU-yaw-rate EKF of launch/a300_sil_estimator.launch.py)
     applied    /<ns>/platform_velocity_controller/cmd_vel_out -> u_prev
+    safety     /<ns>/<--imu-topic> (the IMU the feedback EKF fuses): freshness only (max_imu_age); without the IMU the EKF
+               silently falls back to wheel odometry (V14), so a stale IMU disarms
     ownership  /<ns>/platform/cmd_vel (mux output), locks platform/emergency_stop,
                platform/safety_stop, joy_teleop/bt_quality_stop
-    diagnostic /<ns>/platform/odom (wheel odometry), /<ns>/diagnostics (twist_mux, 1 Hz): logged only
+    diagnostic /<ns>/platform/odom (wheel odometry), /<ns>/diagnostics (twist_mux, 2 Hz): logged only
     scoring    Gazebo ground truth via `gz topic -e` (sil.gz_truth): logged only, never fed back
 Publishes TwistStamped on /<ns>/cmd_vel only in the states owned (plan) and arming (hold probe).
 Services: /sil_mpc/arm and /sil_mpc/disarm (std_srvs/Trigger). --auto-arm requests the FIRST
@@ -73,6 +77,9 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     p.add_argument("--gt-name", default="a300_00000/robot")
     p.add_argument("--no-truth", action="store_true", help="do not start the gz ground-truth reader")
     p.add_argument("--out-dir", default="~/logs/sil")
+    p.add_argument("--feedback-topic", default="platform/odom/filtered", help="relative to the namespace")
+    p.add_argument("--imu-topic", default="sensors/imu_0/data", help="the IMU the feedback EKF fuses")
+    p.add_argument("--estimator", default="generated EKF (wheel pose + IMU yaw rate)", help="label for meta.json")
     return p.parse_args(argv), ros_args
 
 
@@ -84,12 +91,13 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
     args, ros_args = parse_args(list(sys.argv[1:] if argv is None else argv))
     import rclpy
     from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
-    from rclpy.executors import MultiThreadedExecutor
+    from rclpy.executors import SingleThreadedExecutor
     from rclpy.node import Node
     from rclpy.qos import qos_profile_sensor_data
     from diagnostic_msgs.msg import DiagnosticArray
     from geometry_msgs.msg import TwistStamped
     from nav_msgs.msg import Odometry
+    from sensor_msgs.msg import Imu
     from std_msgs.msg import Bool
     from std_srvs.srv import Trigger
 
@@ -116,8 +124,11 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
         "gain_label": "sim-derived (simulator physics, not robot values)" if args.gain == "sim-derived" else "plain",
         "seed": args.seed, "deadline": cfg.deadline, "limits": asdict(limits), "cost": asdict(cfg.cost),
         "path": {"kind": spec.kind, "speed": spec.speed, "size": spec.size, "duration": spec.duration},
-        "ownership": asdict(cfg.ownership), "max_odom_age": cfg.max_odom_age,
-        "clocks": "simulation time for t, stamps and C_sim; wall clock for C_wall",
+        "ownership": asdict(cfg.ownership), "max_odom_age": cfg.max_odom_age, "max_imu_age": cfg.max_imu_age,
+        "feedback_topic": args.feedback_topic, "imu_topic": args.imu_topic, "estimator": args.estimator,
+        "clocks": "simulation time for t and stamps; wall clock for C_wall; C_sim = wall-clock time "
+                  "since the tick start x the real-time factor measured between ticks (the node clock "
+                  "does not advance during a tick with the single-threaded executor)",
         "rtf_set_by_user": args.rtf, "thresholds": "provisional until V13-active",
     })
     logs = {"ticks": CsvLog(out / "ticks.csv", TICK_FIELDS), "transitions": CsvLog(out / "transitions.csv", TRANSITION_FIELDS),
@@ -142,9 +153,11 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
                 "v": msg.twist.twist.linear.x, "omega": msg.twist.twist.angular.z,
                 "cov_x": pc[0], "cov_y": pc[7], "cov_yaw": pc[35], "cov_vx": tc[0], "cov_wz": tc[35]}
 
-    node.create_subscription(Odometry, f"{ns}/platform/odom/filtered",
+    node.create_subscription(Odometry, f"{ns}/{args.feedback_topic}",
                              lambda m: events.append(("feedback", odom_row(m, now()))), qos_profile_sensor_data,
                              callback_group=subs)
+    node.create_subscription(Imu, f"{ns}/{args.imu_topic}", lambda m: events.append(("imu", _stamp(m))),
+                             qos_profile_sensor_data, callback_group=subs)
     node.create_subscription(Odometry, f"{ns}/platform/odom",
                              lambda m: events.append(("wheel_odom", odom_row(m, now()))), qos_profile_sensor_data,
                              callback_group=subs)
@@ -169,17 +182,23 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
     node.create_subscription(DiagnosticArray, f"{ns}/diagnostics", on_diag, 10, callback_group=subs)
 
     if not args.no_truth:
-        truth = GzTruthReader(args.gz_topic, args.gt_name, now, lambda s, r, x, y, yaw: events.append(
-            ("truth", {"stamp": s, "received": r, "x": x, "y": y, "yaw": yaw})))
+        truth = GzTruthReader(args.gz_topic, args.gt_name, now, lambda s, r, x, y, yaw, z, tilt: events.append(
+            ("truth", {"stamp": s, "received": r, "x": x, "y": y, "yaw": yaw, "z": z, "tilt": tilt})))
         truth.start()
     else:
         truth = None
 
     publisher = node.create_publisher(TwistStamped, f"{ns}/cmd_vel", 10)
     state: dict[str, Any] = {"last_stamp": 0, "transitions": 0, "episode": 0, "origin": None, "end": None,
-                             "auto_arm": args.auto_arm, "wall_start": time.monotonic(), "done": False}
+                             "auto_arm": args.auto_arm, "wall_start": time.monotonic(), "done": False,
+                             "tick_t": 0.0, "tick_wall": 0.0, "rtf": args.rtf or 1.0}
 
-    def drain() -> None:
+    def sim_estimate() -> float:
+        """Simulation time during a tick, extrapolated from the tick start with the measured RTF."""
+        return state["tick_t"] + (time.perf_counter() - state["tick_wall"]) * state["rtf"]
+
+    def drain() -> int:
+        n = len(events)  # backlog: callbacks queued since the last tick (single-threaded executor)
         while events:
             kind, payload = events.popleft()
             if kind == "feedback":
@@ -189,15 +208,27 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
             elif kind == "applied":
                 logs["applied"].write(payload)
                 core.on_applied(co.AppliedSample(payload["stamp"], payload["received"], payload["v"], payload["omega"]))
+            elif kind == "imu":
+                core.on_imu(payload)
             elif kind == "mux":
                 core.on_mux(*payload)
             elif kind == "lock":
                 core.on_lock(*payload)
             elif kind in ("wheel_odom", "truth", "diag"):
                 logs[kind].write(payload)  # logged only: never fed to the core
+        return n
+
+    def mux_listening() -> bool:
+        """twist_mux has discovered and matched this publisher. A new publisher waited up to 1.9 s
+        (V11-lock, 2026-11-19), longer than the arming timeout, so arming before the match fails."""
+        return publisher.get_subscription_count() > 0 and any(
+            i.node_name == "twist_mux" for i in node.get_subscriptions_info_by_topic(f"{ns}/cmd_vel"))
 
     def arm_srv(_req: Any, res: Any) -> Any:
         drain()
+        if not mux_listening():
+            res.success, res.message = False, "twist_mux has not matched the cmd_vel publisher yet"
+            return res
         res.success, res.message = core.request_arm(now())
         return res
 
@@ -210,15 +241,25 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
     node.create_service(Trigger, "/sil_mpc/disarm", disarm_srv, callback_group=tick_group)
 
     def on_tick() -> None:
-        drain()
+        state["events"] = drain()
         stamp = clock.now().nanoseconds  # one reading: the tick time and the published stamp
         t = stamp * 1e-9
         if stamp <= state["last_stamp"]:
             return  # simulation paused: no duplicate stamps
         state["last_stamp"] = stamp
-        if state["auto_arm"] and core.sm.state == co.State.DISARMED:
+        wall = time.perf_counter()
+        if state["tick_wall"] and 0.0 < t - state["tick_t"] < 1.0:  # RTF from consecutive ticks, smoothed
+            state["rtf"] += 0.1 * ((t - state["tick_t"]) / (wall - state["tick_wall"]) - state["rtf"])
+        state["tick_t"], state["tick_wall"] = t, wall
+        if state["auto_arm"] and core.sm.state == co.State.DISARMED and mux_listening():
             ok, _ = core.request_arm(t)
             state["auto_arm"] = not ok  # the first successful arming consumes it
+            state["armed_once"] = ok
+        elif state.get("armed_once") and args.auto_arm and core.sm.state == co.State.DISARMED:
+            # a batch run cannot re-arm itself after a takeover, lock or safety-data loss: end it
+            node.get_logger().warning(f"run aborted: {core.sm.transitions[-1].reason}")
+            state["done"] = True
+            return
         record = core.begin_tick(t, stamp, time.perf_counter)
         if record.publish is not None:
             msg = TwistStamped()
@@ -226,8 +267,8 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
             msg.header.frame_id = "base_link"
             msg.twist.linear.x, msg.twist.angular.z = record.publish
             publisher.publish(msg)
-        core.finish_tick(record, now, time.perf_counter)
-        logs["ticks"].write(tick_row(record))
+        core.finish_tick(record, sim_estimate, time.perf_counter)
+        logs["ticks"].write({**tick_row(record), "events": state["events"]})
         for tr in core.sm.transitions[state["transitions"]:]:
             logs["transitions"].write({"t": tr.time, "old": tr.old.value, "new": tr.new.value, "reason": tr.reason})
         state["transitions"] = len(core.sm.transitions)
@@ -242,7 +283,11 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
             state["done"] = True
 
     node.create_timer(cfg.ts, on_tick, callback_group=tick_group)
-    executor = MultiThreadedExecutor(num_threads=4)
+    # Single-threaded: the solve holds the GIL; with a MultiThreadedExecutor the /clock and sensor
+    # callbacks competing for it made a 7x30 solve take 130-480 ms instead of 35 ms (2026-11-19).
+    # Messages queue during a tick and are handled between ticks; stamps, not receive times,
+    # drive the controller.
+    executor = SingleThreadedExecutor()
     executor.add_node(node)
     node.get_logger().info(f"SIL run {run_id}: logs in {out}")
     try:
@@ -258,7 +303,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
         for log in logs.values():
             log.close()
         node.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()  # the signal handler may have shut the context down already
     print(f"logs: {out}\nscore: python3 -m sil.metrics {out} --out {out}/report.json")
     return 0
 

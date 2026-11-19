@@ -20,12 +20,12 @@ from pathlib import Path
 from typing import Any, Iterable
 
 SIGNAL_FIELDS = ("stamp", "received", "x", "y", "yaw", "v", "omega",
-                 "cov_x", "cov_y", "cov_yaw", "cov_vx", "cov_wz")
+                 "cov_x", "cov_y", "cov_yaw", "cov_vx", "cov_wz", "z", "tilt")  # z, tilt: ground truth only
 TICK_FIELDS = ("t", "state", "publish_v", "publish_w", "publish_kind", "u_prev_v", "u_prev_w", "u_curr_v", "u_curr_w",
                "est_x", "est_y", "est_yaw", "odom_age", "solved", "accepted", "fitness",
                "viol_speed", "viol_omega", "viol_linear_slew", "viol_angular_slew",
                "viol_side_speed", "viol_side_accel", "fallback", "deadline_miss",
-               "c_sim_prep", "c_sim_solve", "c_sim_check", "c_sim_total",
+               "c_sim_prep", "c_sim_solve", "c_sim_check", "c_sim_total", "events",
                "c_wall_prep", "c_wall_solve", "c_wall_check", "c_wall_total", "note")
 TRANSITION_FIELDS = ("t", "old", "new", "reason")
 EPISODE_FIELDS = ("episode", "tau0", "origin_x", "origin_y", "origin_yaw")

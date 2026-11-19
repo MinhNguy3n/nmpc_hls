@@ -17,20 +17,19 @@ from identify_effective_track import parse_pose_v_text
 
 
 def pump(lines: Iterable[str], name: str, now: Callable[[], float],
-         sink: Callable[[float, float, float, float, float], None]) -> int:
-    """Feed parsed poses of `name` to sink(stamp, received, x, y, yaw); returns how many."""
+         sink: Callable[..., None]) -> int:
+    """Feed parsed poses of `name` to sink(stamp, received, x, y, yaw, z, tilt); returns how many."""
     count = 0
-    for stamp, poses in parse_pose_v_text(lines):
+    for stamp, poses in parse_pose_v_text(lines, full=True):
         if name in poses:
-            x, y, yaw = poses[name]
-            sink(stamp, now(), x, y, yaw)
+            sink(stamp, now(), *poses[name])
             count += 1
     return count
 
 
 class GzTruthReader:
     def __init__(self, topic: str, name: str, now: Callable[[], float],
-                 sink: Callable[[float, float, float, float, float], None]) -> None:
+                 sink: Callable[..., None]) -> None:
         self.topic, self.name, self.now, self.sink = topic, name, now, sink
         self.process: subprocess.Popen[str] | None = None
         self.thread: threading.Thread | None = None

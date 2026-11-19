@@ -57,6 +57,10 @@ class CoreConfig:
     path: PathSpec = field(default_factory=PathSpec)
     deadline: float = 0.040  # C budget (s), provisional
     max_odom_age: float = 0.06  # provisional: 3 EKF periods at 50 Hz
+    # provisional: 5 IMU periods at 100 Hz; None disables. Without the IMU, odom/filtered keeps
+    # publishing but silently follows wheel odometry (V14, 2026-11-19), so a fresh filtered
+    # message alone does not prove the feedback is the one the run is scored on.
+    max_imu_age: float | None = 0.05
     fallback_steps: int = 3  # PLACEHOLDER_ policy
     ownership: co.OwnershipConfig = field(default_factory=co.OwnershipConfig)
 
@@ -94,6 +98,7 @@ class MpcCore:
         self.solver = solver or pso_mod.solve
         self.gain = pso_mod.yaw_rate_gain(config.gain_mode)
         self.odom: OdomSample | None = None
+        self.imu_stamp: float | None = None
         self.pending: tuple[np.ndarray, str] | None = None  # command for the next tick
         self.last_plan: np.ndarray | None = None
         self.fallback_used = 0
@@ -107,6 +112,10 @@ class MpcCore:
         if self.odom is None or sample.stamp > self.odom.stamp:
             self.odom = sample
 
+    def on_imu(self, stamp: float) -> None:
+        if self.imu_stamp is None or stamp > self.imu_stamp:
+            self.imu_stamp = stamp
+
     def on_applied(self, sample: co.AppliedSample) -> None:
         self.applied.on_sample(sample)
 
@@ -119,7 +128,23 @@ class MpcCore:
     def in_envelope(self, u: np.ndarray) -> bool:
         return bool(um.check_controls(np.asarray(u)[None, :], u, self.config.limits, self.config.ts)["ok"])
 
+    def imu_problem(self, t: float) -> str:
+        """Why the IMU does not back the filtered state at t ('' when it does or the gate is off)."""
+        if self.config.max_imu_age is None:
+            return ""
+        if self.imu_stamp is None or t - self.imu_stamp > self.config.max_imu_age:
+            return "IMU stale or missing: the filtered heading would no longer follow the gyro"
+        return ""
+
     def request_arm(self, now: float) -> tuple[bool, str]:
+        """Refused while the feedback or the IMU is stale or missing (a new subscriber can take
+        seconds to be matched in DDS discovery), then the ownership preconditions."""
+        odom_age = None if self.odom is None else now - self.odom.stamp
+        if odom_age is None or not (0.0 <= odom_age <= self.config.max_odom_age):
+            return False, "filtered odometry stale or missing"
+        problem = self.imu_problem(now)
+        if problem:
+            return False, problem
         return self.sm.request_arm(now, self.applied, self.in_envelope)
 
     def disarm(self, now: float, reason: str = "operator disarm") -> None:
@@ -169,6 +194,11 @@ class MpcCore:
         # ---- 2. safety-data gate: stale feedback or applied command -> disarm, never a cached plan
         if u_prev is None or self.odom is None or odom_age is None or not (0.0 <= odom_age <= cfg.max_odom_age):
             reason = "applied command stale" if u_prev is None else "filtered odometry stale or missing"
+            self.sm.disarm(t, reason)
+            record.state, record.note = self.sm.state.value, reason
+            return record
+        reason = self.imu_problem(t)
+        if reason:
             self.sm.disarm(t, reason)
             record.state, record.note = self.sm.state.value, reason
             return record

@@ -133,9 +133,12 @@ class FakeRobot:
     def __init__(self, core: MpcCore) -> None:
         self.core, self.t, self.pose = core, 10.0, np.zeros(3)
         self.u = np.zeros(2)
+        self.imu = True
 
     def feed(self) -> None:
         self.core.on_odom(OdomSample(self.t - 0.01, self.t, *self.pose, *self.u))
+        if self.imu:
+            self.core.on_imu(self.t - 0.005)
         self.core.on_applied(co.AppliedSample(self.t - 0.005, self.t, *self.u))
 
     def tick(self, echo: bool = True, solve_time: float = 0.0):
@@ -211,6 +214,30 @@ def test_controller_stale_feedback_disarms_without_cached_plan():
     assert core.begin_tick(robot.t, int(round(robot.t * 1e9)), time.perf_counter).publish is None
 
 
+
+def test_controller_disarms_when_the_imu_stops():
+    core = make_core()
+    robot = FakeRobot(core)
+    robot.feed()
+    core.request_arm(robot.t)
+    for _ in range(8):
+        robot.tick()
+    assert core.sm.state == co.State.OWNED
+    robot.imu = False  # the bridge stops; filtered odometry keeps arriving (wheel only)
+    records = [robot.tick() for _ in range(4)]
+    assert core.sm.state == co.State.DISARMED and any("IMU" in r.note for r in records)
+    assert records[-1].publish is None
+    robot.feed()  # fresh odometry and applied command, still no IMU
+    ok, why = core.request_arm(robot.t)  # re-arming is refused while the IMU is missing
+    assert not ok and "IMU" in why
+    core = make_core(max_imu_age=None)  # gate disabled
+    robot = FakeRobot(core)
+    robot.imu = False
+    robot.feed()
+    core.request_arm(robot.t)
+    assert all("IMU" not in robot.tick().note for _ in range(10)) and core.sm.state == co.State.OWNED
+
+
 def test_controller_deadline_miss_uses_fallback_then_stop():
     core = make_core()
     robot = FakeRobot(core)
@@ -255,7 +282,19 @@ pose {
 def test_gz_truth_pump_selects_the_robot():
     rows = []
     n = pump(io.StringIO(GZ_TEXT), "a300_00000/robot", lambda: 5.01, lambda *r: rows.append(r))
-    assert n == 1 and rows[0] == (5.0, 5.01, 1.0, 0.0, 0.0)
+    assert n == 1 and rows[0] == (5.0, 5.01, 1.0, 0.0, 0.0, 0.0, 0.0)  # ..., yaw, z, tilt
+    tipped = GZ_TEXT.replace("    w: 1", "    x: 0.5315\n    y: 0.1449\n    z: 0.0095\n    w: 0.8345")  # 2026-11-19
+    rows.clear()
+    pump(io.StringIO(tipped), "a300_00000/robot", lambda: 5.01, lambda *r: rows.append(r))
+    assert rows[0][6] == pytest.approx(1.17, abs=0.01)  # 67 deg from upright
+
+
+def test_metrics_validity_flags_a_tipped_robot():
+    upright = [{"stamp": t, "tilt": 0.01} for t in (1.0, 2.0)]
+    assert metrics.validity(upright)["valid"]
+    result = metrics.validity(upright + [{"stamp": 3.0, "tilt": 1.2}, {"stamp": 4.0, "tilt": 1.2}])
+    assert result["valid"] is False and result["tipped_at"] == 3.0
+    assert metrics.validity([{"stamp": 1.0, "tilt": None}])["valid"] is None  # older logs: unknown
 
 
 def test_metrics_report_separates_result_families(tmp_path):
@@ -292,3 +331,30 @@ def test_metrics_report_separates_result_families(tmp_path):
     assert rep["diagnostic_feedback_vs_truth"]["drift_pos_max"] < 1e-9
     assert metrics.main([str(run), "--out", str(run / "report.json")]) == 0
     assert json.loads((run / "report.json").read_text())["run"] == "t"
+    # no transitions and no tilt in this synthetic run: rejected, with every reason listed
+    assert rep["acceptance"] == {"accepted": False, "reasons": ["never owned", "validity unknown"],
+                                 "note": rep["acceptance"]["note"]}
+    assert rep["deadline"]["c_wall_over_period"] == 0 and rep["executor"]["late_ticks"] == 0
+    from sil import batch_summary
+    assert batch_summary.main([str(run / "report.json"), str(tmp_path / "summary.csv")]) == 0
+    row = next(iter(__import__("csv").DictReader(open(tmp_path / "summary.csv"))))
+    assert row["verdict"] == "REJECT" and row["reasons"] == "never owned; validity unknown"
+
+
+def test_acceptance_rejects_each_hard_failure():
+    base = {"ownership_transitions": [{"old": "arming", "new": "owned", "reason": "ownership confirmed"},
+                                      {"old": "owned", "new": "disarmed", "reason": "run finished"}],
+            "validity": {"valid": True}, "constraint_violations": {"published_ticks_violating": 0},
+            "deadline": {"solved": 400, "misses_sim": 4}, "fallbacks": {"published_kinds": {"stop": 0}},
+            "tracking_vs_ground_truth": [{"cross_track_rmse": 0.05, "cross_track_max": 0.2}]}
+    assert metrics.acceptance(base)["accepted"]
+    bad = json.loads(json.dumps(base))
+    bad["ownership_transitions"][1]["reason"] = "IMU stale or missing"
+    bad["constraint_violations"]["published_ticks_violating"] = 1
+    bad["deadline"]["misses_sim"] = 5
+    bad["fallbacks"]["published_kinds"]["stop"] = 2
+    bad["tracking_vs_ground_truth"][0]["cross_track_max"] = 0.3
+    bad["validity"]["valid"] = False
+    assert metrics.acceptance(bad)["reasons"] == [
+        "ownership lost: IMU stale or missing", "robot tipped", "published constraint violation",
+        "C_sim misses > 1 %", "stop fallback", "tracking above the provisional thresholds"]
