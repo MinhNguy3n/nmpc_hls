@@ -21,7 +21,20 @@ FIELDS = ("run", "pso", "gain_mode", "seed", "estimator", "verdict", "reasons", 
           "published_violations", "solution_violation_ticks", "solved", "misses_sim",
           "c_sim_median", "c_sim_p95", "c_sim_max", "c_wall_median", "c_wall_p95", "c_wall_max",
           "c_wall_over_budget", "c_wall_over_period", "fallback_ticks", "stop_ticks", "probe_ticks",
-          "late_ticks", "events_per_tick_max", "ownership_transitions")
+          "late_ticks", "events_per_tick_max", "cmd_v_median", "cmd_kappa_median", "at_v_max", "at_omega_max",
+          "applied_v_median", "truth_speed_median", "startup_armed_wall", "startup_settled_t",
+          "ownership_transitions")
+
+
+def _motion_and_startup(rep: dict[str, Any]) -> dict[str, Any]:
+    m, su = rep.get("motion") or {}, rep.get("startup") or {}
+    cmd = m.get("commanded") or {}
+    return {"cmd_v_median": (cmd.get("v") or {}).get("median"), "cmd_kappa_median": (cmd.get("kappa") or {}).get("median"),
+            "at_v_max": cmd.get("at_v_max"), "at_omega_max": cmd.get("at_omega_max"),
+            "applied_v_median": ((m.get("applied") or {}).get("v") or {}).get("median"),
+            "truth_speed_median": (m.get("truth_speed") or {}).get("median"),
+            "startup_armed_wall": (su.get("armed") or {}).get("wall"),
+            "startup_settled_t": (su.get("settled") or {}).get("t")}
 
 
 def summary_row(rep: dict[str, Any]) -> dict[str, Any]:
@@ -51,6 +64,7 @@ def summary_row(rep: dict[str, Any]) -> dict[str, Any]:
         "probe_ticks": fb["published_kinds"]["probe"],
         "late_ticks": (rep.get("executor") or {}).get("late_ticks"),
         "events_per_tick_max": ((rep.get("executor") or {}).get("events_per_tick") or {}).get("max"),
+        **_motion_and_startup(rep),
         "ownership_transitions": " | ".join(f"{t.get('old')}->{t.get('new')} ({t.get('reason')})"
                                             for t in rep["ownership_transitions"]),
     }
@@ -65,7 +79,9 @@ def one_line(row: dict[str, Any]) -> str:
             f"misses_sim={row['misses_sim']}/{row['solved']} "
             f"c_wall_ms p50/p95/max={f(1e3 * row['c_wall_median'], '.1f')}/{f(1e3 * row['c_wall_p95'], '.1f')}/"
             f"{f(1e3 * row['c_wall_max'], '.1f')} (>{'40'}ms:{row['c_wall_over_budget']}, >50ms:{row['c_wall_over_period']}) "
-            f"fallback={row['fallback_ticks']} stop={row['stop_ticks']} tilt_max={f(row['tilt_max'], '.3f')}")
+            f"fallback={row['fallback_ticks']} stop={row['stop_ticks']} tilt_max={f(row['tilt_max'], '.3f')} "
+            f"kappa_cmd={f(row['cmd_kappa_median'], '.2f')} at_vmax={f(row['at_v_max'], '.2f')} "
+            f"v_truth={f(row['truth_speed_median'], '.3f')}")
     return text + (f" [{row['reasons']}]" if row["reasons"] else "")
 
 

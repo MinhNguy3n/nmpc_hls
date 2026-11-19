@@ -129,6 +129,37 @@ def executor(ticks: list[dict[str, Any]], ts: float) -> dict[str, Any]:
     return out
 
 
+def motion(ticks: list[dict[str, Any]], applied: list[dict[str, Any]], truth: list[dict[str, Any]],
+           episodes: list[dict[str, Any]], duration: float, limits: um.UnicycleLimits) -> dict[str, Any]:
+    """Commanded vs applied vs true motion during the first episode, so saturation and slip stay
+    visible: the published command's speed, turn rate and curvature (and how often it sits at
+    the envelope), cmd_vel_out, and the ground-truth speed."""
+    if not episodes:
+        return {}
+    a, b = episodes[0]["tau0"], episodes[0]["tau0"] + duration
+    pub = [r for r in ticks if a <= r["t"] <= b and r.get("publish_v") is not None
+           and r.get("publish_kind") != "probe"]
+    out: dict[str, Any] = {}
+    if pub:
+        v = np.array([r["publish_v"] for r in pub])
+        w = np.array([r["publish_w"] for r in pub])
+        moving = np.abs(v) > 0.02
+        out["commanded"] = {"v": _dist(np.abs(v)), "omega": _dist(np.abs(w)),
+                            "kappa": _dist(np.abs(w[moving] / v[moving])) if moving.any() else None,
+                            "at_v_max": float(np.mean(np.abs(v) >= limits.v_max - 1e-3)),
+                            "at_omega_max": float(np.mean(np.abs(w) >= limits.omega_max - 1e-3))}
+    app = [r for r in applied if a <= r["stamp"] <= b]
+    if app:
+        out["applied"] = {"v": _dist(np.abs(np.array([r["v"] for r in app]))),
+                          "omega": _dist(np.abs(np.array([r["omega"] for r in app])))}
+    tr = sorted((r for r in truth if a <= r["stamp"] <= b), key=lambda r: r["stamp"])
+    if len(tr) > 10:
+        t = np.array([r["stamp"] for r in tr])
+        speed = np.hypot(np.gradient([r["x"] for r in tr], t), np.gradient([r["y"] for r in tr], t))
+        out["truth_speed"] = _dist(speed)
+    return out
+
+
 # PLACEHOLDER_ tracking thresholds of the plan (section 4.3), to be agreed at the SIL review
 CROSS_TRACK_RMSE_MAX, CROSS_TRACK_MAX = 0.10, 0.25
 END_REASONS = ("run finished", "shutdown")
@@ -225,6 +256,9 @@ def report(run: Path) -> dict[str, Any]:
         "constraint_violations": violations(ticks, limits, meta["ts"]),
         "deadline": deadline(ticks, meta["deadline"], meta["ts"]),
         "executor": executor(ticks, meta["ts"]),
+        "motion": motion(ticks, read_rows(run / "applied.csv"), truth, read_rows(run / "episodes.csv"),
+                         spec.duration, limits),
+        "startup": json.loads((run / "startup.json").read_text()) if (run / "startup.json").exists() else None,
         "fallbacks": fallbacks(ticks),
         "ownership_transitions": read_rows(run / "transitions.csv"),
         "diagnostic_feedback_vs_truth": signal_vs_truth(read_rows(run / "feedback.csv"), truth),

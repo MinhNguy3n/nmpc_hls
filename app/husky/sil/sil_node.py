@@ -31,6 +31,7 @@ from collections import deque
 from dataclasses import asdict
 import datetime
 import json
+import math
 from pathlib import Path
 import sys
 import time
@@ -65,11 +66,13 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     p.add_argument("--size", type=float, default=1.0)
     p.add_argument("--pso", default="4x50", help="particles x iterations, e.g. 4x50, 7x30, 9x24")
     p.add_argument("--nu", type=int, default=25)
-    p.add_argument("--gain", choices=("plain", "sim-derived"), default="plain")
+    p.add_argument("--gain", choices=pso_mod.GAIN_MODES, default="plain")
     p.add_argument("--seed", type=int, default=1)
     p.add_argument("--v-max", type=float, default=0.3, help="PLACEHOLDER_ SIL envelope (m/s)")
     p.add_argument("--omega-max", type=float, default=0.75, help="PLACEHOLDER_ SIL envelope (rad/s)")
     p.add_argument("--auto-arm", action="store_true")
+    p.add_argument("--warmup", type=float, default=3.0,
+                   help="simulation s after the first tick before --auto-arm arms (start-up transients)")
     p.add_argument("--extra-time", type=float, default=3.0, help="s after the path ends before stopping")
     p.add_argument("--max-wall", type=float, default=1800.0, help="wall-clock safety limit (s)")
     p.add_argument("--rtf", type=float, default=None, help="the Gazebo real-time factor you set (recorded)")
@@ -81,6 +84,52 @@ def parse_args(argv: list[str]) -> tuple[argparse.Namespace, list[str]]:
     p.add_argument("--imu-topic", default="sensors/imu_0/data", help="the IMU the feedback EKF fuses")
     p.add_argument("--estimator", default="generated EKF (wheel pose + IMU yaw rate)", help="label for meta.json")
     return p.parse_args(argv), ros_args
+
+
+def rtf_from_history(history: Any, fallback: float, min_wall: float = 1.0) -> float:
+    """Real-time factor over the most recent >= min_wall s of wall clock, from (sim t, wall) tick
+    pairs, oldest first. Tick-to-tick ratios are useless: after node start the timer fires in
+    bursts while /clock catches up, which once put the estimate at about 4.5 and turned 37 ms of
+    Python into 170 ms of C_sim (2026-11-19). `fallback` (the --rtf you set) until enough history."""
+    if len(history) < 2:
+        return fallback
+    t1, w1 = history[-1]
+    for t0, w0 in reversed(list(history)[:-1]):
+        if w1 - w0 >= min_wall:
+            return (t1 - t0) / (w1 - w0) if t1 > t0 else fallback
+    return fallback
+
+
+def startup_ready(history: Any, ts: float, warmup: float, min_wall: float = 1.0, settle_ticks: int = 20,
+                  tol: float = 0.5) -> tuple[bool, str]:
+    """Whether start-up has settled enough to arm (GPT-6 2026-11-19): all of
+    1. `warmup` s of simulation time since the first tick;
+    2. at least `min_wall` s of wall-clock history, i.e. the windowed RTF estimate is valid (a
+       /clock catch-up burst can pass 1. in well under a second of wall clock);
+    3. the last `settle_ticks` tick intervals regular: each within (1 +- tol) x ts in simulation
+       time, and each one's own sim/wall ratio within (1 +- tol) x the windowed RTF (no bursts).
+    `history`: (sim t, wall) per tick, oldest first. Returns (ready, the first unmet condition)."""
+    ticks = list(history)
+    if len(ticks) < 2:
+        return False, "no tick history"
+    (t_first, w_first), (t_last, w_last) = ticks[0], ticks[-1]
+    if t_last - t_first < warmup:
+        return False, "simulation warm-up"
+    if w_last - w_first < min_wall:
+        return False, "RTF history shorter than min_wall"
+    recent = ticks[-(settle_ticks + 1):]
+    if len(recent) < settle_ticks + 1:
+        return False, "settling"
+    rtf = rtf_from_history(ticks, math.nan, min_wall)
+    if not rtf > 0:
+        return False, "RTF not available"
+    for (t0, w0), (t1, w1) in zip(recent, recent[1:]):
+        dt, dw = t1 - t0, w1 - w0
+        if not (1 - tol) * ts <= dt <= (1 + tol) * ts:
+            return False, "irregular tick interval (simulation time)"
+        if dw <= 0 or not (1 - tol) <= (dt / dw) / rtf <= (1 + tol):
+            return False, "tick cadence not steady (burst)"
+    return True, "ready"
 
 
 def _stamp(msg: Any) -> float:
@@ -121,7 +170,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
     write_meta(out / "meta.json", {
         "run_id": run_id, "args": vars(args), "ts": cfg.ts, "horizon": cfg.horizon,
         "control_horizon": cfg.control_horizon, "pso": args.pso, "gain_mode": args.gain,
-        "gain_label": "sim-derived (simulator physics, not robot values)" if args.gain == "sim-derived" else "plain",
+        "gain_label": "plain" if args.gain == "plain" else f"{args.gain} (simulator physics, not robot values)",
         "seed": args.seed, "deadline": cfg.deadline, "limits": asdict(limits), "cost": asdict(cfg.cost),
         "path": {"kind": spec.kind, "speed": spec.speed, "size": spec.size, "duration": spec.duration},
         "ownership": asdict(cfg.ownership), "max_odom_age": cfg.max_odom_age, "max_imu_age": cfg.max_imu_age,
@@ -191,7 +240,9 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
     publisher = node.create_publisher(TwistStamped, f"{ns}/cmd_vel", 10)
     state: dict[str, Any] = {"last_stamp": 0, "transitions": 0, "episode": 0, "origin": None, "end": None,
                              "auto_arm": args.auto_arm, "wall_start": time.monotonic(), "done": False,
-                             "tick_t": 0.0, "tick_wall": 0.0, "rtf": args.rtf or 1.0}
+                             "tick_t": 0.0, "tick_wall": 0.0, "rtf": args.rtf or 1.0, "first_t": None,
+                             "history": deque(maxlen=400), "wall0": time.perf_counter(),
+                             "startup": {"blocked_ticks": {}, "arm_refused": {}}}
 
     def sim_estimate() -> float:
         """Simulation time during a tick, extrapolated from the tick start with the measured RTF."""
@@ -248,13 +299,30 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
             return  # simulation paused: no duplicate stamps
         state["last_stamp"] = stamp
         wall = time.perf_counter()
-        if state["tick_wall"] and 0.0 < t - state["tick_t"] < 1.0:  # RTF from consecutive ticks, smoothed
-            state["rtf"] += 0.1 * ((t - state["tick_t"]) / (wall - state["tick_wall"]) - state["rtf"])
+        state["history"].append((t, wall))
+        state["rtf"] = rtf_from_history(state["history"], args.rtf or 1.0)
         state["tick_t"], state["tick_wall"] = t, wall
-        if state["auto_arm"] and core.sm.state == co.State.DISARMED and mux_listening():
-            ok, _ = core.request_arm(t)
+        state["first_t"] = t if state["first_t"] is None else state["first_t"]
+        su = state["startup"]
+        su.setdefault("first_tick", {"t": t, "wall": wall - state["wall0"]})
+        listening = mux_listening()
+        if listening and "mux_matched" not in su:
+            su["mux_matched"] = {"t": t, "wall": wall - state["wall0"]}  # publisher discovery
+        if "rtf_ready" not in su and wall - state["history"][0][1] >= 1.0:
+            su["rtf_ready"] = {"t": t, "wall": wall - state["wall0"], "rtf": state["rtf"]}
+        ready, why = startup_ready(state["history"], cfg.ts, args.warmup)
+        if ready and "settled" not in su:
+            su["settled"] = {"t": t, "wall": wall - state["wall0"], "rtf": state["rtf"]}
+        if not ready and "armed" not in su:
+            su["blocked_ticks"][why] = su["blocked_ticks"].get(why, 0) + 1
+        if state["auto_arm"] and ready and core.sm.state == co.State.DISARMED and listening:
+            ok, reason = core.request_arm(t)
             state["auto_arm"] = not ok  # the first successful arming consumes it
             state["armed_once"] = ok
+            if ok:
+                su.setdefault("armed", {"t": t, "wall": wall - state["wall0"]})
+            else:
+                su["arm_refused"][reason] = su["arm_refused"].get(reason, 0) + 1
         elif state.get("armed_once") and args.auto_arm and core.sm.state == co.State.DISARMED:
             # a batch run cannot re-arm itself after a takeover, lock or safety-data loss: end it
             node.get_logger().warning(f"run aborted: {core.sm.transitions[-1].reason}")
@@ -267,6 +335,9 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
             msg.header.frame_id = "base_link"
             msg.twist.linear.x, msg.twist.angular.z = record.publish
             publisher.publish(msg)
+            if record.publish_kind != "probe":
+                state["startup"].setdefault("first_command", {"t": t, "wall": wall - state["wall0"],
+                                                              "kind": record.publish_kind})
         core.finish_tick(record, sim_estimate, time.perf_counter)
         logs["ticks"].write({**tick_row(record), "events": state["events"]})
         for tr in core.sm.transitions[state["transitions"]:]:
@@ -302,6 +373,8 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - needs ROS 
         drain()
         for log in logs.values():
             log.close()
+        # start-up timeline (excluded from scoring): simulation t and wall s since node start
+        (out / "startup.json").write_text(json.dumps(state["startup"], indent=2, default=str))
         node.destroy_node()
         rclpy.try_shutdown()  # the signal handler may have shut the context down already
     print(f"logs: {out}\nscore: python3 -m sil.metrics {out} --out {out}/report.json")

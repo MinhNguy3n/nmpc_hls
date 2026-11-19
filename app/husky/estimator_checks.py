@@ -6,6 +6,8 @@ Sub-commands
              yaw and yaw-rate covariances) and the Gazebo ground truth (`gz topic -e`, with height
              and tilt) to a CSV. Drive the robot with `mux_timing.py scenario estimator --sim`
              in another shell (still, in-place turns both ways, 1 m arcs both ways).
+    yawmap   offline: per commanded (v, omega) step of `mux_timing.py scenario steps`, the
+             steady-state body speed and yaw rate from ground truth (last 40 % of each step)
     report   offline: for every source, the pose is aligned to the truth once, at the scenario
              start (translation and heading), and then never corrected. Per profile segment: the
              accumulated heading and position error at its end, the yaw-rate error and the ratio
@@ -124,6 +126,33 @@ def estimator_report(rows: list[dict[str, Any]], start: float, settle: float = 0
     return report
 
 
+def yaw_map(rows: list[dict[str, Any]], sent: list[dict[str, Any]], steady: float = 0.4) -> list[dict[str, float]]:
+    """Body speed and yaw rate (ground truth) per commanded step; `sent` holds the scenario's
+    sent:cmd_vel rows (simulation time `received`, `v`, `omega`)."""
+    truth = _series(rows, "truth")
+    t_w, w_true = truth_yaw_rate(rows)
+    cmds = sorted(((r["received"], r["v"] or 0.0, r["omega"] or 0.0) for r in sent), key=lambda c: c[0])
+    steps, start = [], 0
+    for i in range(1, len(cmds) + 1):
+        if i == len(cmds) or cmds[i][1:] != cmds[start][1:]:
+            steps.append((cmds[start][0], cmds[i - 1][0], cmds[start][1], cmds[start][2]))
+            start = i
+    out = []
+    for a, b, v, w in steps:
+        if b - a < 1.0 or (v == 0.0 and w == 0.0):
+            continue
+        lo = b - steady * (b - a)
+        m = (truth["t"] >= lo) & (truth["t"] <= b)
+        if m.sum() < 5:
+            continue
+        t = truth["t"][m]
+        speed = float(np.median(np.hypot(np.gradient(truth["x"][m], t), np.gradient(truth["y"][m], t))))
+        w_body = float(np.median(w_true[(t_w >= lo) & (t_w <= b)]))
+        out.append({"v_cmd": v, "w_cmd": w, "v_body": speed, "w_body": w_body,
+                    "v_ratio": speed / v if v else math.nan, "w_ratio": w_body / w if w else math.nan})
+    return out
+
+
 def _capture(args: argparse.Namespace, ros_args: list[str]) -> int:  # pragma: no cover - needs ROS 2
     import subprocess
     import threading
@@ -198,6 +227,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--gz-topic", default="/world/warehouse/dynamic_pose/info")
     p.add_argument("--gt-name", default="a300_00000/robot")
     p.add_argument("--out", required=True)
+    p = sub.add_parser("yawmap")
+    p.add_argument("capture_csv")
+    p.add_argument("--sent", required=True)
+    p.add_argument("--out", default=None)
     p = sub.add_parser("report")
     p.add_argument("capture_csv")
     p.add_argument("--sent", required=True, help="the scenario's sent CSV (mux_timing.py scenario estimator --out)")
@@ -206,8 +239,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "capture":
         return _capture(args, ros_args)
     with open(args.sent, newline="") as handle:
-        start = min(float(r["received"]) for r in csv.DictReader(handle) if r["topic"] == "sent:cmd_vel")
-    result = estimator_report(read_capture(args.capture_csv), start)
+        sent = [{"received": float(r["received"]), "v": float(r["v"] or 0), "omega": float(r["omega"] or 0)}
+                for r in csv.DictReader(handle) if r["topic"] == "sent:cmd_vel"]
+    if args.command == "yawmap":
+        result: Any = yaw_map(read_capture(args.capture_csv), sent)
+    else:
+        result = estimator_report(read_capture(args.capture_csv), min(r["received"] for r in sent))
     text = json.dumps(result, indent=2)
     print(text)
     if args.out:

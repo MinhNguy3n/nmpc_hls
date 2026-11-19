@@ -75,3 +75,21 @@ def test_imu_relay_sets_only_the_diagonals():
     apply_covariance(msg, DRIVER_GYRO_VARIANCE, None)
     assert msg.angular_velocity_covariance[0::4] == [pytest.approx(2.749e-6, rel=1e-3)] * 3
     assert msg.angular_velocity_covariance[1] == 0.0 and msg.linear_acceleration_covariance == [0.5] * 9
+
+
+def test_yaw_map_recovers_a_turn_rate_limit():
+    # a body whose yaw rate saturates at 0.25 rad/s and which keeps 90 % of the commanded speed
+    dt, rows, sent, pose, t = 0.01, [], [], np.zeros(3), 0.0
+    for v, w, dur in ((0.2, 0.1, 5.0), (0.2, 0.6, 5.0)):
+        for _ in range(int(dur / dt)):
+            wb = math.copysign(min(abs(w), 0.25), w)
+            rows.append({"source": "truth", "stamp": t, "x": pose[0], "y": pose[1],
+                         "yaw": math.atan2(math.sin(pose[2]), math.cos(pose[2]))})
+            if round(t / dt) % 5 == 0:
+                sent.append({"received": t, "v": v, "omega": w})
+            pose = pose + dt * np.array([0.9 * v * math.cos(pose[2]), 0.9 * v * math.sin(pose[2]), wb])
+            t += dt
+    steps = ec.yaw_map(rows, sent)
+    assert [round(s["w_cmd"], 2) for s in steps] == [0.1, 0.6]
+    assert steps[0]["w_ratio"] == pytest.approx(1.0, abs=0.03) and steps[1]["w_body"] == pytest.approx(0.25, abs=0.01)
+    assert all(s["v_ratio"] == pytest.approx(0.9, abs=0.02) for s in steps)

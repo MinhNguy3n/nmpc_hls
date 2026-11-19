@@ -36,6 +36,11 @@ SCALE = 100.0
 # Labelled 'sim-derived'; they are simulator physics, never robot parameters.
 SIM_DERIVED_GAIN_IN_PLACE = 0.952
 SIM_DERIVED_GAIN_ARC = 0.825
+# 'sim-lowk' (GPT-6 2026-11-19): a constant gain for the low-curvature primary paths, fixed BEFORE
+# the paired runs from the yaw-rate map (plan, 2026-11-19): at kappa = omega/v = 0.5 (the 2 m paths
+# at 0.2 m/s) the simulated body turned at 0.923 x omega_cmd (band 0.90 at kappa 0.67 to 0.94 at
+# 0.33). A simulator-only sensitivity variant, not a model of the curvature dependence.
+SIM_LOWK_GAIN = 0.92
 IN_PLACE_SPEED = 0.05  # m/s: |v| below this is classed as in-place motion (PLACEHOLDER_ policy)
 
 
@@ -75,13 +80,18 @@ class CostConfig:
     uss: tuple[float, float] | None = None  # None -> (z(v = 0), 0)
 
 
+GAIN_MODES = ("plain", "sim-derived", "sim-lowk")
+
+
 def yaw_rate_gain(mode: str) -> Callable[[np.ndarray], np.ndarray]:
-    """Predictor gain on omega as a function of v: 'plain' -> 1; 'sim-derived' -> by motion class."""
+    """Predictor gain on omega as a function of v: 'plain' -> 1; 'sim-derived' (kappa = 1 value) and
+    'sim-lowk' (low-curvature value) -> by motion class, in place 0.952."""
     if mode == "plain":
         return lambda v: np.ones_like(v)
-    if mode == "sim-derived":
-        return lambda v: np.where(np.abs(v) < IN_PLACE_SPEED, SIM_DERIVED_GAIN_IN_PLACE, SIM_DERIVED_GAIN_ARC)
-    raise ValueError("gain mode must be 'plain' or 'sim-derived'")
+    if mode in GAIN_MODES:
+        arc = SIM_DERIVED_GAIN_ARC if mode == "sim-derived" else SIM_LOWK_GAIN
+        return lambda v: np.where(np.abs(v) < IN_PLACE_SPEED, SIM_DERIVED_GAIN_IN_PLACE, arc)
+    raise ValueError(f"gain mode must be one of {GAIN_MODES}")
 
 
 def angle_residual(x_hat: np.ndarray, ref: np.ndarray) -> np.ndarray:

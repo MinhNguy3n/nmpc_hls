@@ -11,6 +11,7 @@ Sub-commands
                 takeover  cmd_vel at 20 Hz + joy_teleop at 10 Hz during two windows (zero twist)
                 lock      cmd_vel at 20 Hz + safety_stop and bt_quality_stop engaged/released
                 turn      cmd_vel at 20 Hz with in-place turns (for the IMU checks; the robot turns)
+                steps     --steps "v:omega:duration,..." (e.g. a yaw-rate map); then still for 3 s
                 estimator still, in-place turns both ways, 1 m arcs both ways at 0.3 m/s
                           (ESTIMATOR_PROFILE; for estimator_checks.py; the robot drives about 3 m)
               Sources are tagged in twist.linear.y (cmd_vel 0.001, joy 0.002), which the
@@ -57,14 +58,26 @@ TURN_PROFILE = ((3.0, 0.0), (8.0, 0.3), (4.0, 0.0), (8.0, -0.3), (3.0, 0.0))  # 
 ESTIMATOR_PROFILE = ((3.0, 0.0, 0.0), (6.0, 0.0, 0.3), (6.0, 0.0, -0.3), (8.0, 0.3, 0.3), (8.0, 0.3, -0.3),
                      (3.0, 0.0, 0.0))
 DURATIONS = {"active": 30.0, "takeover": 40.0, "lock": 30.0, "turn": sum(d for d, _ in TURN_PROFILE),
-             "estimator": sum(d for d, _, _ in ESTIMATOR_PROFILE)}
+             "estimator": sum(d for d, _, _ in ESTIMATOR_PROFILE), "steps": 0.0}
+V_CAP, OMEGA_CAP = 0.3, 0.75  # the SIL envelope (sil_node --v-max/--omega-max defaults); simulation only
 
 
-def profile_command(profile: str, elapsed: float) -> tuple[float, float]:
+def parse_steps(text: str) -> tuple[tuple[float, float, float], ...]:
+    """'v:omega:duration,...' -> ((duration, v, omega), ...) followed by 3 s still."""
+    steps = []
+    for item in text.split(","):
+        v, w, d = (float(x) for x in item.split(":"))
+        if not (0.0 <= v <= V_CAP and abs(w) <= OMEGA_CAP and d > 0):
+            raise ValueError(f"step '{item}' outside v 0..{V_CAP}, |omega| <= {OMEGA_CAP}, duration > 0")
+        steps.append((d, v, w))
+    return tuple(steps) + ((3.0, 0.0, 0.0),)
+
+
+def profile_command(profile: str, elapsed: float, custom: tuple = ()) -> tuple[float, float]:
     """(v, omega) of a scripted profile at `elapsed` s after its start; (0, 0) outside the motion."""
     acc = 0.0
     steps = [(d, 0.0, w) for d, w in TURN_PROFILE] if profile == "turn" else \
-        list(ESTIMATOR_PROFILE) if profile == "estimator" else []
+        list(ESTIMATOR_PROFILE) if profile == "estimator" else list(custom) if profile == "steps" else []
     for duration, v, w in steps:
         if elapsed < acc + duration:
             return v, w
@@ -362,12 +375,14 @@ def _ros(args: argparse.Namespace, ros_args: list[str]) -> int:  # pragma: no co
             msg.header.stamp.sec, msg.header.stamp.nanosec = divmod(ns_now, 1_000_000_000)
             msg.header.frame_id = "base_link"
             msg.twist.linear.y = TAGS[topic]
-            msg.twist.angular.z = float(max(-0.3, min(0.3, omega)))  # hard caps
-            msg.twist.linear.x = float(max(0.0, min(0.3, v)))
+            msg.twist.angular.z = float(max(-OMEGA_CAP, min(OMEGA_CAP, omega)))  # hard caps
+            msg.twist.linear.x = float(max(0.0, min(V_CAP, v)))
             pubs[topic].publish(msg)
             sent.append({"topic": "sent:" + topic, "stamp_ns": ns_now, "received": ns_now * 1e-9,
                          "received_wall": time.monotonic(), "v": msg.twist.linear.x, "omega": msg.twist.angular.z,
                          "tag": TAGS[topic]})
+
+        custom = parse_steps(args.steps) if args.profile == "steps" else ()
 
         def tick() -> None:
             t = now()
@@ -376,10 +391,10 @@ def _ros(args: argparse.Namespace, ros_args: list[str]) -> int:  # pragma: no co
             if state["t0"] is None:
                 state["t0"] = t
             el = t - state["t0"]
-            if el > DURATIONS[args.profile]:
+            if el > (sum(d for d, _, _ in custom) if args.profile == "steps" else DURATIONS[args.profile]):
                 state["done"] = True
                 return
-            v, omega = profile_command(args.profile, el)
+            v, omega = profile_command(args.profile, el, custom)
             send(INPUT, omega, v)
             if args.profile == "takeover" and any(a <= el < b for a, b in TAKEOVER_WINDOWS) and el >= state["next_joy"]:
                 send(JOY)
@@ -419,6 +434,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", required=True)
     p = sub.add_parser("scenario")
     p.add_argument("profile", choices=sorted(DURATIONS))
+    p.add_argument("--steps", default="", help='profile "steps": "v:omega:duration,..."')
     p.add_argument("--namespace", default=NAMESPACE)
     p.add_argument("--sim", action="store_true")
     p.add_argument("--out", required=True)

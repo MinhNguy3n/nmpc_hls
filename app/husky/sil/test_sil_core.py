@@ -93,6 +93,8 @@ def test_predictor_gain_option():
     arc_plain = pso.predict(straight_problem(gain="plain"), z_arc)[0, -1, 2]
     arc_sim = pso.predict(straight_problem(gain="sim-derived"), z_arc)[0, -1, 2]
     assert arc_sim == pytest.approx(pso.SIM_DERIVED_GAIN_ARC * arc_plain)
+    arc_lowk = pso.predict(straight_problem(gain="sim-lowk"), z_arc)[0, -1, 2]
+    assert arc_lowk == pytest.approx(0.92 * arc_plain)
     with pytest.raises(ValueError):
         pso.yaw_rate_gain("pooled")
 
@@ -358,3 +360,72 @@ def test_acceptance_rejects_each_hard_failure():
     assert metrics.acceptance(bad)["reasons"] == [
         "ownership lost: IMU stale or missing", "robot tipped", "published constraint violation",
         "C_sim misses > 1 %", "stop fallback", "tracking above the provisional thresholds"]
+
+
+def test_compare_pairs_runs_by_path_and_seed(tmp_path):
+    from sil import batch_summary, compare
+    path = tmp_path / "summary.csv"
+    with open(path, "w", newline="") as handle:
+        writer = __import__("csv").DictWriter(handle, fieldnames=batch_summary.FIELDS)
+        writer.writeheader()
+        for gain, xt in (("plain", 0.40), ("sim-derived", 0.30)):
+            for seed in (1, 2):
+                writer.writerow({"run": f"circle_7x30_nu25_{gain}_seed{seed}_t", "pso": "7x30", "gain_mode": gain,
+                                 "seed": seed, "verdict": "REJECT", "cross_track_rmse": xt + 0.01 * seed})
+    result = compare.compare(compare.load(path), "plain", "sim-derived")
+    item = result["circle"]
+    assert item["variants"]["plain"]["n"] == 2
+    assert item["variants"]["sim-derived"]["cross_track_rmse"]["mean"] == pytest.approx(0.315)
+    assert [p["seed"] for p in item["pairs"]] == ["1", "2"]
+    assert all(p["cross_track_rmse"] == pytest.approx(-0.10) for p in item["pairs"])
+    assert "| cross_track_rmse |" in compare.to_markdown(result, "plain", "sim-derived")
+
+
+def test_rtf_from_history_ignores_tick_bursts():
+    from collections import deque
+    from sil.sil_node import rtf_from_history
+    hist = deque()
+    assert rtf_from_history(hist, 0.25) == 0.25
+    # a start-up burst: 5 ticks of 0.05 s simulation time within 10 ms of wall clock
+    for k in range(5):
+        hist.append((10.0 + 0.05 * k, 100.0 + 0.002 * k))
+    assert rtf_from_history(hist, 0.25) == 0.25  # less than 1 s of wall clock: the fallback
+    for k in range(1, 30):  # then steady ticks every 0.2 s wall = 0.05 s simulation
+        hist.append((10.2 + 0.05 * k, 100.01 + 0.2 * k))
+    assert rtf_from_history(hist, 1.0) == pytest.approx(0.25, rel=1e-6)
+
+
+def test_startup_gate_blocks_a_clock_burst():
+    from collections import deque
+    from sil.sil_node import startup_ready
+    ts, hist = 0.05, deque()
+    # a /clock catch-up burst: 3 s of simulation time (61 ticks) in 0.9 s of wall clock
+    for k in range(61):
+        hist.append((100.0 + ts * k, 10.0 + 0.015 * k))
+    assert hist[-1][0] - hist[0][0] >= 3.0 and hist[-1][1] - hist[0][1] < 1.0
+    assert startup_ready(hist, ts, warmup=3.0) == (False, "RTF history shorter than min_wall")
+    # steady ticks follow (0.2 s wall each, RTF 0.25); the burst is still in the last 20 intervals
+    for k in range(1, 8):
+        hist.append((103.0 + ts * k, 10.9 + 0.2 * k))
+    assert startup_ready(hist, ts, warmup=3.0) == (False, "tick cadence not steady (burst)")
+    for k in range(8, 30):
+        hist.append((103.0 + ts * k, 10.9 + 0.2 * k))
+    assert startup_ready(hist, ts, warmup=3.0) == (True, "ready")
+    # an irregular simulation-time interval (a /clock jump) blocks again
+    hist.append((hist[-1][0] + 0.2, hist[-1][1] + 0.8))
+    assert startup_ready(hist, ts, warmup=3.0)[1] == "irregular tick interval (simulation time)"
+    assert startup_ready(deque([(0.0, 0.0)]), ts, 3.0) == (False, "no tick history")
+
+
+def test_clearance_of_the_primary_and_old_paths():
+    from sil import clearance as cl
+    primary = (0.0, 3.9, math.pi / 2)
+    for kind in ("circle", "figure8"):
+        r = cl.clearance(reference.PathSpec(kind, 0.2, 2.0), primary)
+        assert r["min_clearance"] > 1.9 and r["nearest"] == "shelf_big_3"
+    # the old placement at the spawn: the 2 m figure-eight crosses shelf_7, the 1 m circle passes
+    # 0.24 m from the standing person
+    assert cl.clearance(reference.PathSpec("figure8", 0.2, 2.0), (0, 0, 0))["min_clearance"] < 0
+    old = cl.clearance(reference.PathSpec("circle", 0.3, 1.0), (0, 0, 0))
+    assert old["nearest"] == "person_1" and old["min_clearance"] == pytest.approx(0.24, abs=0.02)
+    assert cl.main(["--path", "circle", "--size", "1", "--start", "0", "0", "0"]) == 1

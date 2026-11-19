@@ -145,3 +145,12 @@ def test_profile_commands():
     assert mt.profile_command("estimator", 30.0) == (0.3, -0.3)
     assert mt.profile_command("estimator", 99.0) == (0.0, 0.0)
     assert mt.DURATIONS["estimator"] == 34.0
+
+
+def test_steps_profile():
+    steps = mt.parse_steps("0.1:0.2:5,0.3:0.75:4")
+    assert steps == ((5.0, 0.1, 0.2), (4.0, 0.3, 0.75), (3.0, 0.0, 0.0))
+    assert mt.profile_command("steps", 6.0, steps) == (0.3, 0.75)
+    assert mt.profile_command("steps", 10.0, steps) == (0.0, 0.0)
+    with pytest.raises(ValueError):
+        mt.parse_steps("0.4:0.1:5")  # above the SIL speed envelope

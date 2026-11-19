@@ -17,7 +17,13 @@
 # velocity + IMU-yaw-rate EKF, variant "driver", of launch/a300_sil_estimator.launch.py, which
 # must be running); FEEDBACK=platform/odom/filtered IMU=sensors/imu_0/data is the generated EKF.
 #
-#   bash sil/run_batch.sh             # all 36 runs: circle 1.6 min, figure8 3 min each; about 1.8 h at RTF 0.25
+# Path placement (GPT-6 2026-11-19): START="x y yaw" (world) is where the robot is put before every
+# run; SIZE (radius, m) and SPEED (m/s) define the paths. Before the first run every path's swept
+# robot circle is checked against the warehouse obstacles (sil/clearance.py, >= MIN_CLEARANCE m).
+# Primary (low curvature): SIZE=2 SPEED=0.2 START="0 3.9 1.5708" (the default);
+# stress case: SIZE=1 SPEED=0.3, same start.
+#
+#   bash sil/run_batch.sh             # 36 runs at the primary geometry
 #   PATHS=circle CFGS=7x30 GAINS=plain SEEDS=1 bash sil/run_batch.sh  # a subset
 set -u
 H=$(cd "$(dirname "$0")/.." && pwd)
@@ -29,7 +35,13 @@ SEEDS=${SEEDS:-"1 2 3"}
 WORLD=${WORLD:-warehouse}
 RTF=${RTF:-0.25}
 STEP=${STEP:-0.003}  # the warehouse world's max_step_size
-MAX_WALL=${MAX_WALL:-900}
+MAX_WALL=${MAX_WALL:-1800}
+START=${START:-"0 3.9 1.5708"}
+SIZE=${SIZE:-2}
+SPEED=${SPEED:-0.2}
+MIN_CLEARANCE=${MIN_CLEARANCE:-1.0}
+read -r SX SY SYAW <<< "$START"
+QZ=$(python3 -c "import math; print(math.sin($SYAW / 2))"); QW=$(python3 -c "import math; print(math.cos($SYAW / 2))")
 FEEDBACK=${FEEDBACK:-sil/driver/odom/filtered}
 IMU=${IMU:-sil/driver/imu}
 ESTIMATOR=${ESTIMATOR:-"SIL EKF: wheel v_x + IMU yaw rate, gyro variance 2.75e-6 (driver default)"}
@@ -42,11 +54,15 @@ robot_z() {
 
 reset_pose() {
   sleep 2  # the robot stops on the mux and controller timeouts after the node stops publishing
-  gz_srv set_pose gz.msgs.Pose 'name: "a300_00000/robot", position: {z: 0.15}, orientation: {w: 1}' || return 1
+  gz_srv set_pose gz.msgs.Pose "name: \"a300_00000/robot\", position: {x: $SX, y: $SY, z: 0.15}, orientation: {z: $QZ, w: $QW}" || return 1
   sleep 4  # about 1 s of simulation at RTF 0.25 to settle
 }
 
 cd "$H" || exit 1
+for path in $PATHS; do
+  python3 -m sil.clearance --path "$path" --size "$SIZE" --speed "$SPEED" --start $START --min "$MIN_CLEARANCE" \
+    || { echo "path $path not collision-clear at START=$START: batch not started"; exit 3; }
+done
 gz_srv set_physics gz.msgs.Physics "max_step_size: $STEP, real_time_factor: $RTF, gravity: {z: -9.8}" \
   || { echo "set_physics failed"; exit 3; }
 gz_srv set_pose gz.msgs.Pose 'name: "a300_00000/robot", position: {z: 0.6}, orientation: {w: 1}'  # drop test
@@ -59,7 +75,7 @@ mkdir -p "$OUT"
 echo "SIL batch: $PATHS x $CFGS x $GAINS x seeds $SEEDS -> $OUT"
 for path in $PATHS; do for cfg in $CFGS; do for gain in $GAINS; do for seed in $SEEDS; do
   reset_pose || { echo "set_pose failed: batch stopped"; exit 3; }
-  python3 -m sil.sil_node --sim --path "$path" --pso "$cfg" --gain "$gain" --seed "$seed" --auto-arm \
+  python3 -m sil.sil_node --sim --path "$path" --size "$SIZE" --speed "$SPEED" --pso "$cfg" --gain "$gain" --seed "$seed" --auto-arm \
       --rtf "$RTF" --max-wall "$MAX_WALL" --out-dir "$OUT" --feedback-topic "$FEEDBACK" --imu-topic "$IMU" \
       --estimator "$ESTIMATOR" --ros-args -p use_sim_time:=true > "$OUT/node.log" 2>&1
   run=$(ls -td "$OUT"/*/ | head -1)
