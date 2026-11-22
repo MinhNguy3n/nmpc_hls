@@ -882,6 +882,21 @@ That is 80 episodes, plus C1–C6.
 3. **The Gazebo study is paused** until the car's measurements arrive (turning circle, payload position, floor size). Everything stays reproducible from `params/` and `checks/run_phase4_batch.sh`. Lesson kept: offline jobs run only between Gazebo blocks.
 4. **Next (done at C level, 2026-11-22):** the bicycle model and the redesign switches in the HLS sources. See `docs/rc_car/hls_bicycle_redesign.md` and the STOP H reply. The HLS engine integrates the bicycle model with RK4 (Stage A); the Gazebo candidate predicted with the chord step (Stage B).
 
+### 7.16 The candidate with the HLS solver's settings: offline closed loop (2026-11-22; OFFLINE, kinematic model, emulated solver)
+
+**Rule (written before the run, from the STOP H review):** the median over the 10 episodes of the paired cross-track RMSE difference (HLS − candidate) is within ±0.5 mm.
+
+**Setup** (`checks/hls_closed_loop.py`): the offline ablation's set (figure-eight and circle, 1.0 m/s, seeds 1–5, `realistic_guess`, 10×40). The host side stays the controller's. The solve is the bit-level emulation of the HLS solver with `PSO_RD_ALL`: RK4 rollout, fixed-point PSO, uniform R1 noise, and a random stream that runs freely over the episode.
+
+**Result: PASS.**
+- **Paired difference:** median −0.03 mm (range −0.33 to +0.14).
+- **Per path:** figure-eight −0.04 mm, circle −0.02 mm.
+- **Other metrics:** heading −0.01 mrad, RMS Δκ +0.001, rate limit +0.04 percentage points.
+- **Integrity:** 10 of 10 episodes done, 0 fallbacks.
+- **Diagnostic arm** (the Python candidate with uniform noise only): +0.05 mm (−0.19 to +0.24).
+- **Reproducibility:** the candidate rerun reproduces the stored ablation exactly.
+- **Logs:** `~/nmpc_sim/logs/rc_car_hls_closed_loop_20261122/`.
+
 ## 8. How to run (in the container, as for the Husky)
 
 The repository is mounted read-only at `/home/ubuntu/nmpc_hls`. The car files are in the worktree.

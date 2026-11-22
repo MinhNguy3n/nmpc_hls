@@ -229,9 +229,98 @@ def _obj(a: np.ndarray) -> np.ndarray:
     return np.array([int(x) for x in np.ravel(a)], dtype=object).reshape(np.shape(a))
 
 
+_I64_SAFE = float(2 ** 62)
+
+
+def _fits(*bounds) -> bool:
+    """True when every float bound of an intermediate stays well inside int64."""
+    return all(float(np.max(np.abs(b))) < _I64_SAFE for b in bounds)
+
+
+def cost_fast(c: Config, x0, cg, xref, u_curr=None, aux=None):
+    """The same cost as `cost_exact`, vectorized over particles in int64. Returns None as soon as a
+    float bound says an intermediate might leave int64 range (or a control leaves the box, the
+    penalty path), and `cost` then uses the exact path. Equality with `cost_exact` is tested."""
+    p = cg.shape[0]
+    x = np.tile(np.asarray(x0, dtype=np.int64), (p, 1))
+    Ji = np.zeros((p, 3), dtype=np.int64)
+    Jui = np.zeros((p, 2), dtype=np.int64)
+    u_prev = np.tile(np.asarray(u_curr if u_curr is not None else [0, 0], dtype=np.int64), (p, 1))
+    uref_off = 1 + c.nu * 2
+    cs_off = uref_off + c.nh * 2
+    for i in range(c.nh):
+        u = stage_u(c, cg, i)
+        if np.any(u < c.u_min) or np.any(u > c.u_max):
+            return None
+        last = i == c.nh - 1
+        for j in range(2):
+            uj = u[:, j]
+            tmp = uj - (int(aux[uref_off + 2 * i + j]) if c.on("UREF") else int(c.uss[j]))
+            if c.on("R4"):
+                d = uj - u_prev[:, j]
+                if not _fits(float(c.Ws[j]) * d.astype(float)):
+                    return None
+                du_w = rnd(c.Ws[j] * d, FRAC)
+            else:
+                du_w = np.zeros(p, dtype=np.int64)
+            dw2 = du_w.astype(float) ** 2
+            if c.on("UREF"):
+                if not _fits(float(c.Wr[j]) * tmp.astype(float)):
+                    return None
+                e_w = rnd(c.Wr[j] * tmp, FRAC)
+                if not _fits(Jui[:, j].astype(float) * 2.0 ** 15 + e_w.astype(float) ** 2 + dw2):
+                    return None
+                Jui[:, j] = rnd((Jui[:, j] << 15) + e_w * e_w + du_w * du_w, 15)
+            else:
+                R = c.R[j]
+                if not _fits(Jui[:, j].astype(float) * 2.0 ** 30 + float(R) * tmp.astype(float) ** 2 + dw2 * 2.0 ** 15):
+                    return None
+                Jui[:, j] = rnd((Jui[:, j] << 30) + R * tmp * tmp + ((du_w * du_w) << 15), 30)
+        u_prev = u
+        x = rk4(c, x, u)
+        ref = np.asarray(xref[i], dtype=np.int64)
+        if np.any(np.abs(x) > c.state_lim):
+            return None
+        e = sat(x - ref[None, :])
+        h = e[:, 2]
+        h = np.where(h > c.top_pi, sat(h - c.top_two_pi), np.where(h <= -c.top_pi, sat(h + c.top_two_pi), h))
+        errs = [e[:, 0], e[:, 1], h]
+        ws = [c.Qf[j] if last else c.Q[j] for j in range(3)]
+        if c.on("R3"):
+            cc, ss = int(aux[cs_off + 2 * i]), int(aux[cs_off + 2 * i + 1])
+            ex, ey = e[:, 0], e[:, 1]
+            errs[0] = rnd(cc * ey - ss * ex, FRAC)
+            errs[1] = rnd(cc * ex + ss * ey, FRAC)
+            ws[0] = c.Qf_pf[0] if last else c.Q_pf[0]
+            ws[1] = c.Qf_pf[1] if last else c.Q_pf[1]
+        for j in range(3):
+            if not _fits(Ji[:, j].astype(float) * 2.0 ** 30 + float(ws[j]) * errs[j].astype(float) ** 2):
+                return None
+            Ji[:, j] = rnd((Ji[:, j] << 30) + ws[j] * errs[j] * errs[j], 30)
+    a = np.zeros(p, dtype=np.int64)
+    for j in range(3):
+        a = sat(a + Ji[:, j])
+    b = np.zeros(p, dtype=np.int64)
+    for j in range(2):
+        b = sat(b + Jui[:, j])
+    return sat(a + b)
+
+
 def cost(c: Config, x0: np.ndarray, cg: np.ndarray, xref: np.ndarray, u_curr: np.ndarray | None = None,
          aux: np.ndarray | None = None, trace: bool = False):
-    """Per-particle cost J (P,) in LSB. x0 (3,), cg (P, Nu, 2), xref (Nh, 3), u_curr (2,), aux (len,)."""
+    """Per-particle cost J (P,) in LSB: the int64 fast path when it is safe, else the exact path."""
+    if not trace:
+        J = cost_fast(c, x0, cg, xref, u_curr, aux)
+        if J is not None:
+            return J
+    return cost_exact(c, x0, cg, xref, u_curr, aux, trace)
+
+
+def cost_exact(c: Config, x0: np.ndarray, cg: np.ndarray, xref: np.ndarray, u_curr: np.ndarray | None = None,
+               aux: np.ndarray | None = None, trace: bool = False):
+    """Per-particle cost J (P,) in LSB, every intermediate a Python integer (the reference path;
+    bit-identical to the C build in hls_bicycle_check.py). x0 (3,), cg (P, Nu, 2), xref (Nh, 3),
+    u_curr (2,), aux (len,)."""
     p = cg.shape[0]
     x = np.tile(np.asarray(x0, dtype=np.int64), (p, 1))
     Ji = np.zeros((p, 3), dtype=object)

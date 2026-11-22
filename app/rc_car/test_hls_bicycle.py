@@ -80,3 +80,20 @@ def test_path_frame_cost_is_rotation_invariant():
 
 def test_uniform_perturbation_option_keeps_default():
     assert ne.Problem.__dataclass_fields__["perturb_dist"].default == "normal"
+
+
+def test_fast_cost_equals_exact_cost():
+    """The int64 fast path is the exact (C-identical) path on random plans, in every switch build."""
+    rng = np.random.default_rng(3)
+    for sw in [(), ("R1",), ("R2",), ("R3",), ("R4",), ("UREF",), E.SWITCHES]:
+        c = E.make_config(sw)
+        aux = np.zeros(c.aux_len, dtype=np.int64)
+        if c.aux_len:
+            aux[1 + 2 * c.nu:] = E.fxi_array(rng.uniform(-1, 1, len(aux) - 1 - 2 * c.nu))
+        xref = E.fxi_array(np.column_stack([np.linspace(0.05, 1.2, c.nh), rng.normal(0, 0.05, c.nh),
+                                            rng.normal(0, 0.3, c.nh)]))
+        cg = E.fxi_array(rng.uniform(-100, 100, (6, c.nu, 2)))
+        u0 = E.fxi_array(rng.uniform(-100, 100, 2))
+        fast = E.cost_fast(c, np.zeros(3, dtype=np.int64), cg, xref, u0, aux)
+        exact = E.cost_exact(c, np.zeros(3, dtype=np.int64), cg, xref, u0, aux)
+        assert fast is not None and np.array_equal(fast, exact)
