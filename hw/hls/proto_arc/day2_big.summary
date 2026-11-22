@@ -1,0 +1,6 @@
+big start 02:02; waiting for 8 GB
+02:10 cosim ref S=10 seed=1
+S=10 seed=1 stored-cost gate RTL(new) vs RTL(deployed): IDENTICAL (1010 words); RTL local-best updates 3 of 10; latency new 28201, deployed 483780
+02:18 cosim ref S=10 seed=22
+S=10 seed=22 stored-cost gate RTL(new) vs RTL(deployed): IDENTICAL (1010 words); RTL local-best updates 5 of 10; latency new 28453, deployed 484432
+02:24 OOC impl new S=10 II=8

@@ -1,0 +1,4 @@
+S=10 II=8: RTL(new) vs RTL(orig serial): IDENTICAL (12000 words); cosim latency new 1086, orig 18951 cycles
+    new RTL vs C: rk4_multi S=10 II=8: 12000 words compared over 100 trials, 1219 mismatches (worst |diff| 0.000519)
+S=10 II=16: RTL(new) vs RTL(orig serial): IDENTICAL (12000 words); cosim latency new 1398, orig 18951 cycles
+    new RTL vs C: rk4_multi S=10 II=16: 12000 words compared over 100 trials, 1219 mismatches (worst |diff| 0.000519)

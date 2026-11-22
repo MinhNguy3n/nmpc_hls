@@ -1,0 +1,12 @@
+Running scope as unit: run-rb4ca0409d03c4bbaa97eb502d2d41ceb.scope
+ooc start 03:44; waiting for 8 GB
+04:33 vivado OOC new S=10 II=8
+# puts "OOC_DONE WNS=[get_property SLACK [get_timing_paths -max_paths 1 -setup]] period=$period"
+OOC_DONE WNS=0.006 period=8.0
+04:46 vivado OOC new S=10 II=16
+# puts "OOC_DONE WNS=[get_property SLACK [get_timing_paths -max_paths 1 -setup]] period=$period"
+OOC_DONE WNS=0.021 period=8.0
+04:56 vivado OOC ref S=10 II=8
+# puts "OOC_DONE WNS=[get_property SLACK [get_timing_paths -max_paths 1 -setup]] period=$period"
+OOC_DONE WNS=0.110 period=8.0
+ooc end 05:01

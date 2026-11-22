@@ -1,0 +1,10 @@
+ooc start 02:52; waiting for 6 GB
+02:55 vivado OOC new S=10 II=8
+  FAILED (see /home/minh/Documents/UTU-Doctorate/nmpc_hls/.claude/worktrees/arc-shared-rollout/hw/hls/proto_arc/ooc/new_S10_II8/vivado_ooc.log)
+02:56 csynth new S=10 II=16
+02:57 vivado OOC new S=10 II=16
+  FAILED (see /home/minh/Documents/UTU-Doctorate/nmpc_hls/.claude/worktrees/arc-shared-rollout/hw/hls/proto_arc/ooc/new_S10_II16/vivado_ooc.log)
+02:57 csynth ref S=10 II=8
+02:58 vivado OOC ref S=10 II=8
+  FAILED (see /home/minh/Documents/UTU-Doctorate/nmpc_hls/.claude/worktrees/arc-shared-rollout/hw/hls/proto_arc/ooc/ref_S10_II8/vivado_ooc.log)
+ooc end 02:58

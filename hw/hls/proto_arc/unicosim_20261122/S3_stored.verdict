@@ -1,0 +1,4 @@
+S=3 II=8 evaluator RTL(new) vs RTL(deployed): IDENTICAL (153 words)
+    cosim latency min/avg/max per call: new 5375/5375/5375, deployed 19769/19769/19769
+tb_eval S=3 stored-cost mode: expected 1 updates and 2 retains (C costs), 0 stored costs saturated; 1 local bests changed
+tb_eval S=3 stored-cost mode: expected 1 updates and 2 retains (C costs), 0 stored costs saturated; 1 local bests changed

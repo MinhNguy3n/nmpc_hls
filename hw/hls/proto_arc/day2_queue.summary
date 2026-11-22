@@ -1,0 +1,11 @@
+queue start 00:48; waiting for the screen and memory
+00:48 cosim new S=3 seed=1
+00:51 cosim ref S=3 seed=1
+S=3 seed=1 stored-cost gate RTL(new) vs RTL(deployed): IDENTICAL (303 words); RTL local-best updates 1 of 3; latency new 21432, deployed 145165
+00:54 cosim new S=3 seed=22
+00:58 cosim ref S=3 seed=22
+S=3 seed=22 stored-cost gate RTL(new) vs RTL(deployed): IDENTICAL (303 words); RTL local-best updates 2 of 3; latency new 21558, deployed 145491
+01:10 cosim new S=10 seed=1
+01:39 cosim ref S=10 seed=1
+S=10 seed=1 stored-cost gate RTL(new) vs RTL(deployed): INCOMPLETE (cosim did not finish; dump is not RTL); RTL local-best updates 3 of 10; latency new 28201, deployed 
+01:50 cosim new S=10 seed=22

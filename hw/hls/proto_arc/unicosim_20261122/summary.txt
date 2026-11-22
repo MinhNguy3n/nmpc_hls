@@ -1,0 +1,33 @@
+Unicycle (UNICYCLE_CONFIG) evaluator gate, II 8, xck26 8 ns, 2026-11-22T16:56:35+02:00
+Overlay files: /home/minh/Documents/UTU-Doctorate/nmpc_hls/.claude/worktrees/arc-shared-rollout/hw/hls/proto_arc/../../../../agent-a7f53c7be12d59b73/hw/hls/source/include
+  fb54149f10a73cb6f8dd8b1e041334a604b05fc0d524ba25ea2d1aa648166f29  config.hpp
+  406794308eda1ef42012609fd4897c2b52da95f608e6f9e1ac9d972b24f08502  hls_model.hpp
+  5a035f0ec8349ca33cee902a8b826d225db15825c0d229693a638744a3fc01e2  models/hls_unicycle.hpp
+S=10 II=8 evaluator RTL(new) vs RTL(deployed): IDENTICAL (1530 words)
+    cosim latency min/avg/max per call: new 11913/11959/11983, deployed 66020/66728/67082
+S=3 II=8 evaluator RTL(new) vs RTL(deployed): IDENTICAL (459 words)
+    cosim latency min/avg/max per call: new 5375/5397/5408, deployed 19769/20005/20123
+S=10 II=8 evaluator RTL(new) vs RTL(deployed): IDENTICAL (510 words)
+    cosim latency min/avg/max per call: new 11895/11895/11895, deployed 65843/65843/65843
+tb_eval S=10 stored-cost mode: expected 3 updates and 7 retains (C costs), 0 stored costs saturated; 3 local bests changed
+tb_eval S=10 stored-cost mode: expected 3 updates and 7 retains (C costs), 0 stored costs saturated; 3 local bests changed
+S=3 II=8 evaluator RTL(new) vs RTL(deployed): IDENTICAL (153 words)
+    cosim latency min/avg/max per call: new 5375/5375/5375, deployed 19769/19769/19769
+tb_eval S=3 stored-cost mode: expected 1 updates and 2 retains (C costs), 0 stored costs saturated; 1 local bests changed
+tb_eval S=3 stored-cost mode: expected 1 updates and 2 retains (C costs), 0 stored costs saturated; 1 local bests changed
+--- /home/minh/Documents/UTU-Doctorate/nmpc_hls/.claude/worktrees/arc-shared-rollout/hw/hls/proto_arc/unicosim_20261122/S10_seed4242/new_S10_II8/proj_eval_uni_new_S10_II8/sol/syn/report/csynth.rpt
+|                             Modules                            | Issue|                     | Iteration|         | Trip |          |       Latency       |      |         |          |            |             |     |
+|                             & Loops                            | Type |    Violation Type   |  Latency | Interval| Count| Pipelined| (cycles)|    (ns)   | Slack|  BRAM   |    DSP   |     FF     |     LUT     | URAM|
+|+ evaluateFitnessAndDetectLocalBest                             |     -|                    -|         -|    11996|     -|        no|    11995|  9.596e+04|  0.00|  11 (3%)|   29 (2%)|  12008 (5%)|  16113 (13%)|    -|
+--- /home/minh/Documents/UTU-Doctorate/nmpc_hls/.claude/worktrees/arc-shared-rollout/hw/hls/proto_arc/unicosim_20261122/S10_seed4242/ref_S10_II8/proj_eval_uni_ref_S10_II8/sol/syn/report/csynth.rpt
+|                         Modules                        |  Issue |               | Iteration|         | Trip |          |       Latency       |       |         |          |            |             |     |
+|                         & Loops                        |  Type  | Violation Type|  Latency | Interval| Count| Pipelined| (cycles)|    (ns)   | Slack |  BRAM   |    DSP   |     FF     |     LUT     | URAM|
+|+ evaluateFitnessAndDetectLocalBest                     |  Timing|              -|         -|    67043|     -|        no|    67042|  5.363e+05|  -0.98|   7 (2%)|   32 (2%)|   8939 (3%)|  17718 (15%)|    -|
+--- /home/minh/Documents/UTU-Doctorate/nmpc_hls/.claude/worktrees/arc-shared-rollout/hw/hls/proto_arc/unicosim_20261122/S3_seed4242/new_S3_II8/proj_eval_uni_new_S3_II8/sol/syn/report/csynth.rpt
+|                             Modules                            | Issue|                     | Iteration|         | Trip |          |       Latency       |      |         |          |            |             |     |
+|                             & Loops                            | Type |    Violation Type   |  Latency | Interval| Count| Pipelined| (cycles)|    (ns)   | Slack|  BRAM   |    DSP   |     FF     |     LUT     | URAM|
+|+ evaluateFitnessAndDetectLocalBest                             |     -|                    -|         -|     5547|     -|        no|     5546|  4.437e+04|  0.00|  11 (3%)|   29 (2%)|   9650 (4%)|  14402 (12%)|    -|
+--- /home/minh/Documents/UTU-Doctorate/nmpc_hls/.claude/worktrees/arc-shared-rollout/hw/hls/proto_arc/unicosim_20261122/S3_seed4242/ref_S3_II8/proj_eval_uni_ref_S3_II8/sol/syn/report/csynth.rpt
+|                         Modules                        |  Issue |               | Iteration|         | Trip |          |       Latency       |       |         |          |            |             |     |
+|                         & Loops                        |  Type  | Violation Type|  Latency | Interval| Count| Pipelined| (cycles)|    (ns)   | Slack |  BRAM   |    DSP   |     FF     |     LUT     | URAM|
+|+ evaluateFitnessAndDetectLocalBest                     |  Timing|              -|         -|    20112|     -|        no|    20111|  1.609e+05|  -0.98|   7 (2%)|   32 (2%)|   8480 (3%)|  17634 (15%)|    -|

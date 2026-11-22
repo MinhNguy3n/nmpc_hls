@@ -1,0 +1,2 @@
+S=10 II=8 evaluator RTL(new) vs RTL(deployed): IDENTICAL (1530 words)
+    cosim latency min/avg/max per call: new 11913/11959/11983, deployed 66020/66728/67082

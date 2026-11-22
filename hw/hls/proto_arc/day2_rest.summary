@@ -1,0 +1,4 @@
+rest start 01:51
+01:51 cosim new S=10 seed=22
+  new S=10 seed=22 finished
+01:58 OOC impl new S=10 II=8

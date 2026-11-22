@@ -1,0 +1,6 @@
+S=3 II=8 evaluator RTL(new) vs RTL(deployed): IDENTICAL (909 words)
+    cosim latency min/avg/max per call: new 21684/21684/21684, deployed 145817/145817/145817
+S=3 II=8 evaluator RTL(new) vs RTL(deployed): IDENTICAL (909 words)
+    cosim latency min/avg/max per call: new 21306/21306/21306, deployed 144839/144839/144839
+S=10 II=8 evaluator RTL(new) vs RTL(deployed), seed 1 call 0 (deployed rerun with PROTO_CALLS=1): IDENTICAL (1010 words)
+    cosim latency per call: new 28327/28831/29083 (3 calls), deployed 486062 (1 call)
