@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<!--
+  Flat lab floor for the Reely NEW1 simulation.
+  - Physics: 1 ms step (design: a 2.6 kg car with 62.5 mm wheels; checked by C1 and C6), RTF 1.
+  - Floor friction mu = 1 (PLACEHOLDER_, as the tyres' in params/reely_new1.yaml). The friction
+    used in a contact is the smaller of the two surfaces' values.
+  - OptiTrack volume: PLACEHOLDER_ 10 m x 10 m (about 100 m^2, lab facts 2026-11-22) centred on the origin, visual only (no collision),
+    with a PLACEHOLDER_ 1.0 m geofence margin drawn inside it (params/lab_area.yaml). The size comes from the user (G0 4b /
+    lab facts); the checks and the paths read the same numbers from their own arguments.
+  - The floor plane is large so that the bring-up checks (straight runs up to ~9 m) never leave it.
+  - SceneBroadcaster publishes /world/lab_floor/dynamic_pose/info (the scoring truth) at 100 Hz.
+-->
+<sdf version="1.9">
+  <world name="lab_floor">
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster">
+      <dynamic_pose_hertz>100</dynamic_pose_hertz>
+    </plugin>
+
+    <light type="directional" name="sun">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <direction>-0.3 0.2 -0.9</direction>
+    </light>
+
+    <model name="floor">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry>
+          <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry>
+          <material><ambient>0.6 0.6 0.6 1</ambient><diffuse>0.6 0.6 0.6 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- PLACEHOLDER_ OptiTrack volume outline (10 x 10 m) and geofence (1.0 m inside): visuals only; keep in step with params/lab_area.yaml -->
+    <model name="optitrack_volume">
+      <static>true</static>
+      <link name="link">
+        <visual name="volume">
+          <pose>0 0 0.001 0 0 0</pose>
+          <geometry><box><size>10 10 0.001</size></box></geometry>
+          <material><ambient>0.3 0.5 0.8 1</ambient><diffuse>0.3 0.5 0.8 1</diffuse></material>
+        </visual>
+        <visual name="geofence">
+          <pose>0 0 0.002 0 0 0</pose>
+          <geometry><box><size>8 8 0.001</size></box></geometry>
+          <material><ambient>0.7 0.75 0.8 1</ambient><diffuse>0.7 0.75 0.8 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>

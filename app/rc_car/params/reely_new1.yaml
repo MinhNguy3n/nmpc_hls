@@ -1,0 +1,34 @@
+# Reely NEW1 (brushed, 1:10, 4WD) simulation parameters. Single source for the xacro, the plant
+# interface and the checks. Every entry has value, unit, status and source:
+#   spec_unverified : manufacturer data (docs/rc_car/parameters.md section A); not measured
+#   measured_approx : an approximate value measured by the user (source says how); to be confirmed
+#   placeholder     : PLACEHOLDER_ -- a value chosen only so the simulation runs; replace it from
+#                     the measurement sheet (docs/rc_car/parameters.md section C, item #)
+#   design          : a simulation design choice, not a vehicle property
+# No value is taken from the Husky or from F1TENTH cars.
+
+wheelbase:            {value: 0.275,  unit: m,    status: spec_unverified, source: "manual M p.53; measure: sheet item 1"}
+front_track:          {value: 0.30,   unit: m,    status: measured_approx, source: "user 2026-11-22, sheet item 2 (approximate); was PLACEHOLDER_ 0.27"}
+rear_track:           {value: 0.30,   unit: m,    status: measured_approx, source: "user 2026-11-22, sheet item 2 (approximate); was PLACEHOLDER_ 0.27"}
+wheel_radius:         {value: 0.0625, unit: m,    status: spec_unverified, source: "manual M: tyre diameter 125 mm, nominal unloaded; sheet item 3"}
+wheel_width:          {value: 0.070,  unit: m,    status: spec_unverified, source: "manual M: tyre width 70 mm"}
+delta_max:            {value: 0.356,  unit: rad,  status: measured_approx, source: "user 2026-11-22: about 25 deg full lock, read as the inner wheel (conservative) -> bicycle 20.4 deg; confirm with the turning-circle test (rear-axle radius ~0.74 m confirms; ~0.59 m means the bicycle reading); was PLACEHOLDER_ 0.45. Feeds the plant clamp and joint limit, the converter clamp and the NMPC kappa bound"}
+mass_vehicle:         {value: 2.215,  unit: kg,   status: spec_unverified, source: "manual M: 2215 g without drive battery"}
+payload_mass:         {value: 1.5,    unit: kg,   status: measured_approx, source: "user 2026-11-22 (remeasured): KV260 + power supply + mounting plate, about 1.5 kg; replaces the 0.5 kg PLACEHOLDER_ and an earlier 2 kg estimate. Position still PLACEHOLDER_ (centred on the chassis top)"}
+payload_x:            {value: 0.1375, unit: m,    status: placeholder,     source: "PLACEHOLDER_: payload centre ahead of the rear axle (near the chassis centre, L/2)"}
+payload_z:            {value: 0.09,   unit: m,    status: placeholder,     source: "PLACEHOLDER_: payload centre above the axle line (on top of the chassis: chassis top 0.07 + half the 0.04 m payload height)"}
+payload_size:         {value: 0.12,   unit: m,    status: placeholder,     source: "PLACEHOLDER_: payload footprint side (square), for the inertia box; height 0.04 m"}
+mass_battery:         {value: 0.35,   unit: kg,   status: placeholder,     source: "PLACEHOLDER_: weigh the 6-cell NiMH pack; sheet item 8"}
+mass_wheel:           {value: 0.12,   unit: kg,   status: placeholder,     source: "PLACEHOLDER_: per wheel incl. tyre, for inertia only"}
+mass_knuckle:         {value: 0.02,   unit: kg,   status: placeholder,     source: "PLACEHOLDER_: per steering knuckle, for inertia only"}
+com_x:                {value: 0.1375, unit: m,    status: placeholder,     source: "PLACEHOLDER_: CoM ahead of the rear axle (L/2); sheet item 8"}
+com_z:                {value: 0.03,   unit: m,    status: placeholder,     source: "PLACEHOLDER_: CoM above the axle line"}
+chassis_length:       {value: 0.36,   unit: m,    status: placeholder,     source: "PLACEHOLDER_: inertia box only (overall length 440 mm incl. bumpers, manual M)"}
+chassis_width:        {value: 0.16,   unit: m,    status: placeholder,     source: "PLACEHOLDER_: inertia/collision box, kept inside the wheels"}
+chassis_height:       {value: 0.08,   unit: m,    status: placeholder,     source: "PLACEHOLDER_: inertia box only"}
+wheel_effort_max:     {value: 2.0,    unit: N.m,  status: placeholder,     source: "PLACEHOLDER_: per-wheel torque cap of the Gazebo velocity servo"}
+steer_effort_max:     {value: 2.0,    unit: N.m,  status: placeholder,     source: "PLACEHOLDER_: steering joint torque cap"}
+steer_rate_joint_max: {value: 30.0,   unit: rad/s, status: design,         source: "Gazebo joint velocity limit; must stay well above the emulated servo rate (phase 2). 10 rad/s gave 75 ms rise on full-lock steps (C4, 2026-11-22), as slow as a hobby servo"}
+friction_mu:          {value: 1.0,    unit: "-",  status: placeholder,     source: "PLACEHOLDER_: tyre-floor friction, both directions; surface tests later"}
+v_max_sim:            {value: 2.0,    unit: m/s,  status: design,          source: "simulation cap; the vehicle cap comes from the safety plan"}
+plant_timeout:        {value: 0.5,    unit: s,    status: design,          source: "plant interface: zero wheel speed if no command; sim-only guard, not T_wd"}

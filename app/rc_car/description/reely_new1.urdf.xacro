@@ -1,0 +1,175 @@
+<?xml version="1.0"?>
+<!--
+  Reely NEW1 1:10 4WD (simulation model). Parametrised from params/reely_new1.yaml: every number
+  below comes from that file, where each entry is labelled spec_unverified, placeholder or design.
+
+  Frames (Ackermann note section 2): base_link is at the REAR-AXLE MIDPOINT at axle height, x
+  forward, y left, z up. The model's Gazebo pose is therefore the rear-axle midpoint (z = wheel
+  radius), which is the point the kinematic model and the checks use.
+
+  Joints: two front steering joints (revolute about z, position-commanded, ideal Ackermann angles
+  from the plant interface) and four wheel joints (continuous about y, velocity-commanded: 4WD).
+  The chassis is rigid: no suspension (kinematic study; the real car has oil shocks, manual M).
+
+    xacro reely_new1.urdf.xacro params_file:=<abs path> controllers_file:=<abs path>
+
+  Diagnostic arguments (C3 scrub diagnostic, 2026-11-22; defaults give the normal model):
+    drive:=rwd          front wheel joints left out of ros2_control: free-rolling, rear drive only
+                        (use config/controllers_rwd.yaml and the plant interface's driven:=rear)
+    contact_width:=0.01 width of the wheel collision cylinders (m); default = wheel_width
+-->
+<robot name="reely_new1" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="params_file" default=""/>
+  <xacro:arg name="controllers_file" default=""/>
+  <xacro:arg name="drive" default="4wd"/>
+  <xacro:arg name="contact_width" default=""/>
+  <xacro:property name="P" value="${xacro.load_yaml('$(arg params_file)')}"/>
+
+  <xacro:property name="L" value="${P['wheelbase']['value']}"/>
+  <xacro:property name="Wf" value="${P['front_track']['value']}"/>
+  <xacro:property name="Wr" value="${P['rear_track']['value']}"/>
+  <xacro:property name="r" value="${P['wheel_radius']['value']}"/>
+  <xacro:property name="w" value="${P['wheel_width']['value']}"/>
+  <xacro:property name="dmax" value="${P['delta_max']['value']}"/>
+  <xacro:property name="m_wheel" value="${P['mass_wheel']['value']}"/>
+  <xacro:property name="m_knuckle" value="${P['mass_knuckle']['value']}"/>
+  <xacro:property name="m_chassis" value="${P['mass_vehicle']['value'] + P['mass_battery']['value'] - 4 * m_wheel - 2 * m_knuckle}"/>
+  <xacro:property name="cl" value="${P['chassis_length']['value']}"/>
+  <xacro:property name="cw" value="${P['chassis_width']['value']}"/>
+  <xacro:property name="ch" value="${P['chassis_height']['value']}"/>
+  <xacro:property name="mu" value="${P['friction_mu']['value']}"/>
+  <xacro:property name="cw_arg" value="$(arg contact_width)"/>
+  <xacro:property name="w_contact" value="${w if cw_arg == '' else float(cw_arg)}"/>
+  <xacro:property name="front_driven" value="${'$(arg drive)' == '4wd'}"/>
+  <!-- inner front wheel angle at full lock (Ackermann note section 6) + 0.02 rad margin: the joint
+       limit must not clip the commanded inner-wheel angle (vehicle_params.CarGeometry.inner_wheel_max) -->
+  <xacro:property name="kmax" value="${tan(dmax) / L}"/>
+  <xacro:property name="steer_limit" value="${atan2(L * kmax, 1 - kmax * Wf / 2) + 0.02}"/>
+
+  <link name="base_link">
+    <inertial>
+      <origin xyz="${P['com_x']['value']} 0 ${P['com_z']['value']}"/>
+      <mass value="${m_chassis}"/>
+      <inertia ixx="${m_chassis / 12 * (cw * cw + ch * ch)}" ixy="0" ixz="0"
+               iyy="${m_chassis / 12 * (cl * cl + ch * ch)}" iyz="0"
+               izz="${m_chassis / 12 * (cl * cl + cw * cw)}"/>
+    </inertial>
+    <visual>
+      <origin xyz="${L / 2} 0 ${P['com_z']['value']}"/>
+      <geometry><box size="${cl} ${cw} ${ch}"/></geometry>
+      <material name="chassis_blue"><color rgba="0.10 0.30 0.75 1"/></material>
+    </visual>
+    <collision>
+      <origin xyz="${L / 2} 0 ${P['com_z']['value']}"/>
+      <geometry><box size="${cl} ${cw} ${ch}"/></geometry>
+    </collision>
+  </link>
+
+  <!-- payload (KV260, power supply, plate): a solid box fixed on top of the chassis, PLACEHOLDER_
+       mass and position (params/reely_new1.yaml payload_*); visual and inertia only, no collision -->
+  <xacro:property name="m_pl" value="${P['payload_mass']['value']}"/>
+  <xacro:property name="s_pl" value="${P['payload_size']['value']}"/>
+  <xacro:property name="h_pl" value="0.04"/>
+  <link name="payload">
+    <inertial>
+      <mass value="${m_pl}"/>
+      <inertia ixx="${m_pl / 12 * (s_pl * s_pl + h_pl * h_pl)}" ixy="0" ixz="0"
+               iyy="${m_pl / 12 * (s_pl * s_pl + h_pl * h_pl)}" iyz="0" izz="${m_pl / 6 * s_pl * s_pl}"/>
+    </inertial>
+    <visual><geometry><box size="${s_pl} ${s_pl} ${h_pl}"/></geometry>
+      <material name="payload_green"><color rgba="0.15 0.55 0.25 1"/></material></visual>
+  </link>
+  <joint name="payload_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="payload"/>
+    <origin xyz="${P['payload_x']['value']} 0 ${P['payload_z']['value']}"/>
+  </joint>
+
+  <xacro:macro name="wheel" params="name parent x y">
+    <link name="${name}_wheel">
+      <inertial>
+        <mass value="${m_wheel}"/>
+        <inertia ixx="${m_wheel / 12 * (3 * r * r + w * w)}" ixy="0" ixz="0"
+                 iyy="${m_wheel / 2 * r * r}" iyz="0"
+                 izz="${m_wheel / 12 * (3 * r * r + w * w)}"/>
+      </inertial>
+      <visual>
+        <origin rpy="${pi / 2} 0 0"/>
+        <geometry><cylinder radius="${r}" length="${w}"/></geometry>
+        <material name="tyre_black"><color rgba="0.08 0.08 0.08 1"/></material>
+      </visual>
+      <collision>
+        <origin rpy="${pi / 2} 0 0"/>
+        <geometry><cylinder radius="${r}" length="${w_contact}"/></geometry>
+      </collision>
+    </link>
+    <joint name="${name}_wheel_joint" type="continuous">
+      <parent link="${parent}"/>
+      <child link="${name}_wheel"/>
+      <origin xyz="${x} ${y} 0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="${P['wheel_effort_max']['value']}" velocity="${1.5 * P['v_max_sim']['value'] / r}"/>
+    </joint>
+    <gazebo reference="${name}_wheel">
+      <mu1>${mu}</mu1>
+      <mu2>${mu}</mu2>
+    </gazebo>
+  </xacro:macro>
+
+  <xacro:macro name="steered_wheel" params="name y">
+    <link name="${name}_knuckle">
+      <inertial>
+        <mass value="${m_knuckle}"/>
+        <inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/>
+      </inertial>
+    </link>
+    <joint name="${name}_steer_joint" type="revolute">
+      <parent link="base_link"/>
+      <child link="${name}_knuckle"/>
+      <origin xyz="${L} ${y} 0"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="${-steer_limit}" upper="${steer_limit}"
+             effort="${P['steer_effort_max']['value']}" velocity="${P['steer_rate_joint_max']['value']}"/>
+    </joint>
+    <xacro:wheel name="${name}" parent="${name}_knuckle" x="0" y="0"/>
+  </xacro:macro>
+
+  <xacro:steered_wheel name="front_left" y="${Wf / 2}"/>
+  <xacro:steered_wheel name="front_right" y="${-Wf / 2}"/>
+  <xacro:wheel name="rear_left" parent="base_link" x="0" y="${Wr / 2}"/>
+  <xacro:wheel name="rear_right" parent="base_link" x="0" y="${-Wr / 2}"/>
+
+  <ros2_control name="reely_new1" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+    <xacro:macro name="steer_if" params="joint">
+      <joint name="${joint}">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+    </xacro:macro>
+    <xacro:macro name="wheel_if" params="joint">
+      <joint name="${joint}">
+        <command_interface name="velocity"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+    </xacro:macro>
+    <xacro:steer_if joint="front_left_steer_joint"/>
+    <xacro:steer_if joint="front_right_steer_joint"/>
+    <xacro:if value="${front_driven}">
+      <xacro:wheel_if joint="front_left_wheel_joint"/>
+      <xacro:wheel_if joint="front_right_wheel_joint"/>
+    </xacro:if>
+    <xacro:wheel_if joint="rear_left_wheel_joint"/>
+    <xacro:wheel_if joint="rear_right_wheel_joint"/>
+  </ros2_control>
+
+  <gazebo>
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(arg controllers_file)</parameters>
+    </plugin>
+  </gazebo>
+</robot>

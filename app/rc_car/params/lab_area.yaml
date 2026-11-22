@@ -1,0 +1,8 @@
+# Tracked floor area of the lab (OptiTrack volume), centred on the world origin, x along the long
+# side. PLACEHOLDER_ until the user gives the real size (G0 section 4b / lab facts). Every path in
+# app/rc_car/paths.py scales from these numbers, so the real size is an edit here, not a rewrite.
+# worlds/lab_floor.sdf draws the same outline (visual only); update it by hand with this file.
+# Lab facts 2026-11-22: the floor is about 100 m^2; exact length x width not given yet.
+length:  {value: 10.0, unit: m, status: placeholder, source: "PLACEHOLDER_: about 100 m^2 (user 2026-11-22), exact sides pending; was 6.0"}
+width:   {value: 10.0, unit: m, status: placeholder, source: "PLACEHOLDER_: about 100 m^2 (user 2026-11-22), exact sides pending; was 4.0"}
+margin:  {value: 1.0,  unit: m, status: placeholder, source: "PLACEHOLDER_: braking from the 2.0 m/s sim cap at the assumed 4 m/s^2 (0.5 m) + ~0.1 s chain delay and gate time; was 0.5"}
