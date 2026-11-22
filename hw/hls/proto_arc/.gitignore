@@ -1,0 +1,15 @@
+gen/
+build/
+runs/
+runs_v*/
+cosim/
+# Run folders (HLS projects, cosim dumps, binaries); the summaries and verdicts stay tracked.
+evalcmp*/
+evalgate_*/
+rtlcmp*/
+ooc/
+stored_gate/
+stored_j0/
+unicosim_*/*
+!unicosim_*/summary.txt
+!unicosim_*/*.verdict
