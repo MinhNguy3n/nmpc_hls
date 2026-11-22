@@ -1,0 +1,6637 @@
+{
+  "note": "SIMULATION ONLY; assumed chain values; PLACEHOLDER_/measured_approx vehicle values; median (range) over seeds; no significance claims",
+  "configs": [
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "ideal",
+        "path": "circle",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 2.4335990910848744,
+          "min": 2.4012351589992305,
+          "max": 2.508598605790255
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 4.861405209529945,
+          "min": 4.622383873646841,
+          "max": 5.025030328940558
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 14.00212182993189,
+          "min": 13.825102670683851,
+          "max": 14.25062956229706
+        },
+        "head_max": {
+          "n": 5,
+          "median": 29.338135875674134,
+          "min": 28.11572856475708,
+          "max": 32.58603267489146
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 13.493391167035366,
+          "min": 13.392920657674612,
+          "max": 13.546569010642445
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "ideal",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 2.079880042297436,
+          "min": 2.057668780669933,
+          "max": 2.1366557614841915
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 5.279093882897168,
+          "min": 5.1462683674804515,
+          "max": 5.4527598518672855
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 12.001743427903293,
+          "min": 11.547738571504194,
+          "max": 12.235258030880312
+        },
+        "head_max": {
+          "n": 5,
+          "median": 34.01046097271443,
+          "min": 30.739085928916943,
+          "max": 34.74147780773551
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 11.410448529704754,
+          "min": 11.17347512866936,
+          "max": 11.699550571948807
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "ideal",
+        "path": "lane_change",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.7167804366299636,
+          "min": 0.6400456563687194,
+          "max": 0.7705527949693339
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 2.69368371924226,
+          "min": 1.905373938190728,
+          "max": 2.9966710525910325
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 4.493462990098865,
+          "min": 4.455094347546377,
+          "max": 4.6818162851657394
+        },
+        "head_max": {
+          "n": 5,
+          "median": 17.138648707039962,
+          "min": 13.87214044003482,
+          "max": 17.31760373151797
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 3.697926941597258,
+          "min": 3.5907262890734906,
+          "max": 3.735188877746555
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "ideal",
+        "path": "line",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.2989147390454947,
+          "min": 0.2406566959347877,
+          "max": 0.33654555465094604
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 0.8457472076149483,
+          "min": 0.6697802824990813,
+          "max": 0.887040169199054
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 2.5987819687232827,
+          "min": 2.0595259360934763,
+          "max": 2.65674029852561
+        },
+        "head_max": {
+          "n": 5,
+          "median": 6.741928968015737,
+          "min": 6.1283142547135965,
+          "max": 9.224486961666273
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.05707636237671891,
+          "min": 0.04006733302242111,
+          "max": 0.07581887308707463
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "realistic_guess",
+        "path": "arcs_and_lines",
+        "speed": 0.5,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 1.0778838010985035,
+          "min": 1.0286913878108355,
+          "max": 1.1477668743991543
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 3.0892735338338047,
+          "min": 2.8316465979397076,
+          "max": 3.374385707314085
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 7.323032818097748,
+          "min": 7.173123510108789,
+          "max": 7.572135245050768
+        },
+        "head_max": {
+          "n": 5,
+          "median": 28.864946049135696,
+          "min": 27.417932967652163,
+          "max": 30.327382182418813
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 2.33996120271581,
+          "min": 1.4496269788318068,
+          "max": 2.4723605880208965
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 3.594843543613071,
+          "min": 3.5519092076001137,
+          "max": 3.7098205713406984
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "realistic_guess",
+        "path": "arcs_and_lines",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 2.5284294109422496,
+          "min": 2.4784115012353,
+          "max": 2.602315217307723
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 7.45912028013568,
+          "min": 7.016941211876065,
+          "max": 7.817635610758078
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 16.97707267209533,
+          "min": 15.507777185005873,
+          "max": 17.249804725523685
+        },
+        "head_max": {
+          "n": 5,
+          "median": 54.848035959417004,
+          "min": 50.68124352580749,
+          "max": 61.34297592423732
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 4.200978637068863,
+          "min": 2.9362616376223443,
+          "max": 4.567135702361078
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 12.904179160483926,
+          "min": 12.704979731753765,
+          "max": 12.970757946629679
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "realistic_guess",
+        "path": "arcs_and_lines",
+        "speed": 1.5,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 4.579535546635768,
+          "min": 4.438948304179913,
+          "max": 4.664881066204996
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 11.584974179903584,
+          "min": 10.53547477822216,
+          "max": 12.270614149367562
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 21.79767859691845,
+          "min": 20.768604419117015,
+          "max": 22.510753635761745
+        },
+        "head_max": {
+          "n": 5,
+          "median": 64.54515536393149,
+          "min": 54.70687720076528,
+          "max": 65.695206277372
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 4.329535495179667,
+          "min": 2.6325026325026326,
+          "max": 5.000877346902966
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 21.029735119262032,
+          "min": 21.001883091244135,
+          "max": 21.044942583965774
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "realistic_guess",
+        "path": "arcs_and_lines",
+        "speed": 2.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 7.405184445516465,
+          "min": 7.111690294460099,
+          "max": 8.266840858213925
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 18.156247893223917,
+          "min": 17.025791253936852,
+          "max": 22.234953241466812
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 28.977415323886042,
+          "min": 27.016780221470356,
+          "max": 32.56839836252097
+        },
+        "head_max": {
+          "n": 5,
+          "median": 87.03786567761584,
+          "min": 84.55868845953907,
+          "max": 91.83960470077324
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 5.273972602739726,
+          "min": 3.589391860996799,
+          "max": 5.633157774215709
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 29.819840963771046,
+          "min": 29.32045933447782,
+          "max": 29.840714056892626
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "realistic_guess",
+        "path": "circle",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 2.3550608577784957,
+          "min": 2.3433915095250994,
+          "max": 2.3928020984094456
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 5.120645309457415,
+          "min": 4.8363479813010395,
+          "max": 5.242438891764586
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 14.547002180742503,
+          "min": 14.079847987769147,
+          "max": 14.866580705833435
+        },
+        "head_max": {
+          "n": 5,
+          "median": 33.9595119231535,
+          "min": 32.28600346792554,
+          "max": 38.15920428267905
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 2.5037772501618822,
+          "min": 1.8177906851672583,
+          "max": 3.581831912827705
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 13.142170431312175,
+          "min": 12.959716106576261,
+          "max": 13.261251653902699
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "10mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.4402096926384913,
+          "min": 0.4070503749215957,
+          "max": 0.4546747937261998
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 1.3082973148077,
+          "min": 1.1363657719084004,
+          "max": 1.584266121431433
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 4.205165792967431,
+          "min": 4.125944560150456,
+          "max": 4.484252368999037
+        },
+        "head_max": {
+          "n": 5,
+          "median": 13.667232485101266,
+          "min": 13.186621689133649,
+          "max": 14.60383395076703
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 1.6613488832654857,
+          "min": 1.3105726872246697,
+          "max": 2.8156621205455346
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 1.742577100195408,
+          "min": 1.7190292995672831,
+          "max": 1.7774864006656872
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 2.0494853167355203,
+          "min": 1.999948680789175,
+          "max": 2.107483737489707
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 5.804312578010674,
+          "min": 5.57515912729851,
+          "max": 6.097893819019072
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 12.48923322987174,
+          "min": 12.162331104539767,
+          "max": 12.85726097517508
+        },
+        "head_max": {
+          "n": 5,
+          "median": 39.52392263226745,
+          "min": 36.34061475741423,
+          "max": 43.63774633133488
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 2.529548216060974,
+          "min": 1.5464486910416437,
+          "max": 2.9415004957585107
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 11.330683811978238,
+          "min": 11.14440809909484,
+          "max": 11.44925613696565
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "realistic_guess",
+        "path": "lane_change",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.7681462591412511,
+          "min": 0.7047196461171646,
+          "max": 0.8523292669145255
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 2.246255174357788,
+          "min": 2.088732390723637,
+          "max": 2.4980137937545983
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 5.398132455185538,
+          "min": 4.957412023230856,
+          "max": 6.027080913252481
+        },
+        "head_max": {
+          "n": 5,
+          "median": 19.726291074913306,
+          "min": 15.545926668451783,
+          "max": 24.844311926459696
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 2.253446447507953,
+          "min": 1.432740780047758,
+          "max": 3.4381663113006398
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 3.6404017207435957,
+          "min": 3.4184962602771383,
+          "max": 3.75336713874298
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "baseline",
+        "comp": "-",
+        "arith": "-",
+        "profile": "realistic_guess",
+        "path": "line",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.3750429336155537,
+          "min": 0.2677915074831811,
+          "max": 0.3993521724620849
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 0.9886964663434693,
+          "min": 0.8569677907211622,
+          "max": 1.3000839733363638
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 3.2642246507424817,
+          "min": 2.5986928684924075,
+          "max": 4.202952538610814
+        },
+        "head_max": {
+          "n": 5,
+          "median": 8.98312960440691,
+          "min": 7.468409111197283,
+          "max": 11.423965412922684
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": null,
+        "stale": null,
+        "fallbacks": null,
+        "overruns": null,
+        "busy": null,
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 1.6939890710382512,
+          "min": 0.6539509536784741,
+          "max": 2.3776988248155235
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.03613534831516841,
+          "min": 0.03021328829314011,
+          "max": 0.04105890015208465
+        },
+        "cost_final": null
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "off",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 37.39033726447848,
+          "min": 31.312231835354773,
+          "max": 41.49575714798526
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 98.94173290087862,
+          "min": 83.77742079767816,
+          "max": 130.6628784057511
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 145.14670308918178,
+          "min": 129.41076983088666,
+          "max": 156.65312174391894
+        },
+        "head_max": {
+          "n": 5,
+          "median": 326.07224520552023,
+          "min": 302.34892222877585,
+          "max": 370.3784891775526
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 29.909706546275395,
+          "min": 22.235941183073297,
+          "max": 33.950892857142854
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 32.83331467592075,
+          "min": 26.483357452966715,
+          "max": 33.02823975890166
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 21.451952367003,
+          "min": 20.425751139066783,
+          "max": 22.71629180034795
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 22.6539271494361,
+          "min": 6.82195807633229,
+          "max": 37.63748384927096
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 35.39038858368931,
+          "min": 29.204748097865068,
+          "max": 39.43031053886601
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 92.84383908185956,
+          "min": 78.1139347874091,
+          "max": 124.83123243851797
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 132.98437198464202,
+          "min": 116.65012086370913,
+          "max": 143.79586076874384
+        },
+        "head_max": {
+          "n": 5,
+          "median": 289.731630448106,
+          "min": 263.55391244629976,
+          "max": 326.7407428462177
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 29.909706546275395,
+          "min": 22.235941183073297,
+          "max": 33.950892857142854
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 29.891814180162235,
+          "min": 24.565579430261987,
+          "max": 31.446366755747757
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 10.307544267908161,
+          "min": 9.235980585898226,
+          "max": 11.385607988369713
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "off",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.5,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 94.45150913632378,
+          "min": 69.23165121746202,
+          "max": 121.90596097332691
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 224.74467199196718,
+          "min": 166.09367914891274,
+          "max": 320.5762276049969
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 272.40918525357176,
+          "min": 202.54217247259058,
+          "max": 314.9771041337758
+        },
+        "head_max": {
+          "n": 5,
+          "median": 588.2032613036843,
+          "min": 552.5673113128877,
+          "max": 666.772137153119
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 39.02038132807363,
+          "min": 27.154176295807197,
+          "max": 46.11304491960882
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 28.618205631958087,
+          "min": 27.304376657824935,
+          "max": 31.59790438768828
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 42.36245729292768,
+          "min": 38.428155718199896,
+          "max": 44.21349781080213
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 228.539819701849,
+          "min": 48.96530731147401,
+          "max": 733.3454190387745
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "float",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 5.946777542811532,
+          "min": 5.546777232225394,
+          "max": 6.18906456751397
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 13.44758811185444,
+          "min": 11.565464426675746,
+          "max": 13.793762778408082
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 12.22853924467772,
+          "min": 11.701988501866737,
+          "max": 12.357286635628233
+        },
+        "head_max": {
+          "n": 5,
+          "median": 44.663907419861374,
+          "min": 39.53156350873144,
+          "max": 55.97396809058796
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 10.62664329535495,
+          "min": 10.100788781770378,
+          "max": 11.306532663316583
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 10.500400070308196,
+          "min": 10.45745476613035,
+          "max": 10.60097293097448
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.11501165747771826,
+          "min": 0.09362799515340585,
+          "max": 0.7730267933675962
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 3.881330933692282,
+          "min": 3.497291915489874,
+          "max": 4.081580830024263
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 7.87242898455593,
+          "min": 5.7611518486650715,
+          "max": 7.962116811174976
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -0.4878072228008106,
+          "min": -1.0237495769789446,
+          "max": 0.06620814013795148
+        },
+        "head_max": {
+          "n": 5,
+          "median": 7.174651741978407,
+          "min": 0.007640876463987922,
+          "max": 15.951713357459589
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 8.554340090728733,
+          "min": 7.3053861111892715,
+          "max": 8.884150110511749
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.734804970452722,
+          "min": -0.9488560666574553,
+          "max": -0.626998990214192
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "circle",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 5.090893513000654,
+          "min": 4.713296671200439,
+          "max": 5.324766583662763
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 9.969635477365516,
+          "min": 9.120739243094699,
+          "max": 10.905565623084025
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 10.781153969774182,
+          "min": 9.682751717492714,
+          "max": 11.101550564847342
+        },
+        "head_max": {
+          "n": 5,
+          "median": 37.68902013184727,
+          "min": 36.1515576699929,
+          "max": 55.105025541806484
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.2678380115706021
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 10.396404359861272,
+          "min": 9.969972779108332,
+          "max": 11.014660974333674
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.6619176202226782,
+          "min": 0.4266723193905948,
+          "max": 0.8728262918405607
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 2.582294907210399,
+          "min": 2.268706486406234,
+          "max": 2.8911674925778885
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 5.108230267835571,
+          "min": 4.143435648645142,
+          "max": 6.091463877388182
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -3.2432561302540868,
+          "min": -4.142350953191136,
+          "max": -3.1490789974497178
+        },
+        "head_max": {
+          "n": 5,
+          "median": 8.594683794819534,
+          "min": 3.5655249951014323,
+          "max": 25.76688966613235
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.2678380115706021
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -3.101114687703757,
+          "min": -3.523418387927033,
+          "max": -2.433255059782707
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 4.639034018823481,
+          "min": 4.455878164619078,
+          "max": 4.8372952590499985
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 11.569320579463216,
+          "min": 9.981759969412922,
+          "max": 12.503941675610859
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 9.698754395763002,
+          "min": 9.309302521174743,
+          "max": 10.950300213755906
+        },
+        "head_max": {
+          "n": 5,
+          "median": 42.99675825132143,
+          "min": 35.495027920431355,
+          "max": 76.3011795523515
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 10.107423373784957,
+          "min": 9.938890791486083,
+          "max": 10.736932767794139
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.6147850486155098,
+          "min": 0.32468056395649963,
+          "max": 0.744132728691189
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 2.581365238153548,
+          "min": 2.3572915795357683,
+          "max": 2.772587699615975
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 6.336328213957532,
+          "min": 4.583457973669687,
+          "max": 7.22484779271369
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -2.2384360503294523,
+          "min": -2.497537221079935,
+          "max": -1.0514432141473882
+        },
+        "head_max": {
+          "n": 5,
+          "median": 10.183671783499214,
+          "min": 1.4845669477169254,
+          "max": 41.559701744615985
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -1.4364042194993982,
+          "min": -1.5921271981638503,
+          "max": -0.43654236087522014
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "lane_change",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 1.6339755939067309,
+          "min": 0.8904544553776098,
+          "max": 1.696585310803151
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 3.8210478977087243,
+          "min": 2.073448286643495,
+          "max": 5.012095951268041
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 2.5495408497785914,
+          "min": 2.287817515530827,
+          "max": 4.72758186973535
+        },
+        "head_max": {
+          "n": 5,
+          "median": 11.010527542027027,
+          "min": 8.31803882089143,
+          "max": 33.034404651530316
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 3.4540094164199986,
+          "min": 2.1903560327554414,
+          "max": 3.7628979693891687
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.16574351875037907,
+          "min": 0.07710813190688309,
+          "max": 0.2625695118533262
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.9420505057881886,
+          "min": 0.11990166040827586,
+          "max": 0.9752793525670789
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 1.9156739595179963,
+          "min": -0.9232227659475372,
+          "max": 2.3168177312383356
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -2.0323903595590416,
+          "min": -2.1725818234837764,
+          "max": 0.21398797801047525
+        },
+        "head_max": {
+          "n": 5,
+          "median": -5.554101619143388,
+          "min": -6.443655842591822,
+          "max": 15.80479039962493
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.24391752517725993,
+          "min": -1.44057936984813,
+          "max": 0.02770909164261353
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "line",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.5304910933838068,
+          "min": 0.45743354063740715,
+          "max": 1.7563025032636461
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 1.1210060641573363,
+          "min": 0.8964832891945879,
+          "max": 3.3232223398728147
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 2.347443471563551,
+          "min": 1.8367686249214115,
+          "max": 4.39755830207775
+        },
+        "head_max": {
+          "n": 5,
+          "median": 13.762516602717984,
+          "min": 9.958103786945474,
+          "max": 34.173703214780346
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.3829991575643163,
+          "min": 0.11086170116132515,
+          "max": 1.2086376774302776
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.1166294697373393,
+          "min": 0.054848310120206016,
+          "max": 0.2135689968482626
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.23157635433831217,
+          "min": 0.14912571197020105,
+          "max": 1.5156458073288583
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 0.26827668779403735,
+          "min": 0.050736081579639644,
+          "max": 2.653442057373733
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -0.2513384971597316,
+          "min": -0.8177278328709353,
+          "max": 2.338032365984273
+        },
+        "head_max": {
+          "n": 5,
+          "median": 4.538029641051711,
+          "min": 1.474613187176916,
+          "max": 27.5245380673504
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.3276623167218083,
+          "min": 0.053785338784606236,
+          "max": 1.132818804343203
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "arcs_and_lines",
+        "speed": 0.5,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 4.517948605657146,
+          "min": 4.075588889231018,
+          "max": 4.658972122027648
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 8.721989051823032,
+          "min": 7.7390069176807685,
+          "max": 9.887862058859776
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 7.150608382954569,
+          "min": 6.454924406658271,
+          "max": 7.5671548105205035
+        },
+        "head_max": {
+          "n": 5,
+          "median": 35.56649220961155,
+          "min": 29.64442000373846,
+          "max": 39.42716974679472
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 2.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 15.29561424763751,
+          "min": 13.476291150709754,
+          "max": 17.708963348252084
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 4.0134936358525755,
+          "min": 3.7232271358107223,
+          "max": 4.20583364712626
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.5836871955293816,
+          "min": 0.21960078865673233,
+          "max": 0.761224919003639
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 3.4536763852900267,
+          "min": 2.94563018855669,
+          "max": 3.5612111931036257
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 5.451173619021836,
+          "min": 4.649733383846964,
+          "max": 7.056215460920068
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -0.16908299499199947,
+          "min": -0.9610190713928296,
+          "max": 0.39403130041171414
+        },
+        "head_max": {
+          "n": 5,
+          "median": 5.754964015202372,
+          "min": 2.2264870360862963,
+          "max": 10.43366010078961
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 13.468626844121154,
+          "min": 11.136329947993945,
+          "max": 15.236602760231188
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.4189874066669267,
+          "min": 0.030810766582160636,
+          "max": 0.6109901035131894
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "arcs_and_lines",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 5.998719631324449,
+          "min": 5.86809006605741,
+          "max": 6.606844830678832
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 12.971550520222541,
+          "min": 11.990954695477072,
+          "max": 13.453775887925794
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 12.939361697882925,
+          "min": 12.770189387217718,
+          "max": 13.479196080816653
+        },
+        "head_max": {
+          "n": 5,
+          "median": 42.38721766209341,
+          "min": 39.13951248278558,
+          "max": 46.56356856252974
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 11.716717900212817,
+          "min": 9.337420419712332,
+          "max": 12.865082180442236
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 11.837723377666123,
+          "min": 11.595020875281909,
+          "max": 12.275954469345171
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.4270279731327418,
+          "min": 0.27817232818934445,
+          "max": 0.4857593904276552
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 3.5053427036046996,
+          "min": 3.30820505049227,
+          "max": 4.044467989731624
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 5.636140277167716,
+          "min": 4.404186715250672,
+          "max": 6.052133908684415
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -3.7706086447070306,
+          "min": -4.2068832848776125,
+          "max": -2.0737761746153027
+        },
+        "head_max": {
+          "n": 5,
+          "median": -13.859193614159874,
+          "min": -18.955758262143906,
+          "max": -4.117674963277751
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 7.515739263143955,
+          "min": 5.7574681524092295,
+          "max": 8.327747418027087
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.9265814177517768,
+          "min": -1.3091582852020178,
+          "max": -0.6709722900387037
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "arcs_and_lines",
+        "speed": 1.5,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 9.626478000284164,
+          "min": 8.839421360635633,
+          "max": 10.148343256232282
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 20.26950058669099,
+          "min": 19.63281467115045,
+          "max": 21.20408013511661
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 17.040335683931435,
+          "min": 15.211519698570145,
+          "max": 19.517593033756146
+        },
+        "head_max": {
+          "n": 5,
+          "median": 57.749400833442934,
+          "min": 53.353918783920335,
+          "max": 97.26943253811137
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.34584125886218225
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 15.253648366921475,
+          "min": 14.123320702721323,
+          "max": 17.488711358110457
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 20.59669740378629,
+          "min": 19.971354111584763,
+          "max": 20.972274746999158
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.6672739491587072,
+          "min": 0.40875940473759415,
+          "max": 1.32237351380853
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 5.046942453648396,
+          "min": 4.223691539773769,
+          "max": 5.70939495205237
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 8.933465985749047,
+          "min": 8.047840491246864,
+          "max": 9.73402580846883
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -4.289424994253176,
+          "min": -7.166566608873858,
+          "max": -2.212295059526047
+        },
+        "head_max": {
+          "n": 5,
+          "median": -1.352958416844935,
+          "min": -8.273930090931442,
+          "max": 32.95752718676004
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.34584125886218225
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 11.49081807021869,
+          "min": 10.40251001315615,
+          "max": 13.714510783238564
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.4477124233524983,
+          "min": -1.0305289796593737,
+          "max": -0.051262358658519386
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "arcs_and_lines",
+        "speed": 2.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 10.721733228659089,
+          "min": 10.195406345070019,
+          "max": 10.99879573960872
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 25.429972796781094,
+          "min": 21.236160667850196,
+          "max": 29.241203849878655
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 22.863398346653888,
+          "min": 18.254251657228213,
+          "max": 23.853297595035816
+        },
+        "head_max": {
+          "n": 5,
+          "median": 85.23077535764249,
+          "min": 55.81436770039261,
+          "max": 91.67427037287884
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.29161058770749215
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 16.061013907581874,
+          "min": 14.516490913170294,
+          "max": 18.55508189365044
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 29.7783510500713,
+          "min": 29.316183103029644,
+          "max": 30.27087992344191
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 8.896316513205127,
+          "min": 7.344004386853621,
+          "max": 10.112890777098613
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 3.472122287538265,
+          "min": 1.9285654868560937,
+          "max": 3.6387557687354497
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 7.694373857127144,
+          "min": -0.9987925736166179,
+          "max": 11.084955956654738
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -5.568527600093582,
+          "min": -14.314146705292758,
+          "max": -4.153381874816467
+        },
+        "head_max": {
+          "n": 5,
+          "median": 0.4706822854609882,
+          "min": -36.02523700038063,
+          "max": 4.439006547003743
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.29161058770749215
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 11.579244041604367,
+          "min": 9.647919484598866,
+          "max": 12.92192411943473
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.3351433461904023,
+          "min": -0.5136846070601873,
+          "max": 0.43016586654928346
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "circle",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 6.559940201172681,
+          "min": 6.339795256291465,
+          "max": 6.780193695715338
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 11.701547409913161,
+          "min": 11.133452209776756,
+          "max": 12.206319547769727
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 13.493012160939886,
+          "min": 12.959142315505666,
+          "max": 14.23543835053384
+        },
+        "head_max": {
+          "n": 5,
+          "median": 41.29701863150342,
+          "min": 37.499487322513396,
+          "max": 45.14893454280422
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.17004995217345095
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 10.225340136054422,
+          "min": 9.495896834701055,
+          "max": 11.394159027925815
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 12.065863992367726,
+          "min": 11.87898756559588,
+          "max": 12.326851527858986
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.9398430501095378,
+          "min": 0.6051047431692855,
+          "max": 1.1930445872154711
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 4.214175079835576,
+          "min": 3.9964037467663656,
+          "max": 4.425132837936842
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 6.577740464076924,
+          "min": 6.297104228475717,
+          "max": 6.97187838197181
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -1.0080003394230628,
+          "min": -1.515322000000539,
+          "max": -0.5868358268292622
+        },
+        "head_max": {
+          "n": 5,
+          "median": 7.337506708349921,
+          "min": 1.9449328049397918,
+          "max": 11.317212415196899
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.17004995217345095
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 7.30327956680859,
+          "min": 5.91406492187335,
+          "max": 9.237592282185036
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -1.0807285409803815,
+          "min": -1.1788325259353467,
+          "max": -0.9344001260437138
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "10mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 1.9953367251152048,
+          "min": 1.750562903354087,
+          "max": 2.1428326642718365
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 3.889267641122449,
+          "min": 3.2334319615413913,
+          "max": 5.481224489795644
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 3.429125303271845,
+          "min": 3.3228417257884217,
+          "max": 3.5332776260341694
+        },
+        "head_max": {
+          "n": 5,
+          "median": 14.524192228674405,
+          "min": 13.804399360958897,
+          "max": 18.309161546876005
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 7.1717945910434695,
+          "min": 4.970984342494251,
+          "max": 7.7427104947035055
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 2.010065799605265,
+          "min": 1.9402087465359512,
+          "max": 2.032828581648445
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.1536706563513492,
+          "min": 0.04402546650621576,
+          "max": 0.17194840156483915
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 1.588286350193609,
+          "min": 1.2958881096278874,
+          "max": 1.6954521243087863
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 2.636370825628004,
+          "min": 1.7440918582789096,
+          "max": 4.344858717887243
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -0.7760404896955866,
+          "min": -1.0702409981690215,
+          "max": -0.5926669341162873
+        },
+        "head_max": {
+          "n": 5,
+          "median": 0.5585061389593582,
+          "min": 0.22448890460724685,
+          "max": 5.006707203202957
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 4.6673492444034075,
+          "min": 3.2183388398487485,
+          "max": 6.432137807478836
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.25044525507455107,
+          "min": 0.20674648854478497,
+          "max": 0.2767248311983082
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 5.818789856294451,
+          "min": 5.645116608803019,
+          "max": 5.922362818400251
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 12.915687604043848,
+          "min": 12.549055740399028,
+          "max": 14.02899727168183
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 11.674725221022666,
+          "min": 11.235389866553069,
+          "max": 12.055466886433084
+        },
+        "head_max": {
+          "n": 5,
+          "median": 45.17686436289403,
+          "min": 38.60945509301761,
+          "max": 49.19241848221701
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 10.183968462549277,
+          "min": 8.692796146266696,
+          "max": 13.053000438020149
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 10.40655453795749,
+          "min": 10.16362644456323,
+          "max": 10.560071468007095
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.37926207263838024,
+          "min": 0.34859173214012523,
+          "max": 1.1568384510734104
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 3.7693045395589304,
+          "min": 3.5942950082643343,
+          "max": 3.8569162092810023
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 6.908777535440684,
+          "min": 6.717409773165922,
+          "max": 8.453838144383319
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -0.8145080088490745,
+          "min": -1.525259100624482,
+          "max": -0.36622739898242546
+        },
+        "head_max": {
+          "n": 5,
+          "median": 8.295672587146253,
+          "min": -5.028291238317273,
+          "max": 10.397408699740929
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 7.654420246488303,
+          "min": 5.928407520010214,
+          "max": 10.400187350808917
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.7832160152110665,
+          "min": -1.28562969240242,
+          "max": -0.6233569335569351
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.5,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 8.92290559425573,
+          "min": 7.8339691672380924,
+          "max": 10.429283119348076
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 20.111890844144032,
+          "min": 16.77228907256216,
+          "max": 24.845815461816116
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 14.11984455920915,
+          "min": 13.037562877183309,
+          "max": 16.867624369637436
+        },
+        "head_max": {
+          "n": 5,
+          "median": 59.18181352021823,
+          "min": 52.59132079294015,
+          "max": 76.50957065604925
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 12.259420993045447,
+          "min": 10.472047688094086,
+          "max": 15.786940478100433
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 17.48626274447468,
+          "min": 17.08718660385703,
+          "max": 18.68918284934145
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 1.1685706679126355,
+          "min": 0.44418383377203585,
+          "max": 2.970356126904337
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "lane_change",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 2.0642191666901684,
+          "min": 1.6825937743161752,
+          "max": 2.2276425450734707
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 5.291965582992353,
+          "min": 3.976940554174603,
+          "max": 6.094571078187067
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 3.842197853727079,
+          "min": 2.6565890745677216,
+          "max": 4.058862757929183
+        },
+        "head_max": {
+          "n": 5,
+          "median": 19.956048465475938,
+          "min": 10.848414510040817,
+          "max": 23.015728405046072
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 8.035481346204017,
+          "min": 6.861466214453431,
+          "max": 9.34481858522579
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 3.268408429449986,
+          "min": 3.104130178399594,
+          "max": 3.4468586561841024
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.09453523193223251,
+          "min": 0.08258809075519917,
+          "max": 0.25396451203938114
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 1.2960729075489175,
+          "min": 0.8302645074016497,
+          "max": 1.4524593107453327
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 2.9400291529884464,
+          "min": 1.4789267604200045,
+          "max": 3.8483159038292793
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -1.5746568321633017,
+          "min": -3.232974665729713,
+          "max": -0.8985492653016732
+        },
+        "head_max": {
+          "n": 5,
+          "median": 0.2042452436869513,
+          "min": -13.995897416418877,
+          "max": 7.469801736594289
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 5.9066522739251495,
+          "min": 3.9967447290422897,
+          "max": 6.825603904696587
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.3719932912936092,
+          "min": -0.6385908906940148,
+          "max": 0.02836239590696399
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x40",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "line",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.8745304157149798,
+          "min": 0.5015696329190942,
+          "max": 1.3277077256396954
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 1.9216485222298827,
+          "min": 1.1030974941497431,
+          "max": 3.1774457245684027
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 2.29171936063775,
+          "min": 1.906852821270946,
+          "max": 4.333407110996599
+        },
+        "head_max": {
+          "n": 5,
+          "median": 7.354357676290307,
+          "min": 5.875080830477462,
+          "max": 28.056766826227296
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 7.929279399946424,
+          "min": 5.516871987145152,
+          "max": 8.038845427569463
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.030521917820002138,
+          "min": 0.027148376979169008,
+          "max": 0.059900012129924386
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.13233178655742067,
+          "min": 0.06103760040732807,
+          "max": 0.1586585508438293
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.4994874820994261,
+          "min": 0.11230527185415295,
+          "max": 1.0599162181565143
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 0.8558165409294667,
+          "min": 0.17640726662222306,
+          "max": 2.1887492582249335
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -0.9725052901047317,
+          "min": -2.2960997173398683,
+          "max": 1.7347142425041917
+        },
+        "head_max": {
+          "n": 5,
+          "median": -1.6287719281166029,
+          "min": -5.548884582445221,
+          "max": 20.588357715030014
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 5.66114660275394,
+          "min": 4.804539755996067,
+          "max": 6.367684533697458
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.005613430495166271,
+          "min": -0.013393898185826454,
+          "max": 0.029686723836784272
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x60",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "circle",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 4.914815103453498,
+          "min": 4.839635482208231,
+          "max": 5.180027106563751
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 9.474252083260915,
+          "min": 8.730345585766873,
+          "max": 10.269213181860293
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 10.47708013232417,
+          "min": 9.664398817348223,
+          "max": 11.154760391247061
+        },
+        "head_max": {
+          "n": 5,
+          "median": 38.57592802168189,
+          "min": 33.378431762593586,
+          "max": 72.30232843163125
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 2.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.5355612682090831
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 10.636640103118165,
+          "min": 9.854963124039152,
+          "max": 10.968392213594667
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.7326616174694522,
+          "min": 0.4646622016646252,
+          "max": 1.1175130592243585
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 2.5135799444542677,
+          "min": 2.4339860297391147,
+          "max": 2.7354369217695456
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 4.496948488811358,
+          "min": 3.868940376236928,
+          "max": 5.244182852919736
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -3.7013085422817475,
+          "min": -4.160703853335628,
+          "max": -2.8473614386848296
+        },
+        "head_max": {
+          "n": 5,
+          "median": 7.595855729494977,
+          "min": 4.04029588691945,
+          "max": 43.20799209460352
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.5355612682090831
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -2.856751063917201,
+          "min": -3.53795753363546,
+          "max": -2.5291268339703628
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x60",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 4.495941686864547,
+          "min": 3.9106857407383306,
+          "max": 4.545973288784866
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 11.113078496351108,
+          "min": 8.6639614158044,
+          "max": 13.156523225430876
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 9.40546444455529,
+          "min": 7.888720477354309,
+          "max": 10.3149536126021
+        },
+        "head_max": {
+          "n": 5,
+          "median": 37.45786239467175,
+          "min": 30.94927402447833,
+          "max": 55.13649590400516
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 9.888209050326413,
+          "min": 8.383424671341446,
+          "max": 10.47535878549666
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.24678177056318343,
+          "min": 0.17396575089710906,
+          "max": 0.39570386462581836
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 2.3592859253803553,
+          "min": 1.845978181304307,
+          "max": 2.4473867037015564
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 5.966810128870657,
+          "min": 3.384867532907231,
+          "max": 7.923530859925192
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -2.488232511463847,
+          "min": -4.043689008715469,
+          "max": -1.686789815301194
+        },
+        "head_max": {
+          "n": 5,
+          "median": 5.7766743947292865,
+          "min": -1.8638124433438854,
+          "max": 20.937054827661285
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -1.7071774713162453,
+          "min": -3.027023858363308,
+          "max": -0.9349976332539423
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x60",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "lane_change",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 1.6948748181001334,
+          "min": 1.4754098938864346,
+          "max": 1.9254858818276264
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 4.031611153003604,
+          "min": 3.2698406836963487,
+          "max": 6.012105917226397
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 3.6408774673360593,
+          "min": 2.897081044600041,
+          "max": 4.18611967233794
+        },
+        "head_max": {
+          "n": 5,
+          "median": 24.04613482383788,
+          "min": 15.809271449691353,
+          "max": 32.5090061887791
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 3.0407505937176995,
+          "min": 2.916487531309816,
+          "max": 3.44129820590228
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.24456367155209913,
+          "min": 0.06717613930352394,
+          "max": 0.33791934920736805
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.9875509659396102,
+          "min": 0.7586294572564711,
+          "max": 1.1549330868582923
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 1.8254611883030898,
+          "min": 0.5745624636666431,
+          "max": 3.015434864635365
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -1.0409388178296797,
+          "min": -1.5633182944145623,
+          "max": -0.2689746752084377
+        },
+        "head_max": {
+          "n": 5,
+          "median": 6.907486116797916,
+          "min": -1.5083322818266152,
+          "max": 15.398434435468275
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.6696600891062267,
+          "min": -0.8111066934191631,
+          "max": -0.14942808317121087
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x60",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "line",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.7261618334955408,
+          "min": 0.6674363360157252,
+          "max": 0.8011981485616599
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 1.5546892356593371,
+          "min": 1.0653588622967223,
+          "max": 1.9914000865509596
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 2.0748861983132088,
+          "min": 1.8989065346251544,
+          "max": 3.0783312142785317
+        },
+        "head_max": {
+          "n": 5,
+          "median": 12.921851253194921,
+          "min": 6.965245625501733,
+          "max": 23.05063963540415
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.17422033784073224,
+          "min": 0.10926681751070354,
+          "max": 1.1974114138426577
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.299388410873747,
+          "min": 0.15213395214208097,
+          "max": 0.48708726321159423
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.42992347268098713,
+          "min": 0.3591285073485191,
+          "max": 0.5204254476266741
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 0.7019598592960381,
+          "min": 0.23711996585499043,
+          "max": 1.3216198040518783
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -0.3635499937014613,
+          "min": -0.7555899231671923,
+          "max": 1.0188052781850556
+        },
+        "head_max": {
+          "n": 5,
+          "median": 3.697364291528648,
+          "min": 0.22331665748599652,
+          "max": 16.401474487974202
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.13415300481831113,
+          "min": 0.052190455133984626,
+          "max": 1.1400625228438197
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x60",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "circle",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 6.343870304796749,
+          "min": 5.879008986464952,
+          "max": 6.855879417614327
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 11.171329789562723,
+          "min": 9.669519895172087,
+          "max": 12.870421394611444
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 13.229599251574477,
+          "min": 12.428924209015648,
+          "max": 13.575767010011479
+        },
+        "head_max": {
+          "n": 5,
+          "median": 36.70720479681694,
+          "min": 34.89129639523092,
+          "max": 41.03002934225908
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3409696323921151
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 11.220031965903036,
+          "min": 9.697357203751066,
+          "max": 12.020460358056265
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 11.959714434783042,
+          "min": 11.812366406823731,
+          "max": 12.2166808360842
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 1.105637048133382,
+          "min": 0.724786206992629,
+          "max": 1.8683920440453863
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 3.9684438985680344,
+          "min": 3.5356174769398527,
+          "max": 4.500818559835832
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 6.334981808261684,
+          "min": 4.68600943046352,
+          "max": 7.635980228813527
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -1.1727388414191353,
+          "min": -2.045540106490558,
+          "max": -0.8502487361946708
+        },
+        "head_max": {
+          "n": 5,
+          "median": 2.888707839931448,
+          "min": 0.9317844720774238,
+          "max": 5.154912456001082
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.3409696323921151
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 8.410032595175558,
+          "min": 7.879566518583807,
+          "max": 8.716254715741153
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -1.2849820835200316,
+          "min": -1.4148090846059103,
+          "max": -0.8514526834280494
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x60",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 5.65010626460739,
+          "min": 5.309576622983966,
+          "max": 6.127641764973733
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 12.496210737658956,
+          "min": 12.212703056328778,
+          "max": 14.247434036382549
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 11.264746266746233,
+          "min": 10.912104977586187,
+          "max": 12.12924282245083
+        },
+        "head_max": {
+          "n": 5,
+          "median": 42.37768752135612,
+          "min": 40.283083905514104,
+          "max": 58.50236279659172
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 10.297008080366894,
+          "min": 8.504366812227074,
+          "max": 11.954022988505747
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 10.386499928218027,
+          "min": 10.303401868555405,
+          "max": 10.566144833275484
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.3741686889715126,
+          "min": 0.2076205296084135,
+          "max": 0.7005038208857951
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 3.6501575838182148,
+          "min": 3.2020928854942587,
+          "max": 4.062195155854484
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 6.66456477042585,
+          "min": 6.474075705267329,
+          "max": 8.443121458371875
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -1.166028888674446,
+          "min": -1.9451559975888921,
+          "max": -0.49954633108076696
+        },
+        "head_max": {
+          "n": 5,
+          "median": 2.268959359753131,
+          "min": 0.12260077877734865,
+          "max": 18.97844016432427
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 7.767459864305919,
+          "min": 6.586588789522346,
+          "max": 9.012522492747237
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.8831113036901674,
+          "min": -1.0272819434228326,
+          "max": -0.7078106348200677
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x60",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "lane_change",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 1.7965282369894804,
+          "min": 1.6854102759000484,
+          "max": 1.9787699149478652
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 5.058656151414455,
+          "min": 4.154136371325837,
+          "max": 5.47148394967834
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 3.828039947723506,
+          "min": 3.424779463836886,
+          "max": 4.512481503055608
+        },
+        "head_max": {
+          "n": 5,
+          "median": 17.464231740739187,
+          "min": 13.372732203888793,
+          "max": 19.874201572820716
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 7.668231611893583,
+          "min": 6.701434159061277,
+          "max": 9.170984455958548
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 3.1041868498669594,
+          "min": 3.004494381313919,
+          "max": 3.5187682848216104
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.09846843640533691,
+          "min": 0.016075625651671793,
+          "max": 0.16543148521380824
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.963101604145735,
+          "min": 0.8427346395874911,
+          "max": 1.2550965720659921
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 2.578869342699445,
+          "min": 2.0263728717758553,
+          "max": 3.2252287753205517
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -1.5145994101968732,
+          "min": -2.464784276460549,
+          "max": -1.0389335643956168
+        },
+        "head_max": {
+          "n": 5,
+          "median": -1.3449524080947801,
+          "min": -11.471579722570901,
+          "max": 1.9183050722874022
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 5.268693379013519,
+          "min": 4.567048812558552,
+          "max": 7.124200830227554
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.44128037443339363,
+          "min": -0.6491802888760209,
+          "max": -0.22395278427199797
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc10x60",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "line",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.7717424000579872,
+          "min": 0.4783879437861663,
+          "max": 1.3171410266758619
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 1.7070396354116462,
+          "min": 1.2248917897727873,
+          "max": 2.5814741910028047
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 2.32670678546538,
+          "min": 2.083348991479988,
+          "max": 3.4830524727971155
+        },
+        "head_max": {
+          "n": 5,
+          "median": 8.193863051943676,
+          "min": 6.489586944956134,
+          "max": 19.41160863352241
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 6.989823245848956,
+          "min": 6.186395286555972,
+          "max": 8.514056224899598
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.030073927626612,
+          "min": 0.026026577362101084,
+          "max": 0.03941074103873312
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.12280321389923142,
+          "min": 0.07248127729034128,
+          "max": 0.21820211191213434
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.382478038993046,
+          "min": 0.10334501017061258,
+          "max": 0.9177888542137769
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 0.780349407884126,
+          "min": 0.3679239990516252,
+          "max": 1.2813902176664407
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -1.1480055789304775,
+          "min": -2.119603547130826,
+          "max": 0.24300683506569892
+        },
+        "head_max": {
+          "n": 5,
+          "median": -2.493542659450776,
+          "min": -4.449164465988246,
+          "max": 10.575164244751168
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 5.106121362147071,
+          "min": 4.492406215517721,
+          "max": 6.901152999093147
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.005882184783393653,
+          "min": -0.012614031858758678,
+          "max": 0.005335298330225096
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc3x24",
+        "comp": "off",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 28.905861732047935,
+          "min": 22.260190449066638,
+          "max": 38.69212009004622
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 72.13999090850457,
+          "min": 54.08035786109559,
+          "max": 111.55772513248891
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 66.6817170887456,
+          "min": 53.42037467096467,
+          "max": 94.81172760424228
+        },
+        "head_max": {
+          "n": 5,
+          "median": 189.16415309925682,
+          "min": 152.09363494175852,
+          "max": 280.2901497598328
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 9.727759425902722,
+          "min": 8.019246190858059,
+          "max": 11.082329091113865
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 38.61136571952337,
+          "min": 33.32203772732407,
+          "max": 40.58346474431178
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 17.337900487470954,
+          "min": 15.647417622291549,
+          "max": 18.014778449191823
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 19.742875012121143,
+          "min": 14.56135884756698,
+          "max": 27.451947872810685
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 26.905913051258757,
+          "min": 20.22137784602803,
+          "max": 36.62667348092697
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 66.3356783304939,
+          "min": 47.982464042076515,
+          "max": 105.7260791652558
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 54.51938598420583,
+          "min": 40.56311369578959,
+          "max": 82.32249437437055
+        },
+        "head_max": {
+          "n": 5,
+          "median": 149.64023046698938,
+          "min": 108.45588861042366,
+          "max": 243.94953500241857
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 9.727759425902722,
+          "min": 8.019246190858059,
+          "max": 11.082329091113865
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 36.218418021193486,
+          "min": 31.404259704619342,
+          "max": 37.93065165710055
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 6.147751272346254,
+          "min": 4.311639720864346,
+          "max": 6.870370350096982
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc3x24",
+        "comp": "off",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.5,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 61.175027372124745,
+          "min": 44.27128515956955,
+          "max": 83.5576222045825
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 147.35722303392373,
+          "min": 110.60257569424515,
+          "max": 223.08307220190144
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 112.9876112765398,
+          "min": 96.10233183133933,
+          "max": 138.34721983780196
+        },
+        "head_max": {
+          "n": 5,
+          "median": 355.94503422257964,
+          "min": 262.31220594890203,
+          "max": 438.41931857664895
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 9.984559958826557,
+          "min": 8.629018823921372,
+          "max": 17.902289033139734
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 36.97249273876644,
+          "min": 32.18943033630748,
+          "max": 39.596746865469335
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 33.876664977195645,
+          "min": 31.266156790668145,
+          "max": 38.53193435722444
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 74.7481368996298,
+          "min": 8.462743413585333,
+          "max": 136.645930990282
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc3x24",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "circle",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 6.526069157593986,
+          "min": 6.239320038844384,
+          "max": 6.886283142788361
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 12.88606692480326,
+          "min": 10.66885157432675,
+          "max": 15.692835794306935
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 9.520758260687488,
+          "min": 8.629717837015317,
+          "max": 10.61027392596246
+        },
+        "head_max": {
+          "n": 5,
+          "median": 32.916959541414904,
+          "min": 30.396737110167216,
+          "max": 40.92145368999467
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.2686727565824825
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 10.230116522662343,
+          "min": 9.108608983560554,
+          "max": 10.880869745299316
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 2.109052947186272,
+          "min": 0.7619805971359971,
+          "max": 3.1060687893335484
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 4.102922052010314,
+          "min": 3.730721433054129,
+          "max": 4.485047983789131
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 7.908763330353704,
+          "min": 6.046467700679908,
+          "max": 10.667805465366376
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -4.452384528198438,
+          "min": -5.372403992916573,
+          "max": -3.5079023145636237
+        },
+        "head_max": {
+          "n": 5,
+          "median": 3.5788236657407664,
+          "min": 1.184205855189191,
+          "max": 8.335421015103206
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.2686727565824825
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -3.2177995114540376,
+          "min": -4.38478218347481,
+          "max": -2.512050912375295
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc3x24",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 5.973334337710301,
+          "min": 5.323729927144031,
+          "max": 6.6479878638773755
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 13.109517435049554,
+          "min": 12.309766416218261,
+          "max": 14.169113506991568
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 8.99126498224426,
+          "min": 8.525251889808581,
+          "max": 9.98968641854766
+        },
+        "head_max": {
+          "n": 5,
+          "median": 43.175289513158305,
+          "min": 37.48207559073413,
+          "max": 47.68647894701084
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 9.744917925492075,
+          "min": 8.541377466999743,
+          "max": 10.386618144234417
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.4926235333331951,
+          "min": 0.2660303098603685,
+          "max": 1.248081852353889
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 3.9156655570403673,
+          "min": 3.1870741656598396,
+          "max": 4.583280304443351
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 7.9632490675691034,
+          "min": 7.076774050712577,
+          "max": 8.8900196240944
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -3.057130049825869,
+          "min": -3.710006141071729,
+          "max": -1.9427230675221185
+        },
+        "head_max": {
+          "n": 5,
+          "median": 12.436203584241364,
+          "min": 3.4716146180196956,
+          "max": 13.802842796035385
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -1.6655306042126783,
+          "min": -3.158173104949065,
+          "max": -1.083360671193221
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc3x24",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "lane_change",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 1.9571879355243607,
+          "min": 1.2428455130589806,
+          "max": 2.380920249835011
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 4.253380527790392,
+          "min": 2.7985863233170956,
+          "max": 4.935202051799252
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 2.5395103016475393,
+          "min": 2.1648027674278,
+          "max": 4.35765826926176
+        },
+        "head_max": {
+          "n": 5,
+          "median": 12.938456276895604,
+          "min": 7.877643805464532,
+          "max": 31.5023467867575
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 3.144127102664267,
+          "min": 3.0123597361282934,
+          "max": 3.6638258816837417
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.3356406739867923,
+          "min": 0.07426984289690616,
+          "max": 0.8246226567360642
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 1.240407498894397,
+          "min": 0.546767683826939,
+          "max": 1.6103674548656772
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 1.256709475199359,
+          "min": 0.8932123851263675,
+          "max": 2.412884796501517
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -1.9208890373670637,
+          "min": -2.4966599305839656,
+          "max": -0.13580472083710507
+        },
+        "head_max": {
+          "n": 5,
+          "median": -4.291157975009785,
+          "min": -9.26100490157543,
+          "max": 14.184743055239531
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.48680829993930474,
+          "min": -0.6883059452043885,
+          "max": 0.07309959261025088
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc3x24",
+        "comp": "on",
+        "arith": "half",
+        "profile": "ideal",
+        "path": "line",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.8390622241405068,
+          "min": 0.6555597928888363,
+          "max": 1.1464556431924486
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 1.5682444892149026,
+          "min": 1.3995451908934333,
+          "max": 2.247130931455451
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 2.162440729605571,
+          "min": 1.6756057019345905,
+          "max": 3.6538511174133927
+        },
+        "head_max": {
+          "n": 5,
+          "median": 14.521405398739535,
+          "min": 4.912640748492369,
+          "max": 30.39187504217009
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.14748519770025034,
+          "min": 0.0355320834831845,
+          "max": 0.8784516823469296
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.12738506785592704,
+          "min": 0.031245911830274316,
+          "max": 0.17251834764655455
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.5401474850950121,
+          "min": 0.3450858229432199,
+          "max": 0.905163304764317
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 0.7155151128516037,
+          "min": 0.5125050216943793,
+          "max": 1.5773506489563698
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -0.43634123911771155,
+          "min": -0.9811345965910194,
+          "max": 1.5943251813199166
+        },
+        "head_max": {
+          "n": 5,
+          "median": 7.779476430723799,
+          "min": -4.088884756414201,
+          "max": 23.74270989474014
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.09013630670141244,
+          "min": -0.004535249539236608,
+          "max": 0.8231148415044216
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc3x24",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "circle",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 9.517198620490158,
+          "min": 8.862808631534202,
+          "max": 10.112803948441204
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 16.788339381062507,
+          "min": 14.044447858281549,
+          "max": 19.034978142178215
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 14.670262180057446,
+          "min": 13.182995894746634,
+          "max": 15.11444828509645
+        },
+        "head_max": {
+          "n": 5,
+          "median": 46.04953301325554,
+          "min": 36.572933898555426,
+          "max": 52.457630757983374
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.2036878216123499
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 13.443396226415095,
+          "min": 12.060463121783876,
+          "max": 14.034523426610916
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 12.02926715567728,
+          "min": 11.80716949345664,
+          "max": 12.398237721291547
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 1.7726397781116436,
+          "min": 1.5290121049202507,
+          "max": 3.9794682041678935
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 7.141772214261443,
+          "min": 6.4700065331247565,
+          "max": 7.769412438916104
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 11.93813710074013,
+          "min": 8.923802548824133,
+          "max": 13.800536976380299
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 0.11908727558461799,
+          "min": -1.5622678329003208,
+          "max": 1.0346002973273034
+        },
+        "head_max": {
+          "n": 5,
+          "median": 11.698206182822135,
+          "min": -0.6155745676093005,
+          "max": 19.863268466957294
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.2036878216123499
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 9.86156431358739,
+          "min": 9.556685871621994,
+          "max": 11.954664404653101
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -1.0935199281469823,
+          "min": -1.3477684950515858,
+          "max": -0.5614783852847145
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc3x24",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 8.194668753468521,
+          "min": 7.70958748280202,
+          "max": 8.675869877946376
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 17.77673867046938,
+          "min": 16.032285053088923,
+          "max": 18.828552842298933
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 11.660928319998536,
+          "min": 11.109331823333497,
+          "max": 12.60815478629363
+        },
+        "head_max": {
+          "n": 5,
+          "median": 48.76484915087054,
+          "min": 42.33637851292005,
+          "max": 56.75217027936963
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 10.35922223442821,
+          "min": 8.360799824214459,
+          "max": 13.87454685268593
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 10.542804938085851,
+          "min": 10.309463797949611,
+          "max": 10.808721452550392
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 1.4497108053207692,
+          "min": 0.3344583360028218,
+          "max": 2.360032076252923
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 6.096144337583424,
+          "min": 5.670774879763413,
+          "max": 6.610423268827127
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 11.972426092458706,
+          "min": 9.934391234069851,
+          "max": 12.996906875065829
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -0.7541768344770297,
+          "min": -1.7479291518415832,
+          "max": 0.11892155642189046
+        },
+        "head_max": {
+          "n": 5,
+          "median": 9.27811039214576,
+          "min": -1.3013678184148336,
+          "max": 17.22824764710218
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 7.802117715637473,
+          "min": 6.44302180150973,
+          "max": 11.344998636624954
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.8735209681050589,
+          "min": -1.0263141034775916,
+          "max": -0.33568664654444813
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc3x24",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "figure_eight",
+        "speed": 1.5,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 11.080466356948232,
+          "min": 9.735455146199195,
+          "max": 12.124647146438475
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 21.341229749437908,
+          "min": 19.89454980185331,
+          "max": 30.782673106358363
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 14.536016604465395,
+          "min": 14.014905420342116,
+          "max": 15.044941406761971
+        },
+        "head_max": {
+          "n": 5,
+          "median": 55.868779839201686,
+          "min": 47.29837236350187,
+          "max": 69.52046245434063
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 11.008580216933787,
+          "min": 10.484395318595578,
+          "max": 14.049854321786986
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 17.874062785243947,
+          "min": 17.18447988651385,
+          "max": 18.680112551018127
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 2.482045531976541,
+          "min": 2.0224601381929417,
+          "max": 3.4236913127930637
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc3x24",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "lane_change",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 1.7999720843422478,
+          "min": 1.4127903100377126,
+          "max": 2.2993994845682377
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 4.235015154731216,
+          "min": 3.628387599156981,
+          "max": 6.177261078293628
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 2.883578556856349,
+          "min": 2.4201445205128724,
+          "max": 3.3979054498961596
+        },
+        "head_max": {
+          "n": 5,
+          "median": 11.544214348450211,
+          "min": 9.234319453107544,
+          "max": 20.64951000897696
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 7.708387771100078,
+          "min": 7.055134570159394,
+          "max": 10.044701551406785
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 3.1355965923748053,
+          "min": 2.979607311651265,
+          "max": 3.3563201278544814
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.2665294689712746,
+          "min": 0.11233511169684954,
+          "max": 0.5539457713155085
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.9647904211484895,
+          "min": 0.708070663920548,
+          "max": 1.5757261416863644
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 1.755228346016205,
+          "min": 1.2533171034554775,
+          "max": 3.9310059039358407
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -2.6129421767505554,
+          "min": -3.4694192197845624,
+          "max": -1.5595065733346967
+        },
+        "head_max": {
+          "n": 5,
+          "median": -8.164210382020892,
+          "min": -15.60999247335215,
+          "max": 5.103583340525177
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 5.4549413235921245,
+          "min": 5.0083509444284,
+          "max": 7.179980065995643
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.3970470108884991,
+          "min": -0.6071244767188034,
+          "max": -0.37510319198155384
+        }
+      }
+    },
+    {
+      "config": {
+        "arm": "nmpc3x24",
+        "comp": "on",
+        "arith": "half",
+        "profile": "realistic_guess",
+        "path": "line",
+        "speed": 1.0,
+        "contact": "70mm"
+      },
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "stats": {
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.9079584014637443,
+          "min": 0.5099763024780927,
+          "max": 1.8004927430754636
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 1.7525709975658075,
+          "min": 0.9547088676338181,
+          "max": 3.764923189941268
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": 2.1510217270804777,
+          "min": 1.811833122762702,
+          "max": 2.930261972770219
+        },
+        "head_max": {
+          "n": 5,
+          "median": 9.284077147048203,
+          "min": 5.442263089654627,
+          "max": 16.245614910685738
+        },
+        "completion": {
+          "n": 5,
+          "median": 1.0,
+          "min": 1.0,
+          "max": 1.0
+        },
+        "safety": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "misses": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "stale": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "fallbacks": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "overruns": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "busy": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 7.0213340534701585,
+          "min": 6.1571698622738325,
+          "max": 9.856872805833108
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": 0.02779834325310223,
+          "min": 0.02602866056197715,
+          "max": 0.035352676976400155
+        },
+        "cost_final": {
+          "n": 5,
+          "median": 0.17393657723368894,
+          "min": 0.09550272053004707,
+          "max": 0.3449673900665984
+        }
+      },
+      "paired_vs_baseline": {
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "xte_rmse": {
+          "n": 5,
+          "median": 0.518694040398803,
+          "min": 0.11062413001600781,
+          "max": 1.42544980945991
+        },
+        "xte_max": {
+          "n": 5,
+          "median": 0.6012545356623115,
+          "min": -0.11503904803147609,
+          "max": 2.9079553992201057
+        },
+        "head_rmse": {
+          "n": 5,
+          "median": -1.2145349470200684,
+          "min": -2.336076695734988,
+          "max": -0.3339626779722627
+        },
+        "head_max": {
+          "n": 5,
+          "median": -1.6731987442467204,
+          "min": -3.394181299116614,
+          "max": 7.262485306278828
+        },
+        "steer_lim": {
+          "n": 5,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "rate_lim": {
+          "n": 5,
+          "median": 6.220651663699728,
+          "min": 3.779471037458308,
+          "max": 7.973170922131224
+        },
+        "slip_rms": {
+          "n": 5,
+          "median": -0.0024149450400378814,
+          "min": -0.014383907560577239,
+          "max": -0.0007826713387682547
+        }
+      }
+    }
+  ]
+}
