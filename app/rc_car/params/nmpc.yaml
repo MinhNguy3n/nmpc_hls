@@ -1,0 +1,75 @@
+# NMPC arm of the RC car study (phase 4). SIMULATION ONLY.
+# What is emulated: the PROPOSED Ackermann engine of docs/ackermann/ackermann_mpc_pso_model.md
+# (sections 9-10): the HLS PSO structure (hw/hls/source/src/hls_pso.cpp, as mirrored by
+# app/husky/sil/pso.py), the section 9.3 cost, the exact-arc chord step in half precision with the
+# 1024-entry table sine and ap_fixed<32,17> top-level values (app/ackermann/hw_estimates.py). The
+# HLS changes of section 10 (reference controls, increments in the cost) are NOT implemented in HLS.
+#
+# Limits are NOT here: delta_max and v_max_sim come from params/reely_new1.yaml, the steering-rate
+# and acceleration bounds from params/command_chain.yaml (vehicle_limits_profile), so a measured
+# value changes the plant, the converter and the NMPC together.
+
+horizon:
+  Nh: 25          # = UNICYCLE_CONFIG _Nh (hw/hls/source/include/config.hpp)
+  Nu: 25          # = _Nu
+  Ts: 0.05        # s, = _Ts and the baseline's controller_frequency
+
+sizes:            # particles x iterations; solve_time = what the timing model charges (board, not Python)
+  3x24:  {particles: 3,  iterations: 24, solve_time: 0.00925, status: board_measured,
+          source: "engine_3x24 20261121T022701Z: solver + PS median 9.25 ms (2026-11-21 board results)"}
+  10x40: {particles: 10, iterations: 40, solve_time: 0.02635, status: board_measured,
+          source: "engine_10x40 20261121T025444Z: solver + PS median 26.35 ms (2026-11-21 board results)"}
+  10x60: {particles: 10, iterations: 60, solve_time: 0.0389,  status: estimate,
+          source: "extrapolated from the board's 10x40 measurement; no 10x60 board run: 60 x (25.01 ms / 40) solver median per iteration at S = 10 + 1.34 ms PS overhead of 10x40 (accepted as a labelled estimate, STOP 4a review 2.2)"}
+
+pso:              # config.hpp values (the shared engine parameters)
+  w0: 0.9
+  wf: 0.1
+  c1: 2.1
+  c2: 1.0
+  max_v: 30.0     # normalized units
+
+weights:          # FROZEN 2026-11-22 by the section 7.7 rule (B1: 25-point grid + one extension column, 10x40, S-curve, seeds 100/101)
+  status: frozen_2026-11-22
+  source: "q_pos, q_psi: tuning_select.py on ~/nmpc_sim/logs/rc_car_phase4_batch/B1/nmpc_tuning_10x40{,_extension} (mean RMSE 3.08 mm; surface flat 3.1-4.7 mm; best again on the extended edge, no second extension allowed). Fixed weights: app/ackermann/test_ackermann_model.py PLACEHOLDER_WEIGHTS (line 41); cost of docs/ackermann/ackermann_mpc_pso_model.md section 9.3"
+  q_pos: 3160.0    # 1/m^2   (tuned axis; qf_pos = 10 q_pos); October value 100
+  q_psi: 10.0      # 1/rad^2 (tuned axis; qf_psi = 10 q_psi); October value 10
+  q_v: 1.0         # s^2/m^2 (fixed)
+  r_kappa: 0.1     # m^2     (fixed)
+  s_dv: 1.0        # s^2/m^2 (fixed, control rate)
+  s_dkappa: 1.0    # m^2     (fixed, control rate)
+  terminal_ratio: 10.0   # qf / q for position and heading (fixed)
+
+timing:           # tau terms (plan section 7.5); every term listed separately
+  # Tick-anchored (STOP 4a review 2.1): the solve starts at the 50 ms tick (or when the single solver
+  # is free) and the command is applied solve_time later; the prediction spans
+  # pose age + solve_time + chain_term + gazebo_term, known exactly every step.
+  gazebo_term: 0.011      # s, SIMULATION ONLY: Gazebo's own command-path delay (plan section 7.5)
+  chain_term:             # s, the assumed car chain's median command -> steering delay (offline model, plan 7.5)
+    ideal: 0.0
+    realistic_guess: 0.0242
+    fast_servo: 0.0158
+  end_tolerance: 0.15     # m, the episode ends when the progress is this close to the trimmed path end (= the baseline's goal tolerance)
+
+redesign:         # FROZEN 2026-11-22 by plan section 7.10 (OFFLINE ablation + tuning). SELECTED BY THE RULE, NOT CARRIED
+                  # FORWARD (STOP BR review): in Gazebo (BR) the smoother variant below had the lower error
+  status: frozen_offline_2026-11-22
+  source: "~/nmpc_sim/logs/rc_car_redesign_20261122: ablation (R2 dropped by the rule), tuning_r3 (5x5 grid -> q_lat 1000, q_lon 31.6), tuning_r4 (5 points -> s_dkappa 10); 30 points in all"
+  r1: true          # warm start: shifted previous best = particle 0, feed-forward kept, max(1, S // 5) perturbed copies
+  r2: null          # move blocking: dropped (higher median cross-track error)
+  r3: [1000.0, 31.6]  # path-frame cost: q_lat, q_lon (terminal x terminal_ratio); replaces q_pos
+  r4: 10.0          # delta-kappa weight s_dkappa (phase 4: 1)
+
+redesign_smooth:  # NOT SELECTED BY THE RULE; run for steering smoothness (STOP R review). CARRIED FORWARD AS THE
+                  # CANDIDATE (STOP BR review, 2026-11-22), CHOSEN AFTER SEEING THE BR RESULTS ON THE EVALUATION SEEDS
+                  # 1-5 (post hoc; reason: steering smoothness for the real servo and the better Gazebo error).
+                  # Held-out check on seeds 6-10: block BH. The ablation's fixed values (plan section 7.10), not tuned.
+                  # ACCEPTED as the candidate controller (bh-review-next, 2026-11-22): chosen after BR (post hoc),
+                  # consistent on the held-out seeds 6-10; 10x40 stays (no 10x60). HLS C level: BICYCLE_CONFIG + PSO_RD_ALL
+                  # (config.hpp generated by app/rc_car/gen_bicycle_config.py from this section; plan section 7.15).
+  status: not_selected_ablation_values
+  source: "plan section 7.10 ablation variant +R1+R2+R3+R4 (offline: 0.66 mm cross-track, 1.1 % on the rate limit)"
+  r1: true
+  r2: 5             # move blocking: 5 knots per input
+  r3: [3160.0, 316.0]
+  r4: 10.0
