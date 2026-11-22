@@ -1,0 +1,104 @@
+# Command chain of the Reely NEW1 simulation (phase 2): command link + output hold + VESC + servo
+# emulation, the command mux and watchdog, and the OptiTrack emulator.
+#
+# EVERY VALUE HERE IS ASSUMED (PLACEHOLDER_): none is measured, none is from a datasheet, none is
+# taken from the Husky or from F1TENTH cars. Phase 2 needs numbers so that the chain can be built
+# and tested; the real values come from the car (step-response identification after 27 Nov,
+# docs/rc_car/simulation_plan.md section 6).
+#
+# Planned vehicle chain (2026-11-22 review section 4; lab facts 2026-11-22: the KV260 RIDES ON THE CAR):
+#   pose path:    OptiTrack -> Wi-Fi -> KV260 (on the car)            (the only wireless hop: mocap_profiles)
+#   command path: KV260 -> serial cable on the car -> Pixhawk 4 (PX4, uXRCE-DDS or MAVLink) -> PWM
+#                 -> VESC + servo                                     (actuator_profiles; T_link = the cable)
+# Names in the code are generic; the PX4 parameter each item corresponds to is given as a comment
+# ("<->"). Check every PX4 name and default against the firmware version on the car.
+
+actuator_profiles:
+  # Units: T_link, T_d, tau_v in s; f_esc_out, f_servo_out in Hz (0 = no hold: the output follows
+  # the command at once); accel_max, decel_max in m/s^2 (null = no limit); delta_rate_max in rad/s
+  # of the bicycle-equivalent angle (null = no limit). The saturations delta_max and v_max come
+  # from params/reely_new1.yaml (delta_max, v_max_sim).
+  ideal:
+    status: design
+    note: "no lag: the applied command equals the requested one (saturation only)"
+    T_link: 0.0
+    f_esc_out: 0.0
+    f_servo_out: 0.0
+    tau_v: 0.0
+    accel_max: null
+    decel_max: null
+    T_d: 0.0
+    delta_rate_max: null
+  realistic_guess:
+    status: placeholder
+    note: "PLACEHOLDER_ assumed values: standard analog servo signal at 50 Hz"
+    T_link: 0.004        # KV260 -> Pixhawk serial cable on the car (uXRCE-DDS or MAVLink), a few ms
+    f_esc_out: 50.0      # PWM update rate of the ESC output  <-> PWM_MAIN_RATE (per timer group)
+    f_servo_out: 50.0    # PWM update rate of the servo output <-> PWM_MAIN_RATE (per timer group)
+    tau_v: 0.10          # VESC speed loop, first-order time constant
+    accel_max: 3.0       # VESC ramp limits (firmware), speeding up
+    decel_max: 4.0       #                               slowing down
+    T_d: 0.010           # servo dead time after a new pulse width
+    delta_rate_max: 5.0  # servo slew, mapped to the bicycle angle through the linkage
+  fast_servo:
+    status: placeholder
+    note: "PLACEHOLDER_ as realistic_guess, but a digital-servo signal at 333 Hz; only f_servo_out changes, so the profile isolates the update-rate effect"
+    T_link: 0.004
+    f_esc_out: 50.0
+    f_servo_out: 333.0
+    tau_v: 0.10
+    accel_max: 3.0
+    decel_max: 4.0
+    T_d: 0.010
+    delta_rate_max: 5.0
+
+# The servo and VESC values of this profile are the vehicle's (assumed) limits: the NMPC reads its
+# steering-rate and acceleration bounds from it, whatever profile the plant runs (one file feeds both).
+vehicle_limits_profile: realistic_guess
+
+mux:
+  status: placeholder
+  # Priority: teleop (the RC transmitter in the vehicle chain) > the controller under test.
+  T_wd: 0.3          # s, controller setpoint timeout -> stop and hold  <-> COM_OF_LOSS_T,
+                     #    then the action COM_OBL_RC_ACT (here: Hold). PX4 needs the offboard
+                     #    stream above ~2 Hz; our controllers publish at 20-50 Hz.
+  T_teleop: 0.3      # s, teleop silence that ends an override -> stop and hold (no auto resume)
+                     #    <-> COM_RC_LOSS_T (RC loss) / leaving the manual mode
+  T_arm_fresh: 0.1   # s, arming needs a controller setpoint at least this fresh
+                     #    <-> PX4 accepts offboard only while setpoints are already streaming
+  publish_rate: 50.0 # Hz, keep-alive output of the mux to the actuator (design)
+
+freshness_gate:
+  status: placeholder
+  T_fresh: 0.1       # s, mocap pose age (now - capture stamp) above which the controller is disarmed
+                     #    (latched; re-arm only explicitly). <-> EKF2 external-vision timeout, later
+
+mocap_profiles:
+  # Units: rate_hz in Hz; delays in s; noise standard deviations in m and rad; probabilities per frame.
+  # The Gazebo truth is published at 100 Hz (worlds/lab_floor.sdf), so rate_hz <= 100 here.
+  ideal:
+    status: design
+    rate_hz: 100.0
+    T_mocap: 0.0
+    wifi_base: 0.0
+    wifi_jitter_mean: 0.0
+    spike_prob: 0.0
+    spike_min: 0.0
+    spike_max: 0.0
+    noise_xy: 0.0
+    noise_yaw: 0.0
+    drop_prob: 0.0
+    drop_burst_max: 1
+  realistic_guess:
+    status: placeholder
+    rate_hz: 100.0          # PLACEHOLDER_ OptiTrack frame rate (G0 4b lab facts), capped by the truth rate
+    T_mocap: 0.005          # PLACEHOLDER_ Motive processing + streaming
+    wifi_base: 0.003        # PLACEHOLDER_ Wi-Fi base latency
+    wifi_jitter_mean: 0.002 # PLACEHOLDER_ exponential jitter, mean
+    spike_prob: 0.01        # PLACEHOLDER_ probability of a latency spike per frame
+    spike_min: 0.020        # PLACEHOLDER_ spike size, uniform in [spike_min, spike_max]
+    spike_max: 0.080
+    noise_xy: 0.0005        # PLACEHOLDER_ position noise, per axis
+    noise_yaw: 0.002        # PLACEHOLDER_ heading noise
+    drop_prob: 0.005        # PLACEHOLDER_ probability that a dropout burst starts at a frame
+    drop_burst_max: 3       # PLACEHOLDER_ burst length, uniform in 1..drop_burst_max frames
