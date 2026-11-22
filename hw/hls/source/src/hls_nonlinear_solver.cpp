@@ -73,6 +73,9 @@ int nonlinear_solver_wrapper(
     
     float *new_best,//[_Nu*_n_U],
     float *J
+#ifdef PSO_RD_ANY
+    , volatile float *rd_aux//[_RD_AUX_LEN]: PSO redesign (config.hpp layout)
+#endif
 ){
 #pragma HLS INTERFACE mode=s_axilite    port=iteration  bundle=control
 #pragma HLS INTERFACE mode=s_axilite    port=J          bundle=control
@@ -91,6 +94,10 @@ int nonlinear_solver_wrapper(
 #pragma HLS INTERFACE mode=m_axi    port=last_best  offset=slave bundle=gmem0 depth=_pragma_n_U*_pragma_Nu
 #pragma HLS INTERFACE mode=m_axi    port=xref       offset=slave bundle=gmem0 depth=_pragma_Nx*_pragma_Nh
 #pragma HLS INTERFACE mode=m_axi    port=new_best   offset=slave bundle=gmem0 depth=_pragma_n_U*_pragma_Nu
+#ifdef PSO_RD_ANY
+#pragma HLS INTERFACE mode=s_axilite    port=rd_aux     bundle=control
+#pragma HLS INTERFACE mode=m_axi    port=rd_aux     offset=slave bundle=gmem0 depth=_RD_AUX_LEN
+#endif
 
     int iterations;
 	_hw_top_real my_x_curr[_Nx] ;
@@ -102,6 +109,9 @@ int nonlinear_solver_wrapper(
 	// _hw_top_real my_uss[_n_U] ;
 
 	_hw_top_real my_new_best[_Nu*_n_U];
+#ifdef PSO_RD_ANY
+	_hw_top_real my_rd_aux[_RD_AUX_LEN];
+#endif
 	_hw_top_real my_J;
 
 //#pragma HLS bind_storage variable=local_control_guess type=FIFO impl=LUTRAM
@@ -110,6 +120,13 @@ int nonlinear_solver_wrapper(
     memcpy_loop_rolled<_hw_top_real, float, _n_U>(my_u_curr, (float *)u_curr );
     memcpy_loop_rolled<_hw_top_real, float, _Nu*_n_U>(my_last_best, (float *)last_best );
     memcpy_loop_rolled<_hw_top_real, float, _Nu*_Nx>(my_xref, (float *)xref );
+#ifdef PSO_RD_R2
+    // R2: _Nu (knots) < _Nh; the line above copies only _Nu*_Nx reference values
+    memcpy_loop_rolled<_hw_top_real, float, _Nh*_Nx>(my_xref, (float *)xref );
+#endif
+#ifdef PSO_RD_ANY
+    memcpy_loop_rolled<_hw_top_real, float, _RD_AUX_LEN>(my_rd_aux, (float *)rd_aux );
+#endif
     // memcpy_loop_rolled<_hw_top_real, float, _n_U>(my_uref, (float *)uref );
     // memcpy_loop_rolled<_hw_top_real, float, _Nx>(my_xss, (float *)xss );
     // memcpy_loop_rolled<_hw_top_real, float, _n_U>(my_uss, (float *)uss );
@@ -124,6 +141,9 @@ int nonlinear_solver_wrapper(
         // my_xss,
         (_hw_top_real *)my_new_best,
         &my_J
+#ifdef PSO_RD_ANY
+        , (_hw_top_real *)my_rd_aux
+#endif
     );
 
     memcpy_loop_rolled<float, _hw_top_real, _Nu*_n_U>(new_best, (_hw_top_real *)my_new_best );

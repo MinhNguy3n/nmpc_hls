@@ -21,6 +21,9 @@ int nonlinear_solver_wrapper(
     
     float *new_best,//[_Nu*_n_U],
     float *J
+#ifdef PSO_RD_ANY
+    , volatile float *rd_aux//[_RD_AUX_LEN]: PSO redesign (config.hpp layout)
+#endif
 );
 
 #endif

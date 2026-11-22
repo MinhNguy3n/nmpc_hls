@@ -65,6 +65,9 @@ int execute(
 	
 	_pso_hw_real new_best[_pso_Nu*_pso_n_U],
 	_pso_hw_real J[1]
+#ifdef PSO_RD_ANY
+	, _pso_hw_real rd_aux[_RD_AUX_LEN]	// PSO redesign: the host's rd_aux buffer
+#endif
 ){
 
 	// _pso_hw_real w;
@@ -180,6 +183,9 @@ int execute(
 		(_pso_hw_real *)_pso_u_min,
 		(_pso_hw_real *)_pso_u_max,
 		(_pso_hw_real *)_pso_uss_local
+#ifdef PSO_RD_ANY
+		, rd_aux
+#endif
 
 #ifdef __SYNTHESIS__
 		, __rand_port
@@ -209,6 +215,9 @@ int execute(
 
 			xref_local,
 			f_ind
+#ifdef PSO_RD_ANY
+			, u_curr_local, rd_aux
+#endif
 			// ,fx
 		);
 
@@ -342,9 +351,17 @@ int pso_fsm(
 	volatile uint32_t &debug_state,
 	_pso_hw_real local_bestfitness[_pso_maxiter],
 	_pso_hw_real global_min[_pso_Nu*_pso_n_U]
+#ifdef PSO_RD_ANY
+	, _pso_hw_real rd_aux[_RD_AUX_LEN]			// PSO redesign: the host's buffer (top level)
+	, _pso_hw_real rd_aux_local[_RD_AUX_LEN]	// its copy in current_mem
+#endif
 	
 ){
 #pragma HLS INTERFACE mode=s_axilite port=return bundle=control
+#ifdef PSO_RD_ANY
+#pragma HLS INTERFACE mode=m_axi port=rd_aux			offset=slave 	depth=_RD_AUX_LEN	bundle=nmpc_io
+#pragma HLS INTERFACE mode=m_axi port=rd_aux_local		offset=direct	depth=_RD_AUX_LEN	bundle=current_mem
+#endif
 
 #pragma HLS INTERFACE mode=ap_none port=rand_core_ap_start
 #pragma HLS INTERFACE mode=ap_none port=init_s_ap_start
@@ -404,6 +421,9 @@ int pso_fsm(
 			memcpy_loop_rolled<_pso_hw_real, _pso_hw_real, _pso_Nx>(x_curr_local, 	x_curr);
 			memcpy_loop_rolled<_pso_hw_real, _pso_hw_real, _pso_Nx*_pso_Nh>(xref_local, xref);
 			memcpy_loop_rolled<_pso_hw_real, _pso_hw_real, _pso_Nu*_pso_n_U>(last_best_local, last_best);
+#ifdef PSO_RD_ANY
+			memcpy_loop_rolled<_pso_hw_real, _pso_hw_real, _RD_AUX_LEN>(rd_aux_local, rd_aux);
+#endif
 			for (unsigned int i = 0; i < n_U; ++i) {
 #pragma HLS pipeline II=n_U
 				local_du_max[i] = _du_max[i];
@@ -559,6 +579,66 @@ int pso_fsm(
 	return k_local;
 }
 
+#ifdef PSO_RD_R1
+// ---------------------------------------------------
+// PSO redesign R1 (warm start): particle 2 = the host's extra start (when rd_aux[_RD_AUX_NEXTRA] is 1;
+// the feed-forward of the reference), then _rd_n_perturb perturbed copies of particle 0 (last_best,
+// the shifted previous best). Each copy adds uniform noise of half-width _rd_perturb_frac x the rate
+// window and is projected stage by stage onto the rate window from u_curr and onto the box, as the
+// particle update does. Slots beyond _n_S are skipped. The draws follow the initialization's draws on
+// the same stream. Mirrored by app/rc_car/hls_bicycle_emul.py.
+static void rd_initializeWarmStart(
+	_pso_hw_real *rd_aux,
+	_pso_hw_real *u_curr,
+	_pso_hw_real *local_du_max,
+	_pso_hw_real *local_u_max,
+	_pso_hw_real *local_u_min,
+	_pso_hw_real *local_x
+#ifdef __SYNTHESIS__
+	,_rand_real_stream &__rand_port
+#endif
+){
+	unsigned int slot = 2;
+	if ((rd_aux[_RD_AUX_NEXTRA] > (_pso_hw_real)0.5) && (slot < n_S)) {
+		memcpy_loop_rolled<_pso_hw_real, _pso_hw_real, (Nu*n_U)>(&local_x[slot*part_S], &rd_aux[_RD_AUX_EXTRA]);
+		slot++;
+	}
+	rd_perturb_loop: for (unsigned int p = 0; p < _rd_n_perturb; ++p) {
+		if (slot >= n_S)
+			break;
+		_pso_hw_real x_ant[_pso_n_U];
+		memcpy_loop_rolled<_pso_hw_real, _pso_hw_real, _pso_n_U>(x_ant, u_curr);
+		for (unsigned int j = 0; j < Nu; ++j) {
+			for (unsigned int k = 0; k < n_U; ++k) {
+#pragma HLS pipeline
+				int idx = j*n_U + k;
+				_pso_hw_real du = local_du_max[k];
+#ifdef PSO_RD_R2
+				du = du*_rd_knot_gap[j];
+#endif
+				_pso_hw_real rand_tmp;
+#ifdef __SYNTHESIS__
+				rand_tmp = __rand_port.read();
+#else
+				rand_real(rand_tmp);
+#endif
+				_pso_hw_real noise = (rand_tmp*(_pso_hw_real)2.0 - (_pso_hw_real)1.0)*_rd_perturb_frac*du;
+				_pso_hw_real x_tmp = local_x[particle_last_best*part_S + idx] + noise;
+				_pso_hw_real d = x_tmp - x_ant[k];
+				if (d > du)
+					x_tmp = x_ant[k] + du;
+				else if (d < -du)
+					x_tmp = x_ant[k] - du;
+				x_tmp = verifyControlConstrains(local_u_max[k], local_u_min[k], x_tmp);
+				local_x[slot*part_S + idx] = x_tmp;
+				x_ant[k] = x_tmp;
+			}
+		}
+		slot++;
+	}
+}
+#endif
+
 void initializeParticles_set(
 	// Top Level inputs (FIFO Streams)
 #ifndef __SYNTHESIS__
@@ -587,12 +667,18 @@ void initializeParticles_set(
 	_pso_hw_real local_u_min[_pso_n_U],
 	_pso_hw_real local_u_max[_pso_n_U],	
 	_pso_hw_real local_uss[_pso_n_U]
+#ifdef PSO_RD_ANY
+	, _pso_hw_real rd_aux[_RD_AUX_LEN]
+#endif
 	
 
 #ifdef __SYNTHESIS__
 	,_rand_real_stream &__rand_port
 #endif
 ){
+#ifdef PSO_RD_ANY
+#pragma HLS INTERFACE mode=m_axi port=rd_aux 	offset=direct	depth=_RD_AUX_LEN 	bundle=current_mem 
+#endif
 
 #pragma HLS INTERFACE mode=m_axi port=local_x offset=off depth=part_S_mem bundle=x_mem
 #pragma HLS INTERFACE mode=m_axi port=local_y offset=off depth=part_S_mem bundle=y_mem
@@ -661,6 +747,19 @@ void initializeParticles_set(
 
 		particle_stable_zero
 	);
+#ifdef PSO_RD_R1
+	rd_initializeWarmStart(
+		rd_aux,
+		u_curr_local,
+		local_du_max,
+		local_u_max,
+		local_u_min,
+		local_x
+#ifdef __SYNTHESIS__
+		,__rand_port
+#endif
+	);
+#endif
 #else
 	initializeParticles(
 		local_u_max,
@@ -856,6 +955,9 @@ void initializeParticlesWithDuConstrains(
 				int idx = j*n_U + k;
 				_pso_hw_real rand_tmp;
 				_pso_hw_real local_du_max_k = local_du_max[k];
+#ifdef PSO_RD_R2
+				local_du_max_k = local_du_max_k*_rd_knot_gap[j];	// R2: per-knot window
+#endif
 #ifdef __SYNTHESIS__
 				rand_tmp = __rand_port.read();
 #else
@@ -947,12 +1049,24 @@ void initializeStableZero(
 			// _pso_hw_real comp_tmp = (k == 0) ? x_tmp - u_curr[i] : x_tmp - x_ant[i];
 			_pso_hw_real comp_tmp = x_tmp - x_ant[i] ;
 			
+#ifndef PSO_RD_R2
 			if (comp_tmp > local_du_max[i])
 				x_tmp = x_ant[i] + local_du_max[i];
 			else if (comp_tmp < local_du_min[i])
 				x_tmp = x_ant[i] + local_du_min[i];
 			else
 				x_tmp = x_tmp;
+#else
+			// R2: per-knot window (stage k, input i)
+			const _pso_hw_real rd_du_max = local_du_max[i]*_rd_knot_gap[k];
+			const _pso_hw_real rd_du_min = local_du_min[i]*_rd_knot_gap[k];
+			if (comp_tmp > rd_du_max)
+				x_tmp = x_ant[i] + rd_du_max;
+			else if (comp_tmp < rd_du_min)
+				x_tmp = x_ant[i] + rd_du_min;
+			else
+				x_tmp = x_tmp;
+#endif
 
             local_x[index*part_S + idx] = verifyControlConstrains(
 				local_u_max[i],
@@ -975,8 +1089,16 @@ void evaluateFitnessAndDetectLocalBest(
 
 	_pso_hw_real local_xref[_pso_Nx*_pso_Nu], 
 	_pso_hw_real local_find[_pso_n_S]
+#ifdef PSO_RD_ANY
+	, _pso_hw_real rd_u_curr[_pso_n_U]	// PSO redesign: u_curr (increment cost)
+	, _pso_hw_real rd_aux[_RD_AUX_LEN]	// PSO redesign: the host's rd_aux buffer
+#endif
 	// _pso_hw_real *local_fx//[_pso_n_U],
 ){
+#ifdef PSO_RD_ANY
+#pragma HLS INTERFACE mode=m_axi port=rd_u_curr	offset=direct	depth=n_U		bundle=current_mem
+#pragma HLS INTERFACE mode=m_axi port=rd_aux		offset=direct	depth=_RD_AUX_LEN	bundle=current_mem
+#endif
 
 #pragma HLS INTERFACE mode=m_axi port=local_x offset=off depth=part_S_mem bundle=x_mem
 #pragma HLS INTERFACE mode=m_axi port=local_y offset=off depth=part_S_mem bundle=y_mem
@@ -1006,7 +1128,11 @@ void evaluateFitnessAndDetectLocalBest(
 			// ,
 			// my_model
 		);
+#ifndef PSO_RD_ANY
 		current_system.nmpc_cost_function_topflow(local_x_curr, &local_x[i*part_S], local_xref, &fx[i]);
+#else
+		current_system.nmpc_cost_function_topflow(local_x_curr, &local_x[i*part_S], local_xref, rd_u_curr, rd_aux, &fx[i]);
+#endif
 	}
 	
 	for (int i = 0; i < n_S; i++){	
@@ -1171,6 +1297,10 @@ void updateParticlesWithDuConstrains(
 				_pso_hw_real x_dx_tmp = x_new - x_ant_k; //x[i][idx]-x[i][idx-1];
 				_pso_hw_real cmp_max = __local_du_max[k];
 				_pso_hw_real cmp_min = __local_du_min[k];
+#ifdef PSO_RD_R2
+				cmp_max = cmp_max*_rd_knot_gap[j];	// R2: per-knot window
+				cmp_min = cmp_min*_rd_knot_gap[j];
+#endif
 
 				if (x_dx_tmp > cmp_max)
 					x_new = x_ant_k + cmp_max;

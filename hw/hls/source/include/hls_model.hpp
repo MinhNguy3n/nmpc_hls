@@ -7,6 +7,8 @@
 #include "hls_sniffbot.hpp"
 #elif defined(UNICYCLE_CONFIG)
 #include "models/hls_unicycle.hpp"
+#elif defined(BICYCLE_CONFIG)
+#include "models/hls_bicycle.hpp"
 #elif defined(PANDA_CONFIG)
 #include "hls_panda.hpp"
 #endif

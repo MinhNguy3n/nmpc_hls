@@ -106,6 +106,10 @@ public:
         volatile _system_hw_real *Ji_in,
         
         unsigned int i_step,
+#ifdef PSO_RD_ANY
+        volatile _system_hw_real *rd_aux,     // PSO redesign: the host's rd_aux buffer (config.hpp layout)
+        volatile _system_hw_real *rd_u_prev,  // PSO redesign: u_{i-1} (u_curr at i = 0), for PSO_RD_R4
+#endif
 
         volatile _system_hw_real *next_state,
         volatile _system_hw_real *Jui_out,
@@ -129,18 +133,32 @@ public:
     // Constructing the vector of guessed control actions with respect to N and Nu
     split<_system_hw_real, _system_hw_real, _system_n_U>(control_guess, uu_1, uu_2);
     // Control Error
+#if !(defined(PSO_RD_UREF) || defined(PSO_RD_R4))
     one_step_u_error((_system_hw_real *)Jui_out, (_system_hw_real *)Jui_in, (_system_hw_real *)uu_1);
+#else
+    rd_one_step_u_error((_system_hw_real *)Jui_out, (_system_hw_real *)Jui_in, (_system_hw_real *)uu_1,
+                        (_system_hw_real *)&rd_aux[_RD_AUX_UREF + _system_n_U*i_step], (_system_hw_real *)rd_u_prev);
+#endif
     // Predict Horizon
     one_step_prediction(local_next_state, current_state, uu_2);
     split<_system_hw_real, _system_hw_real, _system_Nx>(local_next_state, xx_1, (_system_hw_real *)next_state);
     // State Error
+#ifndef PSO_RD_R3
     one_step_error((_system_hw_real *)Ji_out, i_step, (_system_hw_real *)Ji_in, xx_1, (_system_hw_real *)xref);
+#else
+    rd_one_step_error_pf((_system_hw_real *)Ji_out, i_step, (_system_hw_real *)Ji_in, xx_1, (_system_hw_real *)xref,
+                         (_system_hw_real *)&rd_aux[_RD_AUX_CS + 2*i_step]);
+#endif
 }
 // ---------------------------------------------------
 	void nmpc_cost_function_topflow(
         volatile _system_hw_real *current_state,
         volatile _system_hw_real *control_guess,
         volatile _system_hw_real *xref,
+#ifdef PSO_RD_ANY
+        volatile _system_hw_real *rd_u_curr,  // PSO redesign: the applied command u_curr (normalized)
+        volatile _system_hw_real *rd_aux,     // PSO redesign: the host's rd_aux buffer
+#endif
         _system_hw_real *J
     ){
 #pragma HLS interface mode=ap_fifo port=current_state   depth=_system_Nx
@@ -205,20 +223,36 @@ public:
     // }
     // // J_error(Jui_in, Ji_in, &xref[(N-1)*_system_Nx], x_current, J);
     // J_error(Jui_in, Ji_in, J);
+#ifdef PSO_RD_ANY
+    // PSO redesign: u_{i-1} for the increment cost starts at the applied command
+    _system_hw_real rd_u_prev[_system_n_U], rd_u_now[_system_n_U];
+    memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_n_U>(rd_u_prev, (_system_hw_real *)rd_u_curr);
+#endif
     step_loop: for (unsigned i = 0; i < N; ++i) {
 #ifdef DEBUG_SYSTEM
         std::cout << "Horizon[" << i << "]"<< std::endl;
 #endif
     #pragma HLS PIPELINE off
+#ifndef PSO_RD_ANY
         nmpc_cost_function_lowflow(x_current, uu_fifo, &xref[i*_system_Nx],
                                    Jui_in, Ji_in, i, x_next, Jui_out, Ji_out);
+#else
+        rd_stage_u(i, control_guess, rd_u_now);  // the stage-i input, as uu_fifo holds it
+        nmpc_cost_function_lowflow(x_current, uu_fifo, &xref[i*_system_Nx],
+                                   Jui_in, Ji_in, i, rd_aux, rd_u_prev, x_next, Jui_out, Ji_out);
+        memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_n_U>(rd_u_prev, rd_u_now);
+#endif
 
         memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_n_U>(Jui_in, Jui_out);
         memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_Nx>(Ji_in, Ji_out);
 
         if (i < N - 1) {
             // Only feed the next horizon step; the last step has no consumer.
+#ifndef PSO_RD_R2
             get_next_uu(i, control_guess, uu_fifo, uu_last_ram);
+#else
+            rd_stage_u(i + 1, control_guess, (_system_hw_real *)uu_fifo);  // R2: interpolated knots
+#endif
             memcpy_loop_rolled<_system_hw_real, _system_hw_real, _system_Nx>(x_current, x_next);
         } else {
             // Drain the final predicted state so x_next is empty for the next call.
@@ -251,6 +285,128 @@ public:
         }
 
     }
+
+#ifdef PSO_RD_ANY
+    // ---------------------------------------------------
+    // PSO redesign (BICYCLE_CONFIG; config.hpp PSO_RD_* switches). Mirrored by
+    // app/rc_car/hls_bicycle_emul.py; checked by app/rc_car/hls_bicycle_check.py.
+
+    // The input of horizon stage `stage`: with PSO_RD_R2 the linear interpolation of the knots
+    // (u = z_j + a (z_{j+1} - z_j), one rounding); otherwise the stored input, the last one held
+    // (the same values get_next_uu feeds).
+    void rd_stage_u(
+        unsigned stage,
+        volatile _system_hw_real *control_guess,
+        _system_hw_real *u_out
+    ){
+#pragma HLS inline
+#ifdef PSO_RD_R2
+        const unsigned j = _rd_knot_j[stage];
+        const _system_hw_real a = _rd_knot_a[stage];
+        for (unsigned c = 0; c < _system_n_U; ++c) {
+            const _system_hw_real z0 = control_guess[j*_system_n_U + c];
+            const _system_hw_real z1 = control_guess[(j + 1)*_system_n_U + c];
+            u_out[c] = z0 + a*(z1 - z0);
+        }
+#else
+        const unsigned k = (stage < _system_Nu) ? stage : _system_Nu - 1;
+        for (unsigned c = 0; c < _system_n_U; ++c)
+            u_out[c] = control_guess[k*_system_n_U + c];
+#endif
+    }
+
+    // one_step_u_error with the section 9.3 effort terms: (W_r (u - u_ref))^2 about the host's
+    // per-stage reference control (PSO_RD_UREF; else R (u - uss)^2 as before) plus the increment
+    // (W_s (u - u_prev))^2 (PSO_RD_R4). Square-root weights (config.hpp _rd_Wr, _rd_Ws): the
+    // weighted error is rounded to the top type, its square added with one rounding.
+    void rd_one_step_u_error(
+        _system_hw_real *Ji_out,
+        _system_hw_real *Ji_in,
+        _system_hw_real *uu,
+        _system_hw_real *uref,
+        _system_hw_real *u_prev
+    ){
+        for (unsigned j = 0; j < _system_n_U; ++j) {
+#pragma HLS pipeline
+            const _system_hw_real current_uu = uu[j];
+#ifdef PSO_RD_UREF
+            const _system_hw_real tmp_err = current_uu - uref[j];
+#else
+            const _system_hw_real tmp_err = current_uu - uss[j];
+#endif
+#ifdef PSO_RD_R4
+            const _system_hw_real du_w = _rd_Ws[j]*(current_uu - u_prev[j]);
+#else
+            const _system_hw_real du_w = 0.0;
+#endif
+            if ((u_min[j] <= current_uu) && (current_uu <= u_max[j])) {
+#ifdef PSO_RD_UREF
+                const _system_hw_real e_w = _rd_Wr[j]*tmp_err;
+                Ji_out[j] = Ji_in[j] + e_w*e_w + du_w*du_w;
+#else
+                Ji_out[j] = Ji_in[j] + R[j]*tmp_err*tmp_err + du_w*du_w;
+#endif
+            } else
+                Ji_out[j] = Ji_in[j] + (_system_hw_real)1e4*tmp_err*tmp_err + du_w*du_w;
+        }
+    }
+
+    // one_step_error with the position error in the path frame (PSO_RD_R3): e_lon = c dx + s dy,
+    // e_lat = c dy - s dx with the host's (c, s) = (cos, sin) of the stage's reference heading,
+    // weighted by _rd_Q_pf / _rd_Qf_pf in Ji[0] (lateral) and Ji[1] (along-track). States 2.. as
+    // one_step_error. Each input is read once (FIFO order).
+    void rd_one_step_error_pf(
+        _system_hw_real *Ji_out,
+        unsigned int i_step,
+        _system_hw_real *Ji_in,
+        _system_hw_real *x_hat,
+        _system_hw_real *xref,
+        _system_hw_real *cs
+    ){
+        const _system_hw_real top_pi = 3.14159265358979323846;
+        const _system_hw_real top_two_pi = 6.28318530717958647692;
+        _system_hw_real xh[_system_Nx], xr[_system_Nx];
+        for (unsigned j = 0; j < _system_Nx; ++j) {
+            xh[j] = x_hat[j];
+            xr[j] = xref[j];
+        }
+        const bool last = (i_step == N-1);
+        const _system_hw_real ex = xh[0] - xr[0];
+        const _system_hw_real ey = xh[1] - xr[1];
+        const _system_hw_real c = cs[0];
+        const _system_hw_real s = cs[1];
+        const _system_hw_real e_lon = c*ex + s*ey;
+        const _system_hw_real e_lat = c*ey - s*ex;
+        for (unsigned j = 0; j < _system_Nx; ++j) {
+#pragma HLS PIPELINE
+            _system_hw_real tmp_err;
+            _system_hw_real Q_local;
+            if (j == 0) {
+                tmp_err = e_lat;
+                Q_local = last ? _rd_Qf_pf[0] : _rd_Q_pf[0];
+            } else if (j == 1) {
+                tmp_err = e_lon;
+                Q_local = last ? _rd_Qf_pf[1] : _rd_Q_pf[1];
+            } else {
+                tmp_err = xh[j] - xr[j];
+                if (controlled_state[j] == 2) {
+                    if (tmp_err > top_pi)
+                        tmp_err -= top_two_pi;
+                    else if (tmp_err <= -top_pi)
+                        tmp_err += top_two_pi;
+                } else if (controlled_state[j] != 1)
+                    tmp_err = (_system_hw_real)0.0;
+                Q_local = last ? Qf[j] : Q[j];
+            }
+            _system_hw_real penality;
+            if ((state_lower_limits[j] <= xh[j]) && (xh[j] <= state_upper_limits[j]))
+                penality = (_system_hw_real)Q_local;
+            else
+                penality = (_system_hw_real)1e4;
+            Ji_out[j] = Ji_in[j] + penality*tmp_err*tmp_err;
+        }
+    }
+#endif
 
 // ---------------------------------------------------
 	void nmpc_cost_function(

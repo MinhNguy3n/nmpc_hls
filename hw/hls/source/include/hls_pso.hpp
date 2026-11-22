@@ -44,6 +44,9 @@ int execute(
 	
 	_pso_hw_real new_best[_pso_Nu*_pso_n_U],
 	_pso_hw_real J[1]
+#ifdef PSO_RD_ANY
+	, _pso_hw_real rd_aux[_RD_AUX_LEN]	// PSO redesign: the host's rd_aux buffer (config.hpp layout)
+#endif
 );
 
 // Top Functions
@@ -78,6 +81,9 @@ void initializeParticles_set(
 	_pso_hw_real local_u_min[_pso_n_U],
 	_pso_hw_real local_u_max[_pso_n_U],	
 	_pso_hw_real local_uss[_pso_n_U]
+#ifdef PSO_RD_ANY
+	, _pso_hw_real rd_aux[_RD_AUX_LEN]
+#endif
 	
 #ifdef __SYNTHESIS__
 	,_rand_real_stream &__rand_port
@@ -169,6 +175,10 @@ void evaluateFitnessAndDetectLocalBest(
 
 	_pso_hw_real *local_xref,//[_pso_Nx*_pso_Nu], 
 	_pso_hw_real *local_f_ind//[_pso_n_U],
+#ifdef PSO_RD_ANY
+	, _pso_hw_real *rd_u_curr	// PSO redesign: u_curr (increment cost)
+	, _pso_hw_real *rd_aux		// PSO redesign: the host's rd_aux buffer
+#endif
 	// _pso_hw_real *local_fx//[_pso_n_U],
 );
 // ---------------------------------------------------
