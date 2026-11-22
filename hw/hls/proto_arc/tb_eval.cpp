@@ -31,6 +31,20 @@ static double tiny(void) {
     return (std::rand() & 1) ? mag : -mag;
 }
 
+#ifdef UNICYCLE_CONFIG
+// Unicycle [x, y, psi]: random pose (psi over the full circle, so the reference psi = psi +- drift
+// below also crosses +-pi and exercises the wrapped residual), exact zero (the host's local frame),
+// or tiny values.
+static void make_state(top_t *x, int cls) {
+    for (int i = 0; i < TB_NX; i++) x[i] = 0;
+    if (cls == 1) return;
+    if (cls == 2) {
+        for (int i = 0; i < TB_NX; i++) x[i] = tiny();
+        return;
+    }
+    x[0] = uniform(-10, 10);  x[1] = uniform(-10, 12);  x[2] = uniform(-3.2, 3.2);
+}
+#else
 // Current state: closed-loop-like, exact zero, or tiny rates/tilts (near hover).
 static void make_state(top_t *x, int cls) {
     for (int i = 0; i < TB_NX; i++) x[i] = 0;
@@ -45,6 +59,7 @@ static void make_state(top_t *x, int cls) {
     for (int i = 6; i < 9; i++) x[i] = uniform(-3, 3);
     for (int i = 9; i < 12; i++) x[i] = uniform(-2, 2);
 }
+#endif
 
 // A particle's control sequence: random, saturated, hover (all zero), small, or a slow ramp
 // that respects |du| <= 20 like the PSO's update.

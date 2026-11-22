@@ -26,15 +26,25 @@ if {[info exists ::env(PROTO_SEED)]} { set seed $::env(PROTO_SEED) }
 set cosim_opts ""
 if {[info exists ::env(PROTO_NODEADLOCK)] && $::env(PROTO_NODEADLOCK)} { set cosim_opts "-disable_deadlock_detection" }
 set src ${here}/../source/src
-if {$dut eq "new"} {
-    set inc ${here}/gen/S${S}/include
+# PROTO_MODEL=unicycle: the UNICYCLE_CONFIG header sets (gen_eval_headers.sh with the same variable).
+set model sniffbot
+if {[info exists ::env(PROTO_MODEL)]} { set model $::env(PROTO_MODEL) }
+if {$model eq "unicycle"} {
+    set P uni_; set cfg_def UNICYCLE_CONFIG
+} elseif {$model eq "sniffbot"} {
+    set P ""; set cfg_def SNIFFBOT_CONFIG
 } else {
-    set inc ${here}/gen/ref_S${S}/include
+    error "unknown PROTO_MODEL $model"
 }
-set c_flags "-D__VITIS__ -DPSO_CONFIG -DUSE_FAST_SIN_COS -DSNIFFBOT_CONFIG -DPROTO_II=${II} -I${here} -I${inc} -I${inc}/models -std=c++11 -Wno-unknown-pragmas"
+if {$dut eq "new"} {
+    set inc ${here}/gen/${P}S${S}/include
+} else {
+    set inc ${here}/gen/${P}ref_S${S}/include
+}
+set c_flags "-D__VITIS__ -DPSO_CONFIG -DUSE_FAST_SIN_COS -D${cfg_def} -DPROTO_II=${II} -I${here} -I${inc} -I${inc}/models -std=c++11 -Wno-unknown-pragmas"
 set tb_flags "${c_flags} -DHW_ARITH_CSIM"
 
-open_project -reset proj_eval_${dut}_S${S}_II${II}
+open_project -reset proj_eval_${P}${dut}_S${S}_II${II}
 set_top evaluateFitnessAndDetectLocalBest
 if {$dut eq "new"} {
     add_files ${here}/eval_multi.cpp -cflags $c_flags -csimflags $tb_flags
