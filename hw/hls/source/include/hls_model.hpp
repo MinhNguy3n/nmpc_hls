@@ -5,6 +5,8 @@
 #include "hls_inverted_pendulum.hpp"
 #elif defined(SNIFFBOT_CONFIG)
 #include "hls_sniffbot.hpp"
+#elif defined(UNICYCLE_CONFIG)
+#include "models/hls_unicycle.hpp"
 #elif defined(PANDA_CONFIG)
 #include "hls_panda.hpp"
 #endif

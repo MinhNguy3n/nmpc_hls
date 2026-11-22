@@ -167,6 +167,56 @@ const _hw_top_real rand_max = 1.0;
 
     #define  _Rising_Time 0
     const _hw_top_real _tr[] =  {10, 10, 10, 0, 0, 8, 0, 0, 0, 0, 0, 0};
+#elif defined(UNICYCLE_CONFIG)
+
+    // Unicycle (Husky A300 SIL model): state [x (m), y (m), psi (rad)], control [v, omega] in
+    // normalized units (+-100; the model maps them to m/s and rad/s, models/hls_unicycle.hpp).
+    // Sources: docs/husky_a300/unicycle_mpc_pso_model.md (model note) sections 7.1-7.4 and 8;
+    // app/husky/sil/pso.py CostConfig and sil/controller.py CoreConfig (branch husky-unicycle-mpc).
+    // PROVISIONAL: every limit and weight below comes from the A300 Gazebo SIL envelope or the
+    // open weight comparison; none is an A200 or robot value. Evaluator latency does not depend
+    // on these values. The PSO parameters (_n_S, _maxiter, _max_v, _w0, _wf, _c1, _c2) are the
+    // shared definitions above, the same values as sil/pso.py PsoConfig.
+    #define _Nh 25
+    #define _Nu 25      // = _Nh: the engine reads u_k as cg[p][k*n_U + j]
+    #define _Nx 3
+    #define _n_U 2
+    const _hw_top_real  _Ts = 0.05;
+    const _hw_top_real  _u_max[] =  {100, 100};
+    const _hw_top_real  _u_min[] =  {-100, -100};
+    // PROVISIONAL (A300 SIL envelope v in [0, 0.3] m/s, |omega| <= 0.75 rad/s; accel 2 / decel 4 m/s^2,
+    // alpha 4 rad/s^2): du_max = 100 min(rate) Ts / half-range per dimension (model note 7.4),
+    // = unicycle_model.normalized_slew_limits(). The shared PSO velocity clamp _max_v = 30 binds in v.
+    const _hw_top_real  _du_max[] =  {
+        66.6666667,
+        26.6666667
+    };
+    // z_v(v = 0) = -100 (v_min = 0), omega 0: the effort term pulls toward standstill (model note 8)
+    const _hw_top_real  _uss[] = {-100.0, 0.0};
+
+    #define  _Parametrization 0
+    // Not used by the evaluator; mirrored from the quadrotor block so code naming them compiles.
+    const _hw_top_real  _Lambda = 5;
+    const _hw_top_real  _q_param = 2;
+    const _hw_top_real  _pmax[] =  {1, 1};
+    const _hw_top_real  _pmin[] =  {-1, -1};
+
+    // psi uses the wrapped residual (controlled_state 2, commit 8c61f1b); the host solves in the
+    // local frame (x0 = y0 = psi0 = 0), so |psi| <= Nh omega_max Ts = 0.94 rad here.
+    const unsigned short _controlled_state[] = {1, 1, 2};
+    // No psi limit (it would switch the cost to the 1e4 penalty): +-1e3 on every state.
+    const _hw_top_real  _state_upper_limits[_Nx] =  {1e3, 1e3, 1e3};
+    const _hw_top_real  _state_lower_limits[_Nx] =  {-1e3, -1e3, -1e3};
+    // PROVISIONAL weights = sil/pso.py CostConfig: q (1, 1, 1), qf (10, 10, 3) [1/m^2, 1/m^2, 1/rad^2];
+    // r (0, 5e-5) per normalized unit^2 (R_v = 0, model note 7.3). 5e-5 is below the ap_fixed<32,17>
+    // resolution (2^-15 = 3.05e-5) and is stored as 6.10e-5 (2 LSB); the 5e-6 candidate of the open
+    // weight comparison would round to 0. Weight comparison open (GPT-6 review 2026-11-19).
+    const _hw_top_real  _Q[] =  {1, 1, 1};
+    const _hw_top_real  _Qf[] =  {10, 10, 3};
+    const _hw_top_real  _R[] =  {0.0, 0.00005};
+
+    #define  _Rising_Time 0
+    const _hw_top_real _tr[] =  {0, 0, 0};
 #endif
 
 #if defined(_POSIX_MONOTONIC_CLOCK)
