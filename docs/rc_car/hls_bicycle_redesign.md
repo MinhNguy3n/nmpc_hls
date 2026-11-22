@@ -25,6 +25,8 @@
 | `PSO_RD_UREF` | Effort about the host's per-stage reference control (W_r (u − u_ref))² instead of R (u − uss)² | the section 9.3 cost (q_v, r_κ) of every simulated NMPC arm |
 | `PSO_RD_ALL` | All five: the simulated candidate controller | `redesign_smooth` |
 
+**The candidate is `PSO_RD_ALL` = R1+R2+R3+R4+UREF.** The brief (`2026-11-22-claude-to-claude-rc-car-bh-review-next.md`) named only R1–R4. `PSO_RD_UREF` was added here, and the STOP H review accepted it.
+
 **Why UREF is separate from R1–R4:** the simulated controllers (phase 4 and the redesign) always used the section 9.3 cost: a speed and curvature reference plus the increments. The deployed HLS cost never had either; it has R·(u − uss)². So "R1–R4 on" alone would not be the simulated controller. `PSO_RD_R4` carries both increment weights (s_dv = 1 as in phase 4, s_dκ = 10 the R4 value). `PSO_RD_UREF` carries q_v and r_κ.
 
 **Square-root weights:** in normalized units r_κ (κ_max/100)² = 1.8e-5 is below one LSB of `ap_fixed<32,17>` (3.05e-5). The new terms therefore store √weight (`_rd_Wr`, `_rd_Ws`) and add (W e)²; the weighted error is rounded once to the top type.
@@ -32,6 +34,8 @@
 **Stage A vs the simulated Stage B:** the HLS model is integrated by the existing RK4 (`one_step_prediction`), as the brief asks ("the unicycle header with ψ' = v·κ"). The Python controller in Gazebo predicted with the chord step (the October note's Stage B). The check measures the effect on the cost and the solver result.
 
 ## 2. The matching change list for `arc-shared-rollout/hw/hls/proto_arc/eval_multi.cpp` (not edited; owner: the ARC session)
+
+**The patch:** `docs/rc_car/arc_bicycle_eval.patch` implements this list. Its header has the files, the build and the check order. It is not applied; the ARC session applies it after 27 Nov.
 
 The interleaved evaluator replaces `evaluateFitnessAndDetectLocalBest`. With switches off nothing changes. With them on:
 
@@ -87,3 +91,15 @@ The interleaved evaluator replaces `evaluateFitnessAndDetectLocalBest`. With swi
    - `current_mem` grows by `_RD_AUX_LEN + n_U` words;
    - the `mem_bank` address constants must be re-laid out;
    - all five IP cores are rebuilt together (October note section 10).
+
+## 4. Open issues in the existing sources (found at STOP H; not fixed, by decision of the STOP H review)
+
+Each fix changes the switches-off outputs, so it goes into a separate change, checked on its own (O1/O2 re-baselined), after the ARC submission.
+
+| # | Issue | Where | One-line fix |
+|---|---|---|---|
+| 1 | `execute()` returns an uninitialized J: it reads `bestfitness[_pso_maxiter-1]`, a local array that is never written (`local_bestfitness` is). `nonlinear_solver_wrapper`'s J and `main_hls_validate solve`'s "J" line are garbage; the deployed FSM path (`bestfitness_top`) is correct | `src/hls_pso.cpp`, `execute()` | `J[0] = local_bestfitness[_pso_maxiter-1];` |
+| 2 | `nonlinear_solver_wrapper` copies only `_Nu*_Nx` reference values into `my_xref[_Nx*_Nh]`: correct only while `_Nu = _Nh` (fixed under `PSO_RD_R2` by an extra copy) | `src/hls_nonlinear_solver.cpp` | `memcpy_loop_rolled<_hw_top_real, float, _Nh*_Nx>(my_xref, (float *)xref );` |
+| 3 | `encode_fixed` rounds with `ceil`: a +1 LSB (3.05e-5) bias on every host input; the C checks round to nearest | `app/kria-pynq/nmpc_overlay.py` | `v = np.asarray(values, dtype=np.float64); scaled = np.sign(v) * np.floor(np.abs(v) * FIXED_SCALE + 0.5)` (round half away from zero, as AP_RND_INF) |
+| 4 | `initializeStableZero` stores the pre-box value in `x_ant_tmp` (harmless while `_uss` is inside the box; October note §9.5) | `src/hls_pso.cpp` | `x_ant_tmp[i] = local_x[index*part_S + idx];` (after the box clamp) |
+

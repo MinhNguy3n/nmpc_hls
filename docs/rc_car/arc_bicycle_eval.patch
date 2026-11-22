@@ -1,0 +1,478 @@
+ARC engine patch: bicycle model + PSO redesign switches in the interleaved evaluator (C level)
+=============================================================================================
+
+Prepared 2026-11-22 by the RC-car agent (worktree agent-a7f53c7be12d59b73, branch husky-unicycle-mpc)
+for the ARC session (STOP H review, item 2). NOT APPLIED. To be applied by the ARC session after the
+ARC submission (27 Nov), unless the user decides otherwise. No synthesis or cosim before then.
+
+Base: arc-shared-rollout HEAD 3145854 plus its uncommitted (untracked) hw/hls/proto_arc files, as of
+2026-11-22 20:3x. sha256 of the five base files when the patch was made:
+  2bd5d285fc79829d85d29a9747fbfeb3275352c7f5b7ad4c6348b1ceb222ba25  eval_multi.cpp
+  405464050198660a7ee1151c60c66ff40eed402b967f5e761856efb0467710be  gen_headers.sh
+  cffb3ce9ebd656c87373edb8345641287f69e8e4bc0c11035326a8ff2b16115b  gen_eval_headers.sh
+  939242bde8ae80281034f7526fc0f0fe528eb4dea5fde67f62e2b93e84a61a22  run_eval_csim.sh
+  330e717280b5fcd9c7ca85f42110efe74f5264587ee72fe4f5f28bba788ed0e5  tb_eval.cpp
+
+Files it touches (all in hw/hls/proto_arc; nothing in hw/hls/source):
+  eval_multi.cpp       two inputs under PSO_RD_ANY (rd_u_curr, rd_aux, current_mem); R2 knot
+                       interpolation of the stage input; UREF/R4 control term with a per-particle uprev
+                       array; R3 path-frame rotation at s == 3. Copies of the expressions of
+                       System::rd_stage_u, rd_one_step_u_error and rd_one_step_error_pf.
+  tb_eval.cpp          BICYCLE_CONFIG uses the unicycle state generator; under PSO_RD_ANY random
+                       u_curr / rd_aux inputs (no extra start; reference control in the box; cos, sin of
+                       random headings) passed to the evaluator
+  gen_headers.sh       PROTO_MODEL=bicycle: overlays ALL 7 changed solver files (config.hpp,
+                       hls_model.hpp, hls_system.hpp, hls_pso.hpp, hls_nonlinear_solver.hpp, hls_pso.cpp,
+                       hls_nonlinear_solver.cpp) plus models/hls_bicycle.hpp and main_hls_bicycle_test.cpp
+                       from BIC_SRC (default ../../../../agent-a7f53c7be12d59b73/hw/hls/source) into
+                       gen/bic_src/{include,src}; each of the 7 must pass the pure-addition check
+                       (diff | grep '^<' empty); model_pipe.hpp from hls_bicycle.hpp into gen/bic_include
+  gen_eval_headers.sh  bicycle case (gen/bic_S<S>, gen/bic_ref_S<S>), always regenerated
+  run_eval_csim.sh     bicycle case: -DBICYCLE_CONFIG plus PROTO_RD (default -DPSO_RD_ALL); the reference
+                       evaluator is built from gen/bic_src/src (the overlaid hls_pso.cpp and
+                       hls_nonlinear_solver.cpp), not ../source/src
+
+Switches off (SNIFFBOT_CONFIG, UNICYCLE_CONFIG): the preprocessed token streams of eval_multi.cpp and
+tb_eval.cpp are identical to the base (checked; 833,870 / 828,376 tokens for SNIFFBOT).
+
+Overlay sources: husky-unicycle-mpc commit aea2a2d ("feat(hls): bicycle model and the PSO redesign
+switches"), unchanged since; sha256 at patch time:
+  754cfe60c09a779fc1311e95b142143e8417f4a82c90a62051c72a2f28f6a73e  include/config.hpp
+  66553dcf2574b8ad81bf0f6ea5e1eefe282c3907280355c3bd0a5415c4e30e06  include/hls_model.hpp
+  eb7ba62bdc3c474c6a8ab8410e40877a243a7f8dadce30e11f3dc9c714e1c240  include/hls_system.hpp
+  a3822b54767af30e30c4b22cd81a481842d0609d615121a01143d932d13ecfe7  include/hls_pso.hpp
+  b2758a336a449a39e62c0a4adfc6b7df8ef2c43861a165fdd2a8b38a18ea25d1  include/hls_nonlinear_solver.hpp
+  08417a77245ea88ba2305858df15ba49eeb08d7de7969d817138a9a7096b36b3  src/hls_pso.cpp
+  1a74d161dc1c48335868d6573a17171c6f0f17f67f49fecb09c8acbcec4da70d  src/hls_nonlinear_solver.cpp
+  92a088fdb0037dbdc1e62f75d88301d1d0208f9da1957a53b657374b84699f09  include/models/hls_bicycle.hpp
+  b2674045997b3b73869ec1e073dca67734b06ea98a6ca8cf45a1bc33c4328971  src/main_hls_bicycle_test.cpp
+
+How to build PSO_RD_ALL (the candidate controller; R1+R2+R3+R4+UREF, 10x40):
+  -DBICYCLE_CONFIG -DPSO_RD_ALL   (with the usual -DPSO_CONFIG -DHW_ARITH_CSIM -DUSE_FAST_SIN_COS
+                                   -DHW_MODEL_HALF_CSIM for the half-model C build)
+  Single switches: -DPSO_RD_R1, -DPSO_RD_R2, -DPSO_RD_R3, -DPSO_RD_R4, -DPSO_RD_UREF. Under R2, _Nu = 5
+  (knots) and EV_PART = 10. The switches are defined for BICYCLE_CONFIG only (#error otherwise).
+
+C check to run FIRST (before any RTL comparison, synthesis or cosim):
+  1. git apply --check arc_bicycle_eval.patch && git apply arc_bicycle_eval.patch
+     Run it from the arc-shared-rollout ROOT: run from a subdirectory of a repository, git apply silently
+     skips paths outside that directory (and still exits 0). Verified 2026-11-22 on a copy of the five base
+     files outside any repository: applies cleanly and reproduces the tested files byte for byte.
+  2. PROTO_MODEL=bicycle ./gen_headers.sh      -> pure-addition check of the 7 files; generated bic sets
+  3. PROTO_MODEL=bicycle ./run_eval_csim.sh 10 8 10
+       eval csim: eval_multi.cpp against the deployed evaluator compiled from the overlaid sources, i.e.
+       System::nmpc_cost_function_topflow as main_hls_bicycle_test.cpp `cost` runs it (that driver's
+       results equal the bit-level emulation on 7 x 540 plans: app/rc_car/hls_bicycle_check.py, C1).
+       Expected: "C(new) vs C(deployed source): IDENTICAL". Repeat with PROTO_RD="-DPSO_RD_R2" (and R3,
+       R4, UREF, R1, and "-DNO_PSO_RD" for no switch).
+  4. Regression: ./run_eval_csim.sh 3 and PROTO_MODEL=unicycle ./run_eval_csim.sh 10 still IDENTICAL.
+  Result of steps 2-3 in the RC-car agent's copy (2026-11-22, serialized copy of the script, S = 10,
+  II = 8, 10 trials x 3 calls): IDENTICAL for PSO_RD_ALL (3,300 words), R2 (3,300), R3, R4, UREF, R1
+  and no switch (15,300 each).
+  Then (after 27 Nov): cmp_eval_rtl.sh / cosim, as for the unicycle.
+
+diff --git a/hw/hls/proto_arc/eval_multi.cpp b/hw/hls/proto_arc/eval_multi.cpp
+index a390c51..a90136e 100644
+--- a/hw/hls/proto_arc/eval_multi.cpp
++++ b/hw/hls/proto_arc/eval_multi.cpp
+@@ -12,6 +12,11 @@
+ // Then J_error's sequential sums, then the local-best update. Every arithmetic expression is
+ // copied from hls_system.hpp / hls_pso.cpp; the type conversions and fixed-point updates are
+ // shared non-inlined functions (see rk4_multi.cpp for why).
++//
++// PSO redesign (BICYCLE_CONFIG with -DPSO_RD_*; config.hpp of the husky-unicycle-mpc worktree, overlaid by
++// gen_headers.sh PROTO_MODEL=bicycle): two more inputs (rd_u_curr, rd_aux) and, per switch, the
++// expressions of System::rd_stage_u (R2), rd_one_step_u_error (UREF, R4) and rd_one_step_error_pf (R3),
++// copied here as non-inlined functions. With no PSO_RD_* switch the preprocessed code is unchanged.
+ #include "hls_pso.hpp"
+ #include "model_pipe.hpp"
+ 
+@@ -33,6 +38,10 @@ static const unsigned int n_S_ev = EV_S;
+ static const unsigned int Nx_ev = EV_NX;
+ static const unsigned int size_xref_ev = _Nx * _Nh;
+ static const unsigned int part_S_mem_ev = EV_S * EV_PART;
++#ifdef PSO_RD_ANY
++static const unsigned int n_U_ev = EV_NU;
++static const unsigned int aux_len_ev = _RD_AUX_LEN;
++#endif
+ 
+ #ifndef PROTO_CONV
+ #define PROTO_CONV ((EV_NX + PROTO_II - 1) / PROTO_II)
+@@ -92,6 +101,57 @@ static top_t state_error_term(top_t Ji_in, top_t current_x_hat, top_t current_x_
+     return r;
+ }
+ 
++#if defined(PSO_RD_UREF) || defined(PSO_RD_R4)
++// One component of System::rd_one_step_u_error (PSO redesign: reference control, increment).
++static top_t u_error_term_rd(top_t Jui_in, top_t current_uu, top_t uref_j, top_t uprev_j, int j) {
++#pragma HLS INLINE off
++#ifdef PSO_RD_UREF
++    const top_t tmp_err = current_uu - uref_j;
++#else
++    const top_t tmp_err = current_uu - _uss[j];
++#endif
++#ifdef PSO_RD_R4
++    const top_t du_w = _rd_Ws[j] * (current_uu - uprev_j);
++#else
++    const top_t du_w = 0.0;
++#endif
++    top_t r;
++    if ((_u_min[j] <= current_uu) && (current_uu <= _u_max[j])) {
++#ifdef PSO_RD_UREF
++        const top_t e_w = _rd_Wr[j] * tmp_err;
++        r = Jui_in + e_w * e_w + du_w * du_w;
++#else
++        r = Jui_in + _R[j] * tmp_err * tmp_err + du_w * du_w;
++#endif
++    } else
++        r = Jui_in + (top_t)1e4 * tmp_err * tmp_err + du_w * du_w;
++    return r;
++}
++#endif
++
++#ifdef PSO_RD_R3
++// System::rd_one_step_error_pf, position part: the path-frame errors from the host's (cos, sin).
++static void pf_rotate(top_t ex, top_t ey, top_t c, top_t s, top_t *e_lat, top_t *e_lon) {
++#pragma HLS INLINE off
++    const top_t lon = c * ex + s * ey;
++    const top_t lat = c * ey - s * ex;
++    *e_lat = lat;
++    *e_lon = lon;
++}
++// One weighted path-frame term (component j = 0 lateral, 1 along-track), as rd_one_step_error_pf.
++static top_t pf_error_term(top_t Ji_in, top_t x_hat_j, top_t tmp_err, int j, bool last) {
++#pragma HLS INLINE off
++    const top_t Q_local = last ? _rd_Qf_pf[j] : _rd_Q_pf[j];
++    top_t penality;
++    if ((_state_lower_limits[j] <= x_hat_j) && (x_hat_j <= _state_upper_limits[j]))
++        penality = (top_t)Q_local;
++    else
++        penality = (top_t)1e4;
++    top_t r = Ji_in + penality * tmp_err * tmp_err;
++    return r;
++}
++#endif
++
+ // One component of System::one_step_u_error.
+ static top_t u_error_term(top_t Jui_in, top_t current_uu, int j) {
+ #pragma HLS INLINE off
+@@ -110,12 +170,21 @@ void evaluateFitnessAndDetectLocalBest(
+     _pso_hw_real local_y[_pso_n_S * _pso_Nu * _pso_n_U],
+     _pso_hw_real local_x_curr[_pso_Nx],
+     _pso_hw_real local_xref[_pso_Nx * _pso_Nu],
+-    _pso_hw_real local_find[_pso_n_S]) {
++    _pso_hw_real local_find[_pso_n_S]
++#ifdef PSO_RD_ANY
++    , _pso_hw_real rd_u_curr[_pso_n_U]
++    , _pso_hw_real rd_aux[_RD_AUX_LEN]
++#endif
++    ) {
+ #pragma HLS INTERFACE mode=m_axi port=local_x offset=off depth=part_S_mem_ev bundle=x_mem
+ #pragma HLS INTERFACE mode=m_axi port=local_y offset=off depth=part_S_mem_ev bundle=y_mem
+ #pragma HLS INTERFACE mode=m_axi port=local_x_curr offset=direct depth=Nx_ev bundle=current_mem
+ #pragma HLS INTERFACE mode=m_axi port=local_xref offset=direct depth=size_xref_ev bundle=current_mem
+ #pragma HLS INTERFACE mode=m_axi port=local_find offset=direct depth=n_S_ev bundle=pso_mem
++#ifdef PSO_RD_ANY
++#pragma HLS INTERFACE mode=m_axi port=rd_u_curr offset=direct depth=n_U_ev bundle=current_mem
++#pragma HLS INTERFACE mode=m_axi port=rd_aux offset=direct depth=aux_len_ev bundle=current_mem
++#endif
+ 
+     // Same constants as the System constructor.
+     const top_t Ts = _Ts;
+@@ -136,11 +205,25 @@ void evaluateFitnessAndDetectLocalBest(
+ #pragma HLS ARRAY_PARTITION variable=Ji  type=complete dim=2
+ #pragma HLS ARRAY_PARTITION variable=Jui type=complete dim=2
+     top_t fx[EV_S];
++#ifdef PSO_RD_ANY
++    top_t aux_l[_RD_AUX_LEN];
++    top_t uprev[EV_S][EV_NU];  // u_{i-1} per particle (u_curr at step 0), for PSO_RD_R4
++#pragma HLS ARRAY_PARTITION variable=uprev type=complete dim=2
++#endif
+ 
+ load_x: for (int k = 0; k < EV_S * EV_PART; k++)
+         cg[k / EV_PART][k % EV_PART] = local_x[k];
+ load_ref: for (int k = 0; k < EV_NX * EV_NH; k++)
+         xref_l[k / EV_NX][k % EV_NX] = local_xref[k];
++#ifdef PSO_RD_ANY
++load_aux: for (int k = 0; k < _RD_AUX_LEN; k++)
++        aux_l[k] = rd_aux[k];
++load_uprev: for (int j = 0; j < EV_NU; j++) {
++        const top_t v = rd_u_curr[j];
++        for (int p = 0; p < EV_S; p++)
++            uprev[p][j] = v;
++    }
++#endif
+ load_state: for (int i = 0; i < EV_NX; i++) {
+         const top_t v = local_x_curr[i];
+         for (int p = 0; p < EV_S; p++) {
+@@ -163,6 +246,9 @@ horizon: for (int step = 0; step < EV_NH; step++) {
+ #pragma HLS DEPENDENCE variable=xs  type=inter false
+ #pragma HLS DEPENDENCE variable=Ji  type=inter false
+ #pragma HLS DEPENDENCE variable=Jui type=inter false
++#ifdef PSO_RD_ANY
++#pragma HLS DEPENDENCE variable=uprev type=inter false
++#endif
+ #pragma HLS ALLOCATION function instances=to_model limit=PROTO_CONV
+ #pragma HLS ALLOCATION function instances=to_top limit=PROTO_CONV
+ #pragma HLS ALLOCATION function instances=stage_update limit=PROTO_CONV
+@@ -172,18 +258,38 @@ horizon: for (int step = 0; step < EV_NH; step++) {
+                 top_t uu[EV_NU];
+                 model_t um[EV_NU];
+                 for (int j = 0; j < EV_NU; j++) {
++#ifndef PSO_RD_R2
+                     uu[j] = cg[p][step * EV_NU + j];   // get_next_uu: Nu == Nh, so u_i = cg[i*n_U..]
++#else
++                    {   // R2 (System::rd_stage_u): the knots interpolated, one rounding
++                        const int kj = _rd_knot_j[step];
++                        const top_t a = _rd_knot_a[step];
++                        const top_t z0 = cg[p][kj * EV_NU + j];
++                        const top_t z1 = cg[p][(kj + 1) * EV_NU + j];
++                        uu[j] = z0 + a * (z1 - z0);
++                    }
++#endif
+                     um[j] = to_model(uu[j]);
+                 }
++#if !(defined(PSO_RD_UREF) || defined(PSO_RD_R4))
+                 if (s == 0)
+                     for (int j = 0; j < EV_NU; j++)
+                         Jui[p][j] = u_error_term(Jui[p][j], uu[j], j);
++#else
++                if (s == 0)
++                    for (int j = 0; j < EV_NU; j++) {
++                        Jui[p][j] = u_error_term_rd(Jui[p][j], uu[j], aux_l[_RD_AUX_UREF + step * EV_NU + j],
++                                                    uprev[p][j], j);
++                        uprev[p][j] = uu[j];
++                    }
++#endif
+ 
+                 model_t sm[EV_NX], sdm[EV_NX];
+                 for (int i = 0; i < EV_NX; i++)
+                     sm[i] = to_model((s == 0) ? xs[p][i] : tmp[p][i]);
+                 __model_pipe<model_t>(sdm, sm, um);
+ 
++#ifndef PSO_RD_R3
+                 for (int i = 0; i < EV_NX; i++) {
+                     const top_t kk = to_top(sdm[i]);
+                     if (s < 3) {
+@@ -197,6 +303,33 @@ horizon: for (int step = 0; step < EV_NH; step++) {
+                         xs[p][i] = xn;
+                     }
+                 }
++#else
++                // R3: the path-frame rotation needs both position components of the new state at once.
++                top_t xn3[EV_NX];
++                for (int i = 0; i < EV_NX; i++) {
++                    const top_t kk = to_top(sdm[i]);
++                    if (s < 3) {
++                        if (s == 0) k1[p][i] = kk;
++                        else if (s == 1) k2[p][i] = kk;
++                        else k3[p][i] = kk;
++                        tmp[p][i] = stage_update(xs[p][i], Ts_local, kk);
++                    } else
++                        xn3[i] = final_update(xs[p][i], k1[p][i], k2[p][i], k3[p][i], kk, Ts_6);
++                }
++                if (s == 3) {
++                    const bool last = (step == EV_NH - 1);
++                    const top_t ex = xn3[0] - xref_l[step][0];
++                    const top_t ey = xn3[1] - xref_l[step][1];
++                    top_t e_lat, e_lon;
++                    pf_rotate(ex, ey, aux_l[_RD_AUX_CS + 2 * step], aux_l[_RD_AUX_CS + 2 * step + 1], &e_lat, &e_lon);
++                    Ji[p][0] = pf_error_term(Ji[p][0], xn3[0], e_lat, 0, last);
++                    Ji[p][1] = pf_error_term(Ji[p][1], xn3[1], e_lon, 1, last);
++                    for (int i = 2; i < EV_NX; i++)
++                        Ji[p][i] = state_error_term(Ji[p][i], xn3[i], xref_l[step][i], i, last);
++                    for (int i = 0; i < EV_NX; i++)
++                        xs[p][i] = xn3[i];
++                }
++#endif
+             }
+         }
+     }
+diff --git a/hw/hls/proto_arc/gen_eval_headers.sh b/hw/hls/proto_arc/gen_eval_headers.sh
+index a140487..2bbc822 100755
+--- a/hw/hls/proto_arc/gen_eval_headers.sh
++++ b/hw/hls/proto_arc/gen_eval_headers.sh
+@@ -7,6 +7,7 @@
+ #                          With S equal to the configured _n_S (3) it is byte-identical.
+ # PROTO_MODEL=unicycle: the same from gen/uni_src/include (see gen_headers.sh), into
+ #   gen/uni_S<S>/include and gen/uni_ref_S<S>/include.
++# PROTO_MODEL=bicycle: the same from gen/bic_src/include, into gen/bic_S<S>/include and gen/bic_ref_S<S>/include.
+ set -euo pipefail
+ here="$(cd "$(dirname "$0")" && pwd)"
+ S="$1"
+@@ -14,10 +15,11 @@ model="${PROTO_MODEL:-sniffbot}"
+ case "$model" in
+ sniffbot) P=""; src="$here/../source/include"; pipe="$here/gen/include" ;;
+ unicycle) P="uni_"; src="$here/gen/uni_src/include"; pipe="$here/gen/uni_include" ;;
++bicycle) P="bic_"; src="$here/gen/bic_src/include"; pipe="$here/gen/bic_include" ;;
+ *) echo "unknown PROTO_MODEL=$model" >&2; exit 2 ;;
+ esac
+-# The unicycle set is always regenerated, so it follows the current UNI_SRC files.
+-if [ "$model" = unicycle ] || [ ! -f "$pipe/models/model_pipe.hpp" ]; then "$here/gen_headers.sh" >/dev/null; fi
++# The unicycle and bicycle sets are always regenerated, so they follow the current UNI_SRC / BIC_SRC files.
++if [ "$model" = unicycle ] || [ "$model" = bicycle ] || [ ! -f "$pipe/models/model_pipe.hpp" ]; then "$here/gen_headers.sh" >/dev/null; fi
+ for kind in "${P}S$S" "${P}ref_S$S"; do
+     out="$here/gen/$kind/include"
+     rm -rf "$here/gen/$kind"; mkdir -p "$here/gen/$kind"
+diff --git a/hw/hls/proto_arc/gen_headers.sh b/hw/hls/proto_arc/gen_headers.sh
+index 92b9ed8..7775255 100755
+--- a/hw/hls/proto_arc/gen_headers.sh
++++ b/hw/hls/proto_arc/gen_headers.sh
+@@ -16,6 +16,18 @@
+ #                                (default: its worktree). The overlay must be a pure addition to
+ #                                config.hpp and hls_model.hpp; the hashes are written next to it.
+ #   gen/uni_include/             as gen/include, with model_pipe.hpp made from hls_unicycle.hpp.
++#
++# PROTO_MODEL=bicycle builds the same for the RC car's bicycle model with the PSO redesign switches:
++#   gen/bic_src/{include,src}    source/{include,src} plus the RC-car agent's 7 changed solver files
++#                                (config.hpp, hls_model.hpp, hls_system.hpp, hls_pso.hpp,
++#                                hls_nonlinear_solver.hpp, hls_pso.cpp, hls_nonlinear_solver.cpp), the new
++#                                models/hls_bicycle.hpp and its C driver main_hls_bicycle_test.cpp, from
++#                                BIC_SRC (default: that worktree's hw/hls/source). Each changed file must
++#                                be a pure addition to the ARC source; the hashes are written next to it.
++#                                The evaluator includes hls_system.hpp, and the reference evaluator is
++#                                built from gen/bic_src/src (run_eval_csim.sh), so all 7 are overlaid.
++#   gen/bic_include/             as gen/include, with model_pipe.hpp made from hls_bicycle.hpp.
++#   Build flags: -DBICYCLE_CONFIG plus the switches (-DPSO_RD_ALL = R1+R2+R3+R4+UREF, the candidate).
+ set -euo pipefail
+ here="$(cd "$(dirname "$0")" && pwd)"
+ model="${PROTO_MODEL:-sniffbot}"
+@@ -42,6 +54,30 @@ unicycle)
+     echo "$uni_src" > "$here/gen/uni_src/OVERLAY.from"
+     src="$base"
+     out="$here/gen/uni_include"; mfile="$src/models/hls_unicycle.hpp"; guard=HLS_UNICYCLE_HPP ;;
++bicycle)
++    bic_src="${BIC_SRC:-$here/../../../../agent-a7f53c7be12d59b73/hw/hls/source}"
++    [ -f "$bic_src/include/models/hls_bicycle.hpp" ] || { echo "no include/models/hls_bicycle.hpp under $bic_src" >&2; exit 1; }
++    arc="$src/.."
++    root="$here/gen/bic_src"
++    rm -rf "$root"; mkdir -p "$root"
++    cp -r "$arc/include" "$root/include"
++    cp -r "$arc/src" "$root/src"
++    for f in include/config.hpp include/hls_model.hpp include/hls_system.hpp include/hls_pso.hpp \
++             include/hls_nonlinear_solver.hpp src/hls_pso.cpp src/hls_nonlinear_solver.cpp; do
++        # Pure addition: no line of the ARC source may be removed or changed.
++        if diff "$arc/$f" "$bic_src/$f" | grep -q '^<'; then
++            echo "$bic_src/$f changes existing lines of source/$f" >&2; exit 1
++        fi
++        cp "$bic_src/$f" "$root/$f"
++    done
++    cp "$bic_src/include/models/hls_bicycle.hpp" "$root/include/models/hls_bicycle.hpp"
++    cp "$bic_src/src/main_hls_bicycle_test.cpp" "$root/src/main_hls_bicycle_test.cpp"
++    ( cd "$bic_src" && sha256sum include/config.hpp include/hls_model.hpp include/hls_system.hpp include/hls_pso.hpp \
++        include/hls_nonlinear_solver.hpp src/hls_pso.cpp src/hls_nonlinear_solver.cpp include/models/hls_bicycle.hpp \
++        src/main_hls_bicycle_test.cpp ) > "$root/OVERLAY.sha256"
++    echo "$bic_src" > "$root/OVERLAY.from"
++    src="$root/include"
++    out="$here/gen/bic_include"; mfile="$src/models/hls_bicycle.hpp"; guard=HLS_BICYCLE_HPP ;;
+ *) echo "unknown PROTO_MODEL=$model" >&2; exit 2 ;;
+ esac
+ 
+diff --git a/hw/hls/proto_arc/run_eval_csim.sh b/hw/hls/proto_arc/run_eval_csim.sh
+index 7eb85e5..7a0cca9 100755
+--- a/hw/hls/proto_arc/run_eval_csim.sh
++++ b/hw/hls/proto_arc/run_eval_csim.sh
+@@ -8,20 +8,26 @@ here="$(cd "$(dirname "$0")" && pwd)"
+ S="$1"; II="${2:-8}"; TRIALS="${3:-10}"
+ XILINX="${XILINX:-/tools/Xilinx/2025.2}"
+ # PROTO_MODEL=unicycle: the UNICYCLE_CONFIG header sets and binaries (prefix uni_).
++# PROTO_MODEL=bicycle: BICYCLE_CONFIG (prefix bic_) with the switches in PROTO_RD (default -DPSO_RD_ALL); the
++# reference evaluator is built from the overlaid sources gen/bic_src/src (gen_headers.sh).
+ model="${PROTO_MODEL:-sniffbot}"
++srcdir="$here/../source/src"
++rd=()
+ case "$model" in sniffbot) P=""; def=SNIFFBOT_CONFIG ;; unicycle) P="uni_"; def=UNICYCLE_CONFIG ;;
++    bicycle) P="bic_"; def=BICYCLE_CONFIG; srcdir="$here/gen/bic_src/src"; read -r -a rd <<< "${PROTO_RD:--DPSO_RD_ALL}" ;;
+     *) echo "unknown PROTO_MODEL=$model" >&2; exit 2 ;; esac
+ PROTO_MODEL="$model" "$here/gen_eval_headers.sh" "$S" >/dev/null
+ inc="$here/gen/${P}S$S/include"
+ mkdir -p "$here/build"
+ flags=(-std=c++11 -O0 -w -D__VITIS__ -DPSO_CONFIG -D"$def" -DHW_ARITH_CSIM -DUSE_FAST_SIN_COS
+-       -DHW_MODEL_HALF_CSIM -DPROTO_II="$II" -I"$here" -I"$inc" -I"$inc/models" -I"$XILINX/Vitis/include")
++       -DHW_MODEL_HALF_CSIM -DPROTO_II="$II" -I"$here" -I"$inc" -I"$inc/models" -I"$XILINX/Vitis/include"
++       ${rd[@]+"${rd[@]}"})
+ libs=(-L"$XILINX/lnx64/tools/fpo_v7_1" -lIp_floating_point_v7_1_bitacc_cmodel -Wl,--disable-new-dtags
+       -Wl,-rpath,"$XILINX/lnx64/tools/fpo_v7_1")
+-common=("$here/tb_eval.cpp" "$here/../source/src/aux_functions.cpp")
++common=("$here/tb_eval.cpp" "$srcdir/aux_functions.cpp")
+ g++ "${flags[@]}" -o "$here/build/${P}eval_new_S$S" "${common[@]}" "$here/eval_multi.cpp" "${libs[@]}" &
+-g++ "${flags[@]}" -o "$here/build/${P}eval_ref_S$S" "${common[@]}" "$here/../source/src/hls_pso.cpp" \
+-    "$here/../source/src/hls_nonlinear_solver.cpp" "${libs[@]}" &
++g++ "${flags[@]}" -o "$here/build/${P}eval_ref_S$S" "${common[@]}" "$srcdir/hls_pso.cpp" \
++    "$srcdir/hls_nonlinear_solver.cpp" "${libs[@]}" &
+ wait
+ "$here/build/${P}eval_new_S$S" "$TRIALS" "$here/build/${P}eval_new_S$S.dump" &
+ "$here/build/${P}eval_ref_S$S" "$TRIALS" "$here/build/${P}eval_ref_S$S.dump" &
+diff --git a/hw/hls/proto_arc/tb_eval.cpp b/hw/hls/proto_arc/tb_eval.cpp
+index d9ebb45..58e5e48 100644
+--- a/hw/hls/proto_arc/tb_eval.cpp
++++ b/hw/hls/proto_arc/tb_eval.cpp
+@@ -31,8 +31,8 @@ static double tiny(void) {
+     return (std::rand() & 1) ? mag : -mag;
+ }
+ 
+-#ifdef UNICYCLE_CONFIG
+-// Unicycle [x, y, psi]: random pose (psi over the full circle, so the reference psi = psi +- drift
++#if defined(UNICYCLE_CONFIG) || defined(BICYCLE_CONFIG)
++// Unicycle or bicycle [x, y, psi]: random pose (psi over the full circle, so the reference psi = psi +- drift
+ // below also crosses +-pi and exercises the wrapped residual), exact zero (the host's local frame),
+ // or tiny values.
+ static void make_state(top_t *x, int cls) {
+@@ -77,6 +77,26 @@ static void make_controls(top_t *u, int cls) {
+     }
+ }
+ 
++#ifdef PSO_RD_ANY
++// PSO redesign inputs (BICYCLE_CONFIG with -DPSO_RD_*): u_curr in the box, and rd_aux with no extra start
++// (R1 does not reach the evaluator), a random reference control in the box and the (cos, sin) of random
++// headings over the full circle. Drawn once per trial, after the state and the reference.
++static top_t tb_u_curr[_pso_n_U], tb_aux[_RD_AUX_LEN];
++static void make_rd_inputs(void) {
++    for (int j = 0; j < _pso_n_U; j++) tb_u_curr[j] = uniform(-100, 100);
++    for (int k = 0; k < _RD_AUX_LEN; k++) tb_aux[k] = 0;
++    for (int k = 0; k < _pso_Nh * _pso_n_U; k++) tb_aux[_RD_AUX_UREF + k] = uniform(-100, 100);
++    for (int i = 0; i < _pso_Nh; i++) {
++        const double th = uniform(-3.2, 3.2);
++        tb_aux[_RD_AUX_CS + 2 * i] = std::cos(th);
++        tb_aux[_RD_AUX_CS + 2 * i + 1] = std::sin(th);
++    }
++}
++#define TB_RD_ARGS , tb_u_curr, tb_aux
++#else
++#define TB_RD_ARGS
++#endif
++
+ int main(int argc, char **argv) {
+     const int trials = (argc > 1) ? std::atoi(argv[1]) : 10;
+     FILE *dump = (argc > 2) ? std::fopen(argv[2], "w") : NULL;
+@@ -128,7 +148,10 @@ int main(int argc, char **argv) {
+             // Expected decision with the C costs: J(controls of q) = J0[q].
+             if (j0[q] < j0[p]) updates++; else retains++;
+         }
+-        evaluateFitnessAndDetectLocalBest(local_x, local_y, x_curr, xref, local_find);
++#ifdef PSO_RD_ANY
++        make_rd_inputs();
++#endif
++        evaluateFitnessAndDetectLocalBest(local_x, local_y, x_curr, xref, local_find TB_RD_ARGS);
+         int changed = 0;
+         for (int p = 0; p < TB_S; p++) if (local_find[p] != j0[p]) changed++;
+         if (dump) {
+@@ -153,6 +176,9 @@ int main(int argc, char **argv) {
+                 xref[i * TB_NX + j] = r;
+             }
+         for (int k = 0; k < TB_S * TB_PART; k++) local_y[k] = 0;
++#ifdef PSO_RD_ANY
++        make_rd_inputs();
++#endif
+ 
+         for (int call = 0; call < calls; call++) {
+             if (call != 1)
+@@ -162,7 +188,7 @@ int main(int argc, char **argv) {
+             top_t before[TB_S];
+             for (int p = 0; p < TB_S; p++) before[p] = local_find[p];
+ 
+-            evaluateFitnessAndDetectLocalBest(local_x, local_y, x_curr, xref, local_find);
++            evaluateFitnessAndDetectLocalBest(local_x, local_y, x_curr, xref, local_find TB_RD_ARGS);
+ 
+             for (int p = 0; p < TB_S; p++) {
+                 evaluated++;
