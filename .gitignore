@@ -40,7 +40,9 @@ app/kria-pynq/overlay/
 app/kria-pynq/overlay-*/
 app/kria-pynq/packaged_*/
 app/kria-pynq/validation_logs/
-hw/exported_platform/
-hw/hdl/*_def_val.txt
-hw/hdl/*_dump.txt
+**/hw/exported_platform/
+**/hw/hdl/*_def_val.txt
+**/hw/hdl/*_dump.txt
 *.pdf
+**/*.summary
+**/*.json
