@@ -25,16 +25,17 @@
   <rect x="56" y="154" width="1488" height="352" rx="4" class="muted"/>
 
   <!-- Host / processor -->
-  <rect x="86" y="193" width="254" height="248" rx="4" class="blue"/>
-  <rect x="86" y="193" width="254" height="35" fill="#111"/>
+  <rect x="86" y="193" width="260" height="248" rx="4" class="blue"/>
+  <rect x="86" y="193" width="260" height="35" fill="#111"/>
   <text x="213" y="217" class="white" text-anchor="middle">Processing system / host</text>
   <!-- processor glyph -->
   <rect x="112" y="256" width="70" height="70" rx="3" fill="#fff" stroke="#111" stroke-width="2"/>
   <rect x="126" y="270" width="42" height="42" fill="#c9ddec" stroke="#111" stroke-width="1.6"/>
-  <g class="thin"><path d="M103 272h9M103 291h9M103 310h9M192 272h9M182 291h9M182 310h9 M182"/><path d="M128 246v10M144 246v10M160 246v10M128 326v10M144 326v10M160 326v10"/></g>
+  <g class="thin"><path d="M103 272h9M103 291h9M103 310h9M182 272h9M182 291h9M182 310h9 M182"/><path d="M128 246v10M150 246v10M170 246v10M128 326v10M150 326v10M170 326v10"/></g>
   <text x="207" y="268" class="label">PYNQ control app</text>
-  <text x="207" y="291" class="tiny">sample state; build reference</text>
-  <text x="207" y="309" class="tiny">launch solver; apply first input</text>
+  <text x="207" y="291" class="tiny">sample; build;</text>
+  <text x="207" y="309" class="tiny">launch solver;</text>
+  <text x="207" y="327" class="tiny">apply first input;</text>
   <rect x="112" y="360" width="196" height="47" rx="3" class="yellow"/>
   <text x="210" y="381" class="label" text-anchor="middle">receding horizon</text>
   <text x="210" y="399" class="small" text-anchor="middle">retain and shift u*</text>
