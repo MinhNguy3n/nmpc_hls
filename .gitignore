@@ -41,3 +41,5 @@ hw/exported_platform/
 hw/hdl/*_def_val.txt
 hw/hdl/*_dump.txt
 *.pdf
+# Paper sources stay local (double-blind review)
+paper/
