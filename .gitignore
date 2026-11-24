@@ -46,3 +46,8 @@ app/kria-pynq/validation_logs/
 *.pdf
 **/*.summary
 **/*.json
+
+# Agent chat handoffs stay local; notes already tracked under .copilot/chats stay in the tree
+.copilot/chats/
+# Claude Code session state and agent worktrees
+.claude/
