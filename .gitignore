@@ -51,3 +51,6 @@ app/kria-pynq/validation_logs/
 .copilot/chats/
 # Claude Code session state and agent worktrees
 .claude/
+
+# Paper sources stay local (double-blind review)
+paper/
